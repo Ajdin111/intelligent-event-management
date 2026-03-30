@@ -1,0 +1,16 @@
+{
+    "sqltools.connections": [
+        {
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 5432,
+            "askForPassword": true,
+            "driver": "PostgreSQL",
+            "name": "TeqEvent local",
+            "group": "PostgreSQL",
+            "database": "event_management",
+            "username": "postgres"
+        }
+    ]
+}
