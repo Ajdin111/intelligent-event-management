@@ -1,0 +1,77 @@
+.sidebar {
+  width: 220px;
+  min-width: 220px;
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+}
+
+.logo {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.logoText {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  color: var(--text-primary);
+}
+
+.logoText span {
+  color: var(--text-secondary);
+}
+
+.nav {
+  flex: 1;
+  padding: 12px 0;
+  overflow-y: auto;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  border-left: 2px solid transparent;
+  transition: background 0.12s, color 0.12s;
+}
+
+.navItem:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+.active {
+  color: var(--text-primary);
+  border-left-color: var(--text-primary);
+  background: var(--bg-card-hover);
+}
+
+.footer {
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.roleBadge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-btn);
+  padding: 7px 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.chevron {
+  font-size: 10px;
+  color: var(--text-muted);
+}

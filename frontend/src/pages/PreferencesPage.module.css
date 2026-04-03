@@ -1,0 +1,111 @@
+.page { display: flex; flex-direction: column; flex: 1; }
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 28px 24px;
+  max-width: 640px;
+}
+
+.heading {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+  margin-bottom: 6px;
+}
+
+.subheading {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  margin-bottom: 32px;
+}
+
+.section { margin-bottom: 28px; }
+
+.sectionTitle {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+.card {
+  background: #1e2428;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 14px 16px;
+}
+
+.rowInfo { display: flex; flex-direction: column; gap: 3px; }
+
+.rowLabel { font-size: 13.5px; font-weight: 500; }
+
+.rowDesc { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+
+.divider { height: 1px; background: var(--border); margin: 0 16px; }
+
+/* Toggle */
+.toggleOn,
+.toggleOff {
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.toggleOn  { background: #ffffff; justify-content: flex-end; }
+.toggleOff { background: var(--border-hover); justify-content: flex-start; }
+
+.toggleThumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgb(26, 31, 34);
+  flex-shrink: 0;
+}
+
+.toggleOff .toggleThumb { background: var(--text-muted); }
+
+/* Save */
+.saveRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.saveBtn {
+  padding: 8px 20px;
+  background: #ffffff;
+  color: rgb(26, 31, 34);
+  border: none;
+  border-radius: var(--radius-btn);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.saveBtn:hover { opacity: 0.88; }
+
+.savedMsg {
+  font-size: 12.5px;
+  color: #4ade80;
+}
