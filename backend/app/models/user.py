@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, DateTime, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, Integer, String, Text, func, ForeignKey
 from sqlalchemy.orm import mapped_column, relationship
 from app.db.base import Base
 
@@ -27,7 +27,7 @@ class UserRole(Base):
     __tablename__ = "user_roles"
 
     id = mapped_column(Integer, primary_key=True)
-    user_id = mapped_column(Integer, nullable=False)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     role = mapped_column(String(50), nullable=False)
     # roles: 'attendee', 'organizer'
     assigned_at = mapped_column(DateTime, server_default=func.now())
