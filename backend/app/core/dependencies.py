@@ -1,8 +1,8 @@
-from typing import Generator
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-
+from typing import Generator, Optional
 from app.db.session import SessionLocal
 from app.core.security import decode_access_token
 from app.models.user import User, UserRole
@@ -76,3 +76,21 @@ def require_admin(
         )
 
     return current_user
+def get_optional_user(
+    db: Session = Depends(get_db),
+    token: Optional[str] = Depends(oauth2_scheme)
+) -> Optional[User]:
+    if token is None:
+        return None
+    payload = decode_access_token(token)
+    if payload is None:
+        return None
+    user_id = payload.get("sub")
+    if user_id is None:
+        return None
+    user = db.query(User).filter(
+        User.id == int(user_id),
+        User.deleted_at.is_(None),
+        User.is_active.is_(True)
+    ).first()
+    return user
