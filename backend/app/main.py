@@ -5,6 +5,9 @@ from app.core.config import settings
 from app.api.auth import router as auth_router
 from app.api.event import router as events_router
 from app.api.categories import router as categories_router
+from app.api.agenda import router as agenda_router
+from app.api.ticket import router as ticket_router
+from app.api.registration import router as registration_router
 
 app = FastAPI(
     title="Intelligent Event Management System",
@@ -25,6 +28,9 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(events_router)
 app.include_router(categories_router)
+app.include_router(agenda_router)
+app.include_router(ticket_router)
+app.include_router(registration_router)
 
 
 def custom_openapi():

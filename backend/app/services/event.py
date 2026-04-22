@@ -6,6 +6,13 @@ from app.models.user import User
 from app.models.event import Event, EventCollaborator, EventCategory, Category
 from app.schemas.event import EventCreateRequest, EventUpdateRequest
 
+
+def _normalize_dt(dt: datetime) -> datetime:
+    if dt is None:
+        return None
+    return dt.replace(tzinfo=None)
+
+
 def _get_category_ids(db: Session, event_id: int) -> list[int]:
     categories = db.query(EventCategory).filter(
         EventCategory.event_id == event_id
@@ -14,7 +21,7 @@ def _get_category_ids(db: Session, event_id: int) -> list[int]:
 
 def create_event(db: Session, data: EventCreateRequest, current_user: User) -> Event:
     # validate dates
-    if data.end_datetime <= data.start_datetime:
+    if _normalize_dt(data.end_datetime) <= _normalize_dt(data.start_datetime):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="End datetime must be after start datetime"
@@ -139,7 +146,7 @@ def update_event(
     final_start = data.start_datetime or event.start_datetime
     final_end = data.end_datetime or event.end_datetime
 
-    if final_end <= final_start:
+    if _normalize_dt(final_end) <= _normalize_dt(final_start):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="End datetime must be after start datetime"
@@ -207,7 +214,7 @@ def delete_event(db: Session, event_id: int, current_user: User) -> None:
             detail="Only the event owner can delete this event"
         )
 
-    event.deleted_at = datetime.utcnow()
+    event.deleted_at = datetime.now()
     db.commit()
 
 
