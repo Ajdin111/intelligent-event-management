@@ -207,7 +207,7 @@ def delete_event(db: Session, event_id: int, current_user: User) -> None:
             detail="Only the event owner can delete this event"
         )
 
-    event.deleted_at = datetime.utcnow()
+    event.deleted_at = datetime.now()
     db.commit()
 
 
