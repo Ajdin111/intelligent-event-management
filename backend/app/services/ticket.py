@@ -13,6 +13,12 @@ from app.schemas.ticket import (
 )
 
 
+def _normalize_dt(dt: datetime) -> datetime:
+    if dt is None:
+        return None
+    return dt.replace(tzinfo=None)
+
+
 # helpers
 
 def _get_event_or_404(db: Session, event_id: int) -> Event:
@@ -53,7 +59,7 @@ def create_ticket_tier(
     _check_event_permission(db, event, current_user)
 
     # validate sale period
-    if data.sale_end <= data.sale_start:
+    if _normalize_dt(data.sale_end) <= _normalize_dt(data.sale_start):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Sale end must be after sale start"
@@ -211,7 +217,7 @@ def create_promo_code(
         )
 
     # validate dates
-    if data.valid_until <= data.valid_from:
+    if _normalize_dt(data.valid_until) <= _normalize_dt(data.valid_from):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Valid until must be after valid from"
@@ -259,7 +265,7 @@ def _check_promo_validity(promo: PromoCode) -> bool:
     return (
         promo.is_active and
         promo.uses_count < promo.max_uses and
-        promo.valid_from <= now <= promo.valid_until
+        _normalize_dt(promo.valid_from) <= now <= _normalize_dt(promo.valid_until)
     )
 
 

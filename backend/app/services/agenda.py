@@ -14,6 +14,12 @@ from app.schemas.agenda import (
 )
 
 
+def _normalize_dt(dt: datetime) -> datetime:
+    if dt is None:
+        return None
+    return dt.replace(tzinfo=None)
+
+
 # helpers
 
 def _get_event_or_404(db: Session, event_id: int) -> Event:
@@ -188,14 +194,14 @@ def create_session(
     _check_event_permission(db, event, current_user)
 
     # validate session times
-    if data.end_time <= data.start_time:
+    if _normalize_dt(data.end_time) <= _normalize_dt(data.start_time):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Session end time must be after start time"
         )
 
     # validate session is within event timeframe
-    if data.start_time < event.start_datetime or data.end_time > event.end_datetime:
+    if _normalize_dt(data.start_time) < _normalize_dt(event.start_datetime) or _normalize_dt(data.end_time) > _normalize_dt(event.end_datetime):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Session times must be within event start and end datetime"
@@ -285,13 +291,13 @@ def update_session(
     final_start = data.start_time or session.start_time
     final_end = data.end_time or session.end_time
 
-    if final_end <= final_start:
+    if _normalize_dt(final_end) <= _normalize_dt(final_start):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Session end time must be after start time"
         )
 
-    if final_start < event.start_datetime or final_end > event.end_datetime:
+    if _normalize_dt(final_start) < _normalize_dt(event.start_datetime) or _normalize_dt(final_end) > _normalize_dt(event.end_datetime):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Session times must be within event start and end datetime"
