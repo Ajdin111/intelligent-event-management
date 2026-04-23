@@ -5,6 +5,8 @@ from fastapi import HTTPException, status
 from app.models.user import User
 from app.models.event import Event, EventCollaborator, EventCategory, Category
 from app.schemas.event import EventCreateRequest, EventUpdateRequest
+from app.tasks.analytics import compute_event_analytics
+from app.tasks.email import send_feedback_request
 
 
 def _normalize_dt(dt: datetime) -> datetime:
@@ -274,4 +276,8 @@ def cancel_event(db: Session, event_id: int, current_user: User) -> Event:
     event.status = "cancelled"
     db.commit()
     db.refresh(event)
+
+    compute_event_analytics.delay(event.id)
+    send_feedback_request.delay(event.id)
+
     return event

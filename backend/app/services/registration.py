@@ -1,11 +1,9 @@
 import uuid
-import qrcode
-import io
-import base64
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
-
+from app.tasks.email import send_registration_confirmation
+from app.tasks.notifications import create_in_app_notification
 from app.models.user import User
 from app.models.event import Event
 from app.models.ticket import TicketTier, Ticket, PromoCode
@@ -73,7 +71,7 @@ def _apply_promo_code(
     promo = db.query(PromoCode).filter(
         PromoCode.event_id == event_id,
         PromoCode.code == promo_code.upper(),
-        PromoCode.is_active == True
+        PromoCode.is_active == True  # noqa: E712
     ).first()
 
     if not promo:
@@ -134,7 +132,7 @@ def create_registration(
         ticket_tier = db.query(TicketTier).filter(
             TicketTier.id == data.ticket_tier_id,
             TicketTier.event_id == data.event_id,
-            TicketTier.is_active == True
+            TicketTier.is_active == True  # noqa: E712
         ).first()
         if not ticket_tier:
             raise HTTPException(
@@ -190,7 +188,6 @@ def create_registration(
     db.add(registration)
     db.flush()
 
-    # if confirmed — generate tickets and update quantity sold
     if reg_status == "confirmed":
         _generate_tickets(db, registration, ticket_tier, current_user)
         if ticket_tier:
@@ -198,6 +195,18 @@ def create_registration(
 
     db.commit()
     db.refresh(registration)
+
+    if reg_status == "confirmed":
+        from app.tasks.email import send_registration_confirmation
+        from app.tasks.notifications import create_in_app_notification
+        send_registration_confirmation.delay(registration.id)
+        create_in_app_notification.delay(
+            user_id=current_user.id,
+            title="Registration confirmed",
+            message=f"You're registered for {event.title}",
+            notification_type="registration_confirmation",
+        )
+
     return registration
 
 
@@ -367,6 +376,9 @@ def _process_waitlist(db: Session, event_id: int) -> None:
         next_in_line.confirmation_deadline = datetime.now() + timedelta(hours=24)
         db.commit()
 
+        from app.tasks.notifications import notify_waitlist_user
+        notify_waitlist_user.delay(next_in_line.id)
+
 
 def get_event_registrations(
     db: Session,
@@ -446,6 +458,15 @@ def approve_registration(
 
     db.commit()
     db.refresh(registration)
+
+    send_registration_confirmation.delay(registration.id)
+    create_in_app_notification.delay(
+        user_id=registration.user_id,
+        title="Registration approved",
+        message="Your registration has been approved",
+        notification_type="approval",
+    )
+
     return registration
 
 
