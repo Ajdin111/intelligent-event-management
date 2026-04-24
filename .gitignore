@@ -32,3 +32,5 @@ Thumbs.db
 
 celerybeat-schedule
 celerybeat.pid
+
+CLAUDE.md
