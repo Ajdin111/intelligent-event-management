@@ -8,6 +8,7 @@ from app.api.categories import router as categories_router
 from app.api.agenda import router as agenda_router
 from app.api.ticket import router as ticket_router
 from app.api.registration import router as registration_router
+from app.api.checkin import router as checkin_router
 
 app = FastAPI(
     title="Intelligent Event Management System",
@@ -31,6 +32,7 @@ app.include_router(categories_router)
 app.include_router(agenda_router)
 app.include_router(ticket_router)
 app.include_router(registration_router)
+app.include_router(checkin_router)
 
 
 def custom_openapi():
