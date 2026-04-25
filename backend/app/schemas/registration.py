@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional, Literal
 
 
@@ -19,7 +20,7 @@ class RegistrationResponse(BaseModel):
     ticket_tier_id: Optional[int] = None
     promo_code_id: Optional[int] = None
     quantity: int
-    total_amount: float
+    total_amount: Decimal
     status: str
     registered_at: datetime
     cancelled_at: Optional[datetime] = None

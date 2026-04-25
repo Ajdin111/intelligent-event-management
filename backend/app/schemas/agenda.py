@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
+from app.schemas.utils import NaiveDatetime
 
 
 # ─── Track Schemas ───────────────────────────────────────
@@ -40,8 +41,8 @@ class SessionCreateRequest(BaseModel):
     description: Optional[str] = None
     speaker_name: Optional[str] = None
     speaker_bio: Optional[str] = None
-    start_time: datetime
-    end_time: datetime
+    start_datetime: NaiveDatetime
+    end_datetime: NaiveDatetime
     capacity: Optional[int] = None
     requires_registration: bool = False
     location: Optional[str] = None
@@ -53,8 +54,8 @@ class SessionUpdateRequest(BaseModel):
     description: Optional[str] = None
     speaker_name: Optional[str] = None
     speaker_bio: Optional[str] = None
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
+    start_datetime: Optional[NaiveDatetime] = None
+    end_datetime: Optional[NaiveDatetime] = None
     capacity: Optional[int] = None
     requires_registration: Optional[bool] = None
     location: Optional[str] = None
@@ -69,8 +70,8 @@ class SessionResponse(BaseModel):
     description: Optional[str] = None
     speaker_name: Optional[str] = None
     speaker_bio: Optional[str] = None
-    start_time: datetime
-    end_time: datetime
+    start_datetime: datetime
+    end_datetime: datetime
     capacity: Optional[int] = None
     requires_registration: bool
     location: Optional[str] = None

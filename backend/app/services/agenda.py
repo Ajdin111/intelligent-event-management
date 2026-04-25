@@ -1,104 +1,59 @@
 from datetime import datetime
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 
 from app.models.user import User
-from app.models.event import Event, EventCollaborator
-from app.models.agenda import Track, Session as SessionModel, SessionRegistration
+from app.models.agenda import Track, AgendaSession, SessionRegistration
 from app.models.registration import Registration
 from app.schemas.agenda import (
     TrackCreateRequest,
     TrackUpdateRequest,
     SessionCreateRequest,
-    SessionUpdateRequest
+    SessionUpdateRequest,
 )
+from app.core.exceptions import NotFoundError, BadRequestError
+from app.services.common import get_event_or_404, check_event_permission
 
 
-def _normalize_dt(dt: datetime) -> datetime:
-    if dt is None:
-        return None
-    return dt.replace(tzinfo=None)
-
-
-# helpers
-
-def _get_event_or_404(db: Session, event_id: int) -> Event:
-    event = db.query(Event).filter(
-        Event.id == event_id,
-        Event.deleted_at.is_(None)
-    ).first()
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Event not found"
-        )
-    return event
-
-
-def _check_event_permission(db: Session, event: Event, current_user: User) -> None:
-    is_owner = event.owner_id == current_user.id
-    is_collaborator = db.query(EventCollaborator).filter(
-        EventCollaborator.event_id == event.id,
-        EventCollaborator.user_id == current_user.id
-    ).first()
-    if not is_owner and not is_collaborator:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to manage this event agenda"
-        )
+def _get_session_count(db: Session, track_id: int) -> int:
+    return db.query(AgendaSession).filter(
+        AgendaSession.track_id == track_id,
+        AgendaSession.deleted_at.is_(None),
+    ).count()
 
 
 def _check_session_conflicts(
     db: Session,
     track_id: int,
-    start_time: datetime,
-    end_time: datetime,
-    exclude_session_id: int = None
+    start_datetime: datetime,
+    end_datetime: datetime,
+    exclude_session_id: int = None,
 ) -> bool:
-    query = db.query(SessionModel).filter(
-        SessionModel.track_id == track_id,
-        SessionModel.start_time < end_time,
-        SessionModel.end_time > start_time
+    query = db.query(AgendaSession).filter(
+        AgendaSession.track_id == track_id,
+        AgendaSession.deleted_at.is_(None),
+        AgendaSession.start_datetime < end_datetime,
+        AgendaSession.end_datetime > start_datetime,
     )
     if exclude_session_id:
-        query = query.filter(SessionModel.id != exclude_session_id)
+        query = query.filter(AgendaSession.id != exclude_session_id)
     return query.first() is not None
 
 
-def _get_session_count(db: Session, track_id: int) -> int:
-    return db.query(SessionModel).filter(
-        SessionModel.track_id == track_id
-    ).count()
+# track services
 
+def create_track(db: Session, event_id: int, data: TrackCreateRequest, current_user: User) -> Track:
+    event = get_event_or_404(db, event_id)
+    check_event_permission(db, event, current_user)
 
-#track services
-
-def create_track(
-    db: Session,
-    event_id: int,
-    data: TrackCreateRequest,
-    current_user: User
-) -> Track:
-    event = _get_event_or_404(db, event_id)
-    _check_event_permission(db, event, current_user)
-
-    # check track name is unique within event
-    existing = db.query(Track).filter(
-        Track.event_id == event_id,
-        Track.name == data.name
-    ).first()
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A track with this name already exists for this event"
-        )
+    if db.query(Track).filter(Track.event_id == event_id, Track.name == data.name, Track.deleted_at.is_(None)).first():
+        raise BadRequestError("A track with this name already exists for this event")
 
     track = Track(
         event_id=event_id,
         name=data.name,
         description=data.description,
         color=data.color,
-        order_index=data.order_index
+        order_index=data.order_index,
     )
     db.add(track)
     db.commit()
@@ -108,44 +63,38 @@ def create_track(
 
 
 def get_tracks(db: Session, event_id: int) -> list[Track]:
-    _get_event_or_404(db, event_id)
+    get_event_or_404(db, event_id)
     tracks = db.query(Track).filter(
-        Track.event_id == event_id
+        Track.event_id == event_id,
+        Track.deleted_at.is_(None),
     ).order_by(Track.order_index).all()
 
-    for track in tracks:
-        track.session_count = _get_session_count(db, track.id)
+    if tracks:
+        track_ids = [t.id for t in tracks]
+        from sqlalchemy import func
+        counts = dict(
+            db.query(AgendaSession.track_id, func.count(AgendaSession.id))
+            .filter(AgendaSession.track_id.in_(track_ids), AgendaSession.deleted_at.is_(None))
+            .group_by(AgendaSession.track_id)
+            .all()
+        )
+        for track in tracks:
+            track.session_count = counts.get(track.id, 0)
 
     return tracks
 
 
-def update_track(
-    db: Session,
-    track_id: int,
-    data: TrackUpdateRequest,
-    current_user: User
-) -> Track:
-    track = db.query(Track).filter(Track.id == track_id).first()
+def update_track(db: Session, track_id: int, data: TrackUpdateRequest, current_user: User) -> Track:
+    track = db.query(Track).filter(Track.id == track_id, Track.deleted_at.is_(None)).first()
     if not track:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Track not found"
-        )
+        raise NotFoundError("Track not found")
 
-    event = _get_event_or_404(db, track.event_id)
-    _check_event_permission(db, event, current_user)
+    event = get_event_or_404(db, track.event_id)
+    check_event_permission(db, event, current_user)
 
-    # check name uniqueness if name is being updated
     if data.name and data.name != track.name:
-        existing = db.query(Track).filter(
-            Track.event_id == track.event_id,
-            Track.name == data.name
-        ).first()
-        if existing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="A track with this name already exists for this event"
-            )
+        if db.query(Track).filter(Track.event_id == track.event_id, Track.name == data.name, Track.deleted_at.is_(None)).first():
+            raise BadRequestError("A track with this name already exists for this event")
 
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(track, field, value)
@@ -156,75 +105,49 @@ def update_track(
     return track
 
 
-def delete_track(
-    db: Session,
-    track_id: int,
-    current_user: User
-) -> None:
-    track = db.query(Track).filter(Track.id == track_id).first()
+def delete_track(db: Session, track_id: int, current_user: User) -> None:
+    track = db.query(Track).filter(Track.id == track_id, Track.deleted_at.is_(None)).first()
     if not track:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Track not found"
-        )
+        raise NotFoundError("Track not found")
 
-    event = _get_event_or_404(db, track.event_id)
-    _check_event_permission(db, event, current_user)
+    event = get_event_or_404(db, track.event_id)
+    check_event_permission(db, event, current_user)
 
-    db.delete(track)
+    track.deleted_at = datetime.now()
     db.commit()
 
 
-# session
+# session services
 
-def create_session(
-    db: Session,
-    track_id: int,
-    data: SessionCreateRequest,
-    current_user: User
-) -> SessionModel:
-    track = db.query(Track).filter(Track.id == track_id).first()
+def create_session(db: Session, track_id: int, data: SessionCreateRequest, current_user: User) -> AgendaSession:
+    track = db.query(Track).filter(Track.id == track_id, Track.deleted_at.is_(None)).first()
     if not track:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Track not found"
-        )
+        raise NotFoundError("Track not found")
 
-    event = _get_event_or_404(db, track.event_id)
-    _check_event_permission(db, event, current_user)
+    event = get_event_or_404(db, track.event_id)
+    check_event_permission(db, event, current_user)
 
-    # validate session times
-    if _normalize_dt(data.end_time) <= _normalize_dt(data.start_time):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Session end time must be after start time"
-        )
+    if data.end_datetime <= data.start_datetime:
+        raise BadRequestError("Session end time must be after start time")
 
-    # validate session is within event timeframe
-    if _normalize_dt(data.start_time) < _normalize_dt(event.start_datetime) or _normalize_dt(data.end_time) > _normalize_dt(event.end_datetime):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Session times must be within event start and end datetime"
-        )
+    if data.start_datetime < event.start_datetime or data.end_datetime > event.end_datetime:
+        raise BadRequestError("Session times must be within event start and end datetime")
 
-    # check for conflicts in same track
-    has_conflict = _check_session_conflicts(
-        db, track_id, data.start_time, data.end_time
-    )
+    has_conflict = _check_session_conflicts(db, track_id, data.start_datetime, data.end_datetime)
 
-    session = SessionModel(
+    session = AgendaSession(
         track_id=track_id,
         event_id=track.event_id,
         title=data.title,
         description=data.description,
         speaker_name=data.speaker_name,
         speaker_bio=data.speaker_bio,
-        start_time=data.start_time,
-        end_time=data.end_time,
+        start_datetime=data.start_datetime,
+        end_datetime=data.end_datetime,
         capacity=data.capacity,
         requires_registration=data.requires_registration,
         location=data.location,
-        order_index=data.order_index
+        order_index=data.order_index,
     )
     db.add(session)
     db.commit()
@@ -233,75 +156,57 @@ def create_session(
     return session
 
 
-def get_sessions_by_event(db: Session, event_id: int) -> list[SessionModel]:
-    _get_event_or_404(db, event_id)
-    sessions = db.query(SessionModel).filter(
-        SessionModel.event_id == event_id
-    ).order_by(SessionModel.start_time).all()
+def get_sessions_by_event(db: Session, event_id: int) -> list[AgendaSession]:
+    get_event_or_404(db, event_id)
+    sessions = db.query(AgendaSession).filter(
+        AgendaSession.event_id == event_id,
+        AgendaSession.deleted_at.is_(None),
+    ).order_by(AgendaSession.start_datetime).all()
 
     for session in sessions:
         session.has_conflict = _check_session_conflicts(
-            db, session.track_id,
-            session.start_time, session.end_time,
-            exclude_session_id=session.id
+            db, session.track_id, session.start_datetime, session.end_datetime,
+            exclude_session_id=session.id,
         )
 
     return sessions
 
 
-def get_sessions_by_track(db: Session, track_id: int) -> list[SessionModel]:
-    track = db.query(Track).filter(Track.id == track_id).first()
+def get_sessions_by_track(db: Session, track_id: int) -> list[AgendaSession]:
+    track = db.query(Track).filter(Track.id == track_id, Track.deleted_at.is_(None)).first()
     if not track:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Track not found"
-        )
+        raise NotFoundError("Track not found")
 
-    sessions = db.query(SessionModel).filter(
-        SessionModel.track_id == track_id
-    ).order_by(SessionModel.order_index).all()
+    sessions = db.query(AgendaSession).filter(
+        AgendaSession.track_id == track_id,
+        AgendaSession.deleted_at.is_(None),
+    ).order_by(AgendaSession.order_index).all()
 
     for session in sessions:
         session.has_conflict = _check_session_conflicts(
-            db, session.track_id,
-            session.start_time, session.end_time,
-            exclude_session_id=session.id
+            db, session.track_id, session.start_datetime, session.end_datetime,
+            exclude_session_id=session.id,
         )
 
     return sessions
 
 
-def update_session(
-    db: Session,
-    session_id: int,
-    data: SessionUpdateRequest,
-    current_user: User
-) -> SessionModel:
-    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+def update_session(db: Session, session_id: int, data: SessionUpdateRequest, current_user: User) -> AgendaSession:
+    session = db.query(AgendaSession).filter(AgendaSession.id == session_id, AgendaSession.deleted_at.is_(None)).first()
     if not session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found"
-        )
+        raise NotFoundError("Session not found")
 
-    event = _get_event_or_404(db, session.event_id)
-    _check_event_permission(db, event, current_user)
+    event = get_event_or_404(db, session.event_id)
+    check_event_permission(db, event, current_user)
 
-    # validate times if being updated
-    final_start = data.start_time or session.start_time
-    final_end = data.end_time or session.end_time
+    final_start = data.start_datetime or session.start_datetime
+    final_end = data.end_datetime or session.end_datetime
 
-    if _normalize_dt(final_end) <= _normalize_dt(final_start):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Session end time must be after start time"
-        )
+    if final_end <= final_start:
+        raise BadRequestError("Session end time must be after start time")
 
-    if _normalize_dt(final_start) < _normalize_dt(event.start_datetime) or _normalize_dt(final_end) > _normalize_dt(event.end_datetime):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Session times must be within event start and end datetime"
-        )
+    if final_start < event.start_datetime or final_end > event.end_datetime:
+        raise BadRequestError("Session times must be within event start and end datetime")
 
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(session, field, value)
@@ -310,139 +215,89 @@ def update_session(
     db.refresh(session)
 
     session.has_conflict = _check_session_conflicts(
-        db, session.track_id,
-        session.start_time, session.end_time,
-        exclude_session_id=session.id
+        db, session.track_id, session.start_datetime, session.end_datetime,
+        exclude_session_id=session.id,
     )
-
     return session
 
 
-def delete_session(
-    db: Session,
-    session_id: int,
-    current_user: User
-) -> None:
-    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+def delete_session(db: Session, session_id: int, current_user: User) -> None:
+    session = db.query(AgendaSession).filter(AgendaSession.id == session_id, AgendaSession.deleted_at.is_(None)).first()
     if not session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found"
-        )
+        raise NotFoundError("Session not found")
 
-    event = _get_event_or_404(db, session.event_id)
-    _check_event_permission(db, event, current_user)
+    event = get_event_or_404(db, session.event_id)
+    check_event_permission(db, event, current_user)
 
-    db.delete(session)
+    session.deleted_at = datetime.now()
     db.commit()
 
 
 # session registration
 
-def register_for_session(
-    db: Session,
-    session_id: int,
-    current_user: User
-) -> SessionRegistration:
-    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+def register_for_session(db: Session, session_id: int, current_user: User) -> SessionRegistration:
+    session = db.query(AgendaSession).filter(AgendaSession.id == session_id, AgendaSession.deleted_at.is_(None)).first()
     if not session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found"
-        )
+        raise NotFoundError("Session not found")
 
-    # check session requires registration
     if not session.requires_registration:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="This session does not require registration"
-        )
+        raise BadRequestError("This session does not require registration")
 
-    # check user is registered for the event
     event_registration = db.query(Registration).filter(
         Registration.event_id == session.event_id,
         Registration.user_id == current_user.id,
-        Registration.status == "confirmed"
+        Registration.status == "confirmed",
     ).first()
 
     if not event_registration:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You must be registered for the event to register for a session"
-        )
+        raise BadRequestError("You must be registered for the event to register for a session")
 
-    # check not already registered for this session
-    existing = db.query(SessionRegistration).filter(
+    if db.query(SessionRegistration).filter(
         SessionRegistration.session_id == session_id,
-        SessionRegistration.user_id == current_user.id
-    ).first()
+        SessionRegistration.user_id == current_user.id,
+    ).first():
+        raise BadRequestError("You are already registered for this session")
 
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You are already registered for this session"
-        )
-
-    # check capacity
     if session.capacity:
-        current_count = db.query(SessionRegistration).filter(
+        count = db.query(SessionRegistration).filter(
             SessionRegistration.session_id == session_id,
-            SessionRegistration.status == "confirmed"
+            SessionRegistration.status == "confirmed",
         ).count()
-        if current_count >= session.capacity:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Session is at full capacity"
-            )
+        if count >= session.capacity:
+            raise BadRequestError("Session is at full capacity")
 
-    session_registration = SessionRegistration(
+    reg = SessionRegistration(
         session_id=session_id,
         user_id=current_user.id,
         event_id=session.event_id,
         registration_id=event_registration.id,
-        status="confirmed"
+        status="confirmed",
     )
-    db.add(session_registration)
+    db.add(reg)
     db.commit()
-    db.refresh(session_registration)
-    return session_registration
+    db.refresh(reg)
+    return reg
 
 
-def cancel_session_registration(
-    db: Session,
-    session_id: int,
-    current_user: User
-) -> None:
-    session_registration = db.query(SessionRegistration).filter(
+def cancel_session_registration(db: Session, session_id: int, current_user: User) -> None:
+    reg = db.query(SessionRegistration).filter(
         SessionRegistration.session_id == session_id,
-        SessionRegistration.user_id == current_user.id
+        SessionRegistration.user_id == current_user.id,
     ).first()
 
-    if not session_registration:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session registration not found"
-        )
+    if not reg:
+        raise NotFoundError("Session registration not found")
 
-    session_registration.status = "cancelled"
+    reg.status = "cancelled"
     db.commit()
 
 
-def get_session_registrations(
-    db: Session,
-    session_id: int,
-    current_user: User
-) -> list[SessionRegistration]:
-    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+def get_session_registrations(db: Session, session_id: int, current_user: User) -> list[SessionRegistration]:
+    session = db.query(AgendaSession).filter(AgendaSession.id == session_id, AgendaSession.deleted_at.is_(None)).first()
     if not session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found"
-        )
+        raise NotFoundError("Session not found")
 
-    event = _get_event_or_404(db, session.event_id)
-    _check_event_permission(db, event, current_user)
+    event = get_event_or_404(db, session.event_id)
+    check_event_permission(db, event, current_user)
 
-    return db.query(SessionRegistration).filter(
-        SessionRegistration.session_id == session_id
-    ).all()
+    return db.query(SessionRegistration).filter(SessionRegistration.session_id == session_id).all()

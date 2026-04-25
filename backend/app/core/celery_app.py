@@ -21,23 +21,19 @@ celery_app.conf.update(
     task_track_started=True,
     task_acks_late=True,
     worker_prefetch_multiplier=1,
+    broker_connection_retry_on_startup=True,
     beat_schedule={
         "cleanup-expired-notifications": {
             "task": "app.tasks.notifications.cleanup_expired_notifications",
-            "schedule": 86400.0,  # every 24 hours
+            "schedule": 86400.0,
         },
-        "send-event-reminders-24h": {
+        "send-event-reminders": {
             "task": "app.tasks.email.send_upcoming_event_reminders",
-            "schedule": 3600.0,  # every hour, checks internally
+            "schedule": 3600.0,
         },
         "compute-platform-analytics-daily": {
-    "task": "app.tasks.analytics.compute_platform_analytics",
-    "schedule": 86400.0,
-},
+            "task": "app.tasks.analytics.compute_platform_analytics",
+            "schedule": 86400.0,
+        },
     },
-)
-celery_app.conf.update(
-    broker_connection_retry_on_startup=True,  # add this
-    task_serializer="json",
-    # ... rest of your config
 )

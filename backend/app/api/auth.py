@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db, get_current_user
+from app.core.limiter import limiter
 from app.models.user import User, UserRole
 from app.schemas.auth import RegisterRequest, LoginRequest, TokenResponse, UserResponse
 from app.services.auth import register_user, login_user
@@ -10,13 +11,14 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=UserResponse, status_code=201)
-def register(data: RegisterRequest, db: Session = Depends(get_db)):
-    user = register_user(db, data)
-    return user
+@limiter.limit("10/minute")
+def register(request: Request, data: RegisterRequest, db: Session = Depends(get_db)):
+    return register_user(db, data)
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(data: LoginRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, data: LoginRequest, db: Session = Depends(get_db)):
     token = login_user(db, data.email, data.password)
     return TokenResponse(access_token=token)
 
@@ -25,12 +27,12 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
 def me(current_user: User = Depends(get_current_user)):
     return current_user
 
+
 @router.post("/upgrade-to-organizer", response_model=UserResponse)
 def upgrade_to_organizer(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # check if already an organizer
     existing_role = db.query(UserRole).filter(
         UserRole.user_id == current_user.id,
         UserRole.role == "organizer"
@@ -42,12 +44,6 @@ def upgrade_to_organizer(
             detail="User is already an organizer"
         )
 
-    # add organizer role
-    role = UserRole(
-        user_id=current_user.id,
-        role="organizer"
-    )
-    db.add(role)
+    db.add(UserRole(user_id=current_user.id, role="organizer"))
     db.commit()
-
     return current_user
