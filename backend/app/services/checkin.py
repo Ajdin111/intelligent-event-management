@@ -1,93 +1,50 @@
 from datetime import datetime
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 
 from app.models.checkin import Checkin, OfflineCheckinQueue
 from app.models.ticket import Ticket
 from app.models.registration import Registration
 from app.models.event import Event, EventCollaborator
 from app.models.user import User
-from app.schemas.checkin import (
-    QRCheckinRequest,
-    ManualCheckinRequest,
-    OfflineSyncRequest,
-)
+from app.schemas.checkin import QRCheckinRequest, ManualCheckinRequest, OfflineSyncRequest
+from app.core.exceptions import NotFoundError, ForbiddenError, BadRequestError
+from app.services.common import get_event_or_404
 
 
 def _check_organizer_permission(db: Session, event_id: int, current_user: User) -> Event:
-    event = db.query(Event).filter(
-        Event.id == event_id,
-        Event.deleted_at.is_(None)
-    ).first()
-
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Event not found"
-        )
+    event = get_event_or_404(db, event_id)
 
     is_owner = event.owner_id == current_user.id
     is_collaborator = db.query(EventCollaborator).filter(
         EventCollaborator.event_id == event_id,
-        EventCollaborator.user_id == current_user.id
+        EventCollaborator.user_id == current_user.id,
     ).first()
 
     if not is_owner and not is_collaborator and not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to check in attendees for this event"
-        )
+        raise ForbiddenError("You do not have permission to check in attendees for this event")
 
     return event
 
 
-def qr_checkin(
-    db: Session,
-    data: QRCheckinRequest,
-    current_user: User
-) -> Checkin:
+def qr_checkin(db: Session, data: QRCheckinRequest, current_user: User) -> Checkin:
     _check_organizer_permission(db, data.event_id, current_user)
 
-    # find ticket by QR code
     ticket = db.query(Ticket).filter(
         Ticket.qr_code == data.qr_code,
-        Ticket.event_id == data.event_id
+        Ticket.event_id == data.event_id,
     ).first()
 
     if not ticket:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Ticket not found"
-        )
-
+        raise NotFoundError("Ticket not found")
     if not ticket.is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Ticket is no longer valid"
-        )
+        raise BadRequestError("Ticket is no longer valid")
 
-    # check not already checked in
-    existing = db.query(Checkin).filter(
-        Checkin.ticket_id == ticket.id,
-        Checkin.event_id == data.event_id
-    ).first()
+    if db.query(Checkin).filter(Checkin.ticket_id == ticket.id, Checkin.event_id == data.event_id).first():
+        raise BadRequestError("Attendee is already checked in")
 
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Attendee is already checked in"
-        )
-
-    # check registration is confirmed
-    registration = db.query(Registration).filter(
-        Registration.id == ticket.registration_id
-    ).first()
-
+    registration = db.query(Registration).filter(Registration.id == ticket.registration_id).first()
     if not registration or registration.status != "confirmed":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Registration is not confirmed"
-        )
+        raise BadRequestError("Registration is not confirmed")
 
     checkin = Checkin(
         registration_id=ticket.registration_id,
@@ -96,7 +53,7 @@ def qr_checkin(
         user_id=ticket.user_id,
         checked_in_by=current_user.id,
         checked_in_at=datetime.now(),
-        is_manual=False
+        is_manual=False,
     )
     db.add(checkin)
     db.commit()
@@ -104,53 +61,32 @@ def qr_checkin(
     return checkin
 
 
-def manual_checkin(
-    db: Session,
-    data: ManualCheckinRequest,
-    current_user: User
-) -> Checkin:
+def manual_checkin(db: Session, data: ManualCheckinRequest, current_user: User) -> Checkin:
     _check_organizer_permission(db, data.event_id, current_user)
 
     registration = db.query(Registration).filter(
         Registration.id == data.registration_id,
-        Registration.event_id == data.event_id
+        Registration.event_id == data.event_id,
     ).first()
 
     if not registration:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Registration not found"
-        )
-
+        raise NotFoundError("Registration not found")
     if registration.status != "confirmed":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Registration is not confirmed"
-        )
+        raise BadRequestError("Registration is not confirmed")
 
-    # check not already checked in
-    existing = db.query(Checkin).filter(
+    if db.query(Checkin).filter(
         Checkin.registration_id == data.registration_id,
-        Checkin.event_id == data.event_id
-    ).first()
+        Checkin.event_id == data.event_id,
+    ).first():
+        raise BadRequestError("Attendee is already checked in")
 
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Attendee is already checked in"
-        )
-
-    # get first valid ticket for this registration
     ticket = db.query(Ticket).filter(
         Ticket.registration_id == data.registration_id,
-        Ticket.is_valid is True
+        Ticket.is_valid == True,  # noqa: E712
     ).first()
 
     if not ticket:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No valid ticket found for this registration"
-        )
+        raise BadRequestError("No valid ticket found for this registration")
 
     checkin = Checkin(
         registration_id=data.registration_id,
@@ -159,7 +95,7 @@ def manual_checkin(
         user_id=registration.user_id,
         checked_in_by=current_user.id,
         checked_in_at=datetime.now(),
-        is_manual=True
+        is_manual=True,
     )
     db.add(checkin)
     db.commit()
@@ -170,34 +106,31 @@ def manual_checkin(
 def get_event_checkins(
     db: Session,
     event_id: int,
-    current_user: User
-) -> list[Checkin]:
+    current_user: User,
+    skip: int = 0,
+    limit: int = 100,
+):
     _check_organizer_permission(db, event_id, current_user)
 
-    return db.query(Checkin).filter(
-        Checkin.event_id == event_id
-    ).order_by(Checkin.checked_in_at.desc()).all()
+    from app.schemas.utils import PaginatedResponse
+    base = db.query(Checkin).filter(Checkin.event_id == event_id)
+    total = base.count()
+    items = base.order_by(Checkin.checked_in_at.desc()).offset(skip).limit(limit).all()
+    return PaginatedResponse(total=total, skip=skip, limit=limit, items=items)
 
 
-def get_checkin_stats(
-    db: Session,
-    event_id: int,
-    current_user: User
-) -> dict:
+def get_checkin_stats(db: Session, event_id: int, current_user: User) -> dict:
     _check_organizer_permission(db, event_id, current_user)
 
     total_registered = db.query(Registration).filter(
         Registration.event_id == event_id,
-        Registration.status == "confirmed"
+        Registration.status == "confirmed",
     ).count()
 
-    total_checked_in = db.query(Checkin).filter(
-        Checkin.event_id == event_id
-    ).count()
+    total_checked_in = db.query(Checkin).filter(Checkin.event_id == event_id).count()
 
     attendance_rate = (
-        round(total_checked_in / total_registered * 100, 1)
-        if total_registered > 0 else 0.0
+        round(total_checked_in / total_registered * 100, 1) if total_registered > 0 else 0.0
     )
 
     return {
@@ -205,15 +138,11 @@ def get_checkin_stats(
         "total_registered": total_registered,
         "total_checked_in": total_checked_in,
         "attendance_rate": attendance_rate,
-        "remaining": total_registered - total_checked_in
+        "remaining": total_registered - total_checked_in,
     }
 
 
-def sync_offline_checkins(
-    db: Session,
-    data: OfflineSyncRequest,
-    current_user: User
-) -> dict:
+def sync_offline_checkins(db: Session, data: OfflineSyncRequest, current_user: User) -> dict:
     synced = 0
     conflicts = 0
     details = []
@@ -221,16 +150,15 @@ def sync_offline_checkins(
     for item in data.items:
         ticket = db.query(Ticket).filter(
             Ticket.qr_code == item.qr_code,
-            Ticket.event_id == item.event_id
+            Ticket.event_id == item.event_id,
         ).first()
 
-        # find existing queue entry or create new one
         queue_entry = OfflineCheckinQueue(
             ticket_id=ticket.id if ticket else None,
             event_id=item.event_id,
             scanned_by=current_user.id,
             scanned_at=item.scanned_at,
-            status="pending"
+            status="pending",
         )
 
         conflict_reason = None
@@ -242,7 +170,7 @@ def sync_offline_checkins(
         else:
             existing_checkin = db.query(Checkin).filter(
                 Checkin.ticket_id == ticket.id,
-                Checkin.event_id == item.event_id
+                Checkin.event_id == item.event_id,
             ).first()
 
             if existing_checkin:
@@ -255,17 +183,15 @@ def sync_offline_checkins(
                 if not registration or registration.status != "confirmed":
                     conflict_reason = "Registration not confirmed"
                 else:
-                    # create the checkin
-                    checkin = Checkin(
+                    db.add(Checkin(
                         registration_id=ticket.registration_id,
                         ticket_id=ticket.id,
                         event_id=item.event_id,
                         user_id=ticket.user_id,
                         checked_in_by=current_user.id,
                         checked_in_at=item.scanned_at,
-                        is_manual=False
-                    )
-                    db.add(checkin)
+                        is_manual=False,
+                    ))
                     queue_entry.status = "synced"
                     queue_entry.synced_at = datetime.now()
                     synced += 1
@@ -274,25 +200,13 @@ def sync_offline_checkins(
             queue_entry.status = "conflict"
             queue_entry.conflict_reason = conflict_reason
             conflicts += 1
-            details.append({
-                "qr_code": item.qr_code,
-                "status": "conflict",
-                "reason": conflict_reason
-            })
+            details.append({"qr_code": item.qr_code, "status": "conflict", "reason": conflict_reason})
         else:
-            details.append({
-                "qr_code": item.qr_code,
-                "status": "synced"
-            })
+            details.append({"qr_code": item.qr_code, "status": "synced"})
 
         if ticket:
             queue_entry.ticket_id = ticket.id
             db.add(queue_entry)
 
     db.commit()
-
-    return {
-        "synced": synced,
-        "conflicts": conflicts,
-        "details": details
-    }
+    return {"synced": synced, "conflicts": conflicts, "details": details}

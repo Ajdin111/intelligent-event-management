@@ -69,12 +69,12 @@ def require_organizer(
 def require_admin(
     current_user: User = Depends(get_current_user)
 ) -> User:
+    # get_current_user already validates is_active and deleted_at
     if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin role required"
         )
-
     return current_user
 def get_optional_user(
     db: Session = Depends(get_db),

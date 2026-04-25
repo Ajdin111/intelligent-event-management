@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, Literal, List
+from app.schemas.utils import NaiveDatetime
 
 
 class EventCreateRequest(BaseModel):
@@ -9,8 +10,8 @@ class EventCreateRequest(BaseModel):
     location_type: Literal["physical", "online", "hybrid"]
     physical_address: Optional[str] = None
     online_link: Optional[str] = None
-    start_datetime: datetime
-    end_datetime: datetime
+    start_datetime: NaiveDatetime
+    end_datetime: NaiveDatetime
     capacity: Optional[int] = None
     registration_type: Literal["automatic", "manual", "invite_only"] = "automatic"
     requires_registration: bool = True
@@ -26,8 +27,8 @@ class EventUpdateRequest(BaseModel):
     location_type: Optional[Literal["physical", "online", "hybrid"]] = None
     physical_address: Optional[str] = None
     online_link: Optional[str] = None
-    start_datetime: Optional[datetime] = None
-    end_datetime: Optional[datetime] = None
+    start_datetime: Optional[NaiveDatetime] = None
+    end_datetime: Optional[NaiveDatetime] = None
     capacity: Optional[int] = None
     registration_type: Optional[Literal["automatic", "manual", "invite_only"]] = None
     requires_registration: Optional[bool] = None
