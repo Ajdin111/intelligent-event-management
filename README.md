@@ -308,11 +308,7 @@ We use Jira for sprint planning and task tracking:
 
 
 
-<<<<<<< HEAD
----
 
-=======
->>>>>>> badcf2cdb62744f26d843bb651de2162e20e9daf
 ## Common Issues
 
 **`uvicorn: command not found`**
