@@ -55,7 +55,7 @@ const IconLogout = () => (
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: <IconDashboard /> },
-  { to: '/events', label: 'Browse Events', icon: <IconSearch /> },
+  { to: '/events', label: 'Discover', icon: <IconSearch /> },
   { to: '/registrations', label: 'My Registrations', icon: <IconCalendar /> },
   { to: '/tickets', label: 'My Tickets', icon: <IconTicket /> },
   { to: '/feedback', label: 'Feedback', icon: <IconChat /> },
