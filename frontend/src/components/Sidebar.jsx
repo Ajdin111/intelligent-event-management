@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
@@ -53,6 +54,18 @@ const IconLogout = () => (
   </svg>
 )
 
+const IconChevronLeft = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M9 2L4 7l5 5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+const IconChevronRight = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M5 2l5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: <IconDashboard /> },
   { to: '/events', label: 'Discover', icon: <IconSearch /> },
@@ -65,6 +78,16 @@ const navItems = [
 export default function Sidebar() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const [collapsed, setCollapsed] = useState(
+    () => localStorage.getItem('sidebar-collapsed') === 'true'
+  )
+
+  const toggle = () => {
+    setCollapsed((prev) => {
+      localStorage.setItem('sidebar-collapsed', String(!prev))
+      return !prev
+    })
+  }
 
   const handleLogout = () => {
     logout()
@@ -72,9 +95,13 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${collapsed ? ' sidebar--collapsed' : ''}`}>
       <div className="sidebar-logo">
-        Teq<span>Event</span>
+        <span className="sidebar-logo-mark">T</span>
+        <span className="sidebar-logo-name">eqEvent</span>
+        <button className="sidebar-collapse-btn" onClick={toggle} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+          {collapsed ? <IconChevronRight /> : <IconChevronLeft />}
+        </button>
       </div>
 
       <nav className="sidebar-nav">
@@ -82,10 +109,11 @@ export default function Sidebar() {
           <NavLink
             key={item.to}
             to={item.to}
+            title={collapsed ? item.label : undefined}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
           >
-            {item.icon}
-            {item.label}
+            <span className="nav-icon">{item.icon}</span>
+            <span className="nav-label">{item.label}</span>
           </NavLink>
         ))}
       </nav>
