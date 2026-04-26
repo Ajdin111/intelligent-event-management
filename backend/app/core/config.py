@@ -22,10 +22,14 @@ class Settings(BaseSettings):
 
     # App
     APP_ENV: str = "development"
-    DEBUG: bool = True
+    DEBUG: bool = False
+
+    # CORS — override with comma-separated origins in .env:
+    # CORS_ORIGINS='["https://myapp.com","https://www.myapp.com"]'
+    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
 
     class Config:
-       env_file = "../.env"
+        env_file = "../.env"
 
 
 @lru_cache()

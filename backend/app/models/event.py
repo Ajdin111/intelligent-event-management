@@ -55,6 +55,7 @@ class Category(Base):
     id = mapped_column(Integer, primary_key=True)
     name = mapped_column(String(100), unique=True, nullable=False)
     description = mapped_column(Text, nullable=True)
+    deleted_at = mapped_column(DateTime, nullable=True)
     created_at = mapped_column(DateTime, server_default=func.now())
 
 
