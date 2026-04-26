@@ -2,15 +2,15 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from app.models.event import Category
-from app.core.exceptions import NotFoundError, BadRequestError, ConflictError
+from app.core.exceptions import NotFoundError, ConflictError
 
 
 def list_categories(db: Session) -> list[Category]:
-    return db.query(Category).filter(Category.deleted_at.is_(None)).all()
+    return db.query(Category).all()
 
 
 def create_category(db: Session, name: str, description: str | None) -> Category:
-    if db.query(Category).filter(Category.name == name, Category.deleted_at.is_(None)).first():
+    if db.query(Category).filter(Category.name == name).first():
         raise ConflictError("Category already exists")
 
     category = Category(name=name, description=description)
@@ -21,8 +21,8 @@ def create_category(db: Session, name: str, description: str | None) -> Category
 
 
 def delete_category(db: Session, category_id: int) -> None:
-    category = db.query(Category).filter(Category.id == category_id, Category.deleted_at.is_(None)).first()
+    category = db.query(Category).filter(Category.id == category_id).first()
     if not category:
         raise NotFoundError("Category not found")
-    category.deleted_at = datetime.now()
+    db.delete(category)
     db.commit()
