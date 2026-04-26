@@ -12,14 +12,15 @@ class Track(Base):
     description = mapped_column(Text, nullable=True)
     color = mapped_column(String(20), nullable=True)
     order_index = mapped_column(Integer, nullable=False, default=0)
+    deleted_at = mapped_column(DateTime, nullable=True)
     created_at = mapped_column(DateTime, server_default=func.now())
 
     # relationships
     event = relationship("Event")
-    sessions = relationship("Session", back_populates="track", cascade="all, delete-orphan")
+    sessions = relationship("AgendaSession", back_populates="track", cascade="all, delete-orphan")
 
 
-class Session(Base):
+class AgendaSession(Base):
     __tablename__ = "sessions"
 
     id = mapped_column(Integer, primary_key=True)
@@ -29,12 +30,13 @@ class Session(Base):
     description = mapped_column(Text, nullable=True)
     speaker_name = mapped_column(String(255), nullable=True)
     speaker_bio = mapped_column(Text, nullable=True)
-    start_time = mapped_column(DateTime, nullable=False)
-    end_time = mapped_column(DateTime, nullable=False)
+    start_datetime = mapped_column(DateTime, nullable=False)
+    end_datetime = mapped_column(DateTime, nullable=False)
     capacity = mapped_column(Integer, nullable=True)
     requires_registration = mapped_column(Boolean, nullable=False, default=False)
     location = mapped_column(String(255), nullable=True)
     order_index = mapped_column(Integer, nullable=False, default=0)
+    deleted_at = mapped_column(DateTime, nullable=True)
     created_at = mapped_column(DateTime, server_default=func.now())
 
     # relationships
@@ -56,5 +58,5 @@ class SessionRegistration(Base):
     registered_at = mapped_column(DateTime, server_default=func.now())
 
     # relationships
-    session = relationship("Session", back_populates="session_registrations")
+    session = relationship("AgendaSession", back_populates="session_registrations")
     user = relationship("User")

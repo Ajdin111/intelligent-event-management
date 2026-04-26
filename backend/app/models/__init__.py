@@ -1,6 +1,6 @@
 from app.models.user import User, UserRole
 from app.models.event import Event, EventCategory, Category, EventCollaborator
-from app.models.agenda import Track, Session, SessionRegistration
+from app.models.agenda import Track, AgendaSession, SessionRegistration
 from app.models.ticket import TicketTier, Ticket, PromoCode
 from app.models.registration import Registration, Waitlist, Invite
 from app.models.checkin import Checkin, OfflineCheckinQueue
@@ -20,7 +20,7 @@ __all__ = [
     "EventCollaborator",
     # Agenda
     "Track",
-    "Session",
+    "AgendaSession",
     "SessionRegistration",
     # Tickets
     "TicketTier",
