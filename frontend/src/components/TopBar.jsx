@@ -2,7 +2,7 @@ import { useLocation } from 'react-router-dom'
 
 const routeTitles = {
   '/dashboard': 'Dashboard',
-  '/events': 'Browse Events',
+  '/events': 'Discover',
   '/registrations': 'My Registrations',
   '/tickets': 'My Tickets',
   '/feedback': 'Feedback',

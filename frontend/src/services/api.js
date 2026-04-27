@@ -37,4 +37,13 @@ export const authApi = {
     api.get('/api/auth/me'),
 }
 
+export const eventsApi = {
+  list: (params = {}) => api.get('/api/events', { params }),
+  getById: (id) => api.get(`/api/events/${id}`),
+}
+
+export const categoriesApi = {
+  list: () => api.get('/api/categories'),
+}
+
 export default api

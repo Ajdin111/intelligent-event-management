@@ -5,6 +5,7 @@ import OrganizerLayout from './layouts/OrganizerLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import Dashboard from './pages/Dashboard'
 import BrowseEvents from './pages/BrowseEvents'
+import EventDetail from './pages/EventDetail'
 import MyRegistrations from './pages/MyRegistrations'
 import MyTickets from './pages/MyTickets'
 import Feedback from './pages/Feedback'
@@ -38,6 +39,7 @@ export default function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="events" element={<BrowseEvents />} />
+            <Route path="events/:id" element={<EventDetail />} />
             <Route path="registrations" element={<MyRegistrations />} />
             <Route path="tickets" element={<MyTickets />} />
             <Route path="feedback" element={<Feedback />} />
