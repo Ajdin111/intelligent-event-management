@@ -7,8 +7,8 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem('token'))
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [activeRole, setActiveRole] = useState(() => localStorage.getItem('activeRole') || 'attendee')
 
-  // On mount: validate the stored token and hydrate user
   useEffect(() => {
     if (!token) {
       setLoading(false)
@@ -23,11 +23,30 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false))
   }, [])
 
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      localStorage.removeItem('token')
+      localStorage.removeItem('activeRole')
+      setToken(null)
+      setUser(null)
+      setActiveRole('attendee')
+    }
+    window.addEventListener('auth:unauthorized', handleUnauthorized)
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized)
+  }, [])
+
+  const switchRole = (role) => {
+    localStorage.setItem('activeRole', role)
+    setActiveRole(role)
+  }
+
   const login = async (email, password) => {
     const res = await authApi.login(email, password)
     const { access_token } = res.data
     localStorage.setItem('token', access_token)
+    localStorage.setItem('activeRole', 'attendee')
     setToken(access_token)
+    setActiveRole('attendee')
     const meRes = await authApi.me()
     setUser(meRes.data)
     return meRes.data
@@ -40,12 +59,14 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     localStorage.removeItem('token')
+    localStorage.removeItem('activeRole')
     setToken(null)
     setUser(null)
+    setActiveRole('attendee')
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, token, login, register, logout, loading, activeRole, switchRole }}>
       {children}
     </AuthContext.Provider>
   )

@@ -48,7 +48,7 @@ export default function App() {
           <Route
             path="/organizer"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requiredRole="organizer">
                 <OrganizerLayout />
               </ProtectedRoute>
             }

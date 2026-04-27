@@ -24,6 +24,7 @@ class UserResponse(BaseModel):
     last_name: str
     is_active: bool
     is_admin: bool
+    is_organizer: bool = False
 
     class Config:
         from_attributes = True

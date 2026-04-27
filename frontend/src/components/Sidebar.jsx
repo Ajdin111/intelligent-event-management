@@ -1,6 +1,13 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
+const IconSwitch = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M1 4h10M9 2l2 2-2 2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M13 10H3M5 8l-2 2 2 2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
 const IconDashboard = () => (
   <svg width="15" height="15" viewBox="0 0 15 15" fill="currentColor">
     <rect x="0" y="0" width="6.5" height="6.5" rx="1.2" />
@@ -63,12 +70,17 @@ const navItems = [
 ]
 
 export default function Sidebar() {
-  const { user, logout } = useAuth()
+  const { user, logout, switchRole } = useAuth()
   const navigate = useNavigate()
 
   const handleLogout = () => {
     logout()
     navigate('/login')
+  }
+
+  const handleSwitchToOrganizer = () => {
+    switchRole('organizer')
+    navigate('/organizer/dashboard')
   }
 
   return (
@@ -91,6 +103,12 @@ export default function Sidebar() {
       </nav>
 
       <div className="sidebar-bottom">
+        {user?.is_organizer && (
+          <button className="role-switch-btn" onClick={handleSwitchToOrganizer} title="Switch to Organizer view">
+            <IconSwitch />
+            Organizer view
+          </button>
+        )}
         <div className="sidebar-user">
           <span className="sidebar-user-name">
             {user ? `${user.first_name} ${user.last_name}` : '—'}

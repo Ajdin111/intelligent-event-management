@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
@@ -50,6 +51,25 @@ const IconLogout = () => (
   </svg>
 )
 
+const IconSwitch = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M1 4h10M9 2l2 2-2 2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M13 10H3M5 8l-2 2 2 2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+const IconChevronLeft = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <polyline points="9,3 5,7 9,11" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+const IconChevronRight = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <polyline points="5,3 9,7 5,11" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
 const navItems = [
   { to: '/organizer/dashboard', label: 'Dashboard', icon: <IconDashboard /> },
   { to: '/organizer/create-event', label: 'Create Event', icon: <IconPlus /> },
@@ -60,21 +80,34 @@ const navItems = [
 ]
 
 export default function OrganizerSidebar() {
-  const { user, logout } = useAuth()
+  const { user, logout, switchRole } = useAuth()
   const navigate = useNavigate()
+  const [collapsed, setCollapsed] = useState(false)
 
   const handleLogout = () => {
     logout()
     navigate('/login')
   }
 
+  const handleSwitchToAttendee = () => {
+    switchRole('attendee')
+    navigate('/dashboard')
+  }
+
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${collapsed ? ' collapsed' : ''}`}>
       <div className="sidebar-logo">
-        Teq<span>Event</span>
+        <span>Teq<span className="logo-text">Event</span></span>
+        <button
+          className="sidebar-collapse-btn"
+          onClick={() => setCollapsed(c => !c)}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {collapsed ? <IconChevronRight /> : <IconChevronLeft />}
+        </button>
       </div>
 
-      <div className="sidebar-role-label">ORGANIZER</div>
+      <div className="sidebar-role-label nav-label">ORGANIZER</div>
 
       <nav className="sidebar-nav">
         {navItems.map((item) => (
@@ -82,24 +115,30 @@ export default function OrganizerSidebar() {
             key={item.to}
             to={item.to}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+            title={item.label}
           >
             {item.icon}
-            {item.label}
+            <span className="nav-label">{item.label}</span>
           </NavLink>
         ))}
       </nav>
 
       <div className="sidebar-bottom">
+        <button className="role-switch-btn" onClick={handleSwitchToAttendee} title="Switch to Attendee view">
+          <IconSwitch />
+          <span className="nav-label">Attendee view</span>
+        </button>
         <div className="sidebar-user">
           <span className="sidebar-user-name">
-            {user ? `${user.first_name} ${user.last_name}` : 'Jordan Alvarez'}
+            {user ? `${user.first_name} ${user.last_name}` : '—'}
           </span>
-          <span className="sidebar-user-role">Organizer</span>
+          <span className="sidebar-user-role nav-label">Organizer</span>
         </div>
         <button className="logout-btn" onClick={handleLogout} title="Sign out">
           <IconLogout />
         </button>
       </div>
+
     </aside>
   )
 }

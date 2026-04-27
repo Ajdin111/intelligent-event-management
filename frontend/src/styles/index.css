@@ -65,13 +65,19 @@ body {
   flex-direction: column;
   border-right: 1px solid var(--border);
   flex-shrink: 0;
+  overflow: hidden;
+  transition: width 0.2s ease;
 }
 
 .sidebar-logo {
-  padding: 24px 20px 16px;
+  padding: 20px 16px 16px;
   font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .sidebar-logo span {
@@ -118,11 +124,11 @@ body {
 }
 
 .sidebar-bottom {
-  padding: 14px 16px;
+  padding: 12px 16px 14px;
   border-top: 1px solid var(--border);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -1355,4 +1361,271 @@ body {
   .sidebar {
     display: none;
   }
+
+  .ce-stepper {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .ce-step:nth-child(2) { border-right: none; }
+  .ce-step:nth-child(3) { border-top: 1px solid var(--border); border-right: 1px solid var(--border); }
+  .ce-step:nth-child(4) { border-top: 1px solid var(--border); border-right: none; }
+
+  .ce-wizard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .ce-wizard-actions { width: 100%; justify-content: flex-end; }
+
+  .ce-footer-nav .btn-outline-sm,
+  .ce-footer-nav .btn-primary-sm {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
+/* ─── Create Event Wizard ────────────────────────────────────────────── */
+.ce-wizard {
+  max-width: 860px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ce-wizard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ce-back-link {
+  font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+  font-size: 13.5px;
+  color: var(--text-sub);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.12s;
+}
+
+.ce-back-link:hover {
+  color: var(--text);
+}
+
+.ce-wizard-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ce-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: -8px;
+}
+
+/* ─── Stepper ───────────────────────────────────────────────────────── */
+.ce-stepper {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.ce-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-right: 1px solid var(--border);
+  transition: background 0.12s;
+}
+
+.ce-step:last-child {
+  border-right: none;
+}
+
+.ce-step.active {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ce-step-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border-med);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.ce-step.active .ce-step-num {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: rgb(26, 31, 34);
+}
+
+.ce-step.done .ce-step-num {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: var(--text);
+}
+
+.ce-step-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ce-step-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.ce-step-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.ce-step.active .ce-step-name,
+.ce-step.done .ce-step-name {
+  color: var(--text-sub);
+}
+
+.ce-step.active .ce-step-name {
+  color: var(--text);
+}
+
+/* ─── Form card ─────────────────────────────────────────────────────── */
+.ce-form-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+}
+
+.ce-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ce-empty-notice {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 48px 0;
+  line-height: 1.6;
+}
+
+/* ─── Footer nav ────────────────────────────────────────────────────── */
+.ce-footer-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 16px;
+}
+
+.ce-footer-nav .btn-outline-sm:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ─── Select styling ────────────────────────────────────────────────── */
+select.form-input {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='rgba(255,255,255,0.4)' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
+select.form-input option {
+  background: rgb(32, 38, 42);
+  color: #ffffff;
+}
+
+/* ─── Sidebar — collapsed state ─────────────────────────────────────── */
+.nav-item,
+.sidebar-user-name,
+.sidebar-role-label {
+  white-space: nowrap;
+}
+
+.sidebar.collapsed {
+  width: 56px;
+}
+
+.sidebar.collapsed .nav-label {
+  display: none;
+}
+
+.sidebar.collapsed .logo-text {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-user {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-logo {
+  padding: 20px 8px 16px;
+}
+
+.sidebar.collapsed .sidebar-bottom {
+  padding: 10px 4px;
+  justify-content: center;
+  gap: 6px;
+}
+
+.sidebar.collapsed .role-switch-btn {
+  border: none;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+/* ─── Sidebar collapse toggle ────────────────────────────────────────── */
+.sidebar-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  color: var(--text-muted);
+  border-radius: 4px;
+  transition: color 0.12s, background 0.12s;
+  flex-shrink: 0;
+}
+
+.sidebar-collapse-btn:hover {
+  color: var(--text-sub);
+  background: var(--bg-hover);
+}
+
+/* ─── Role switch button ─────────────────────────────────────────────── */
+.role-switch-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.role-switch-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-sub);
 }
