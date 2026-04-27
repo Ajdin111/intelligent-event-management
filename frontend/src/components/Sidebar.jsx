@@ -54,21 +54,20 @@ const IconLogout = () => (
   </svg>
 )
 
-const IconChevronLeft = () => (
-  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <path d="M9 2L4 7l5 5" strokeLinecap="round" strokeLinejoin="round" />
+const IconChevronDown = () => (
+  <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <polyline points="2,4 5.5,7.5 9,4" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 )
-
-const IconChevronRight = () => (
+const IconChevronLeft = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <path d="M5 2l5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
+    <polyline points="9,3 5,7 9,11" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 )
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: <IconDashboard /> },
-  { to: '/events', label: 'Discover', icon: <IconSearch /> },
+  { to: '/events', label: 'Browse Events', icon: <IconSearch /> },
   { to: '/registrations', label: 'My Registrations', icon: <IconCalendar /> },
   { to: '/tickets', label: 'My Tickets', icon: <IconTicket /> },
   { to: '/feedback', label: 'Feedback', icon: <IconChat /> },
@@ -76,59 +75,101 @@ const navItems = [
 ]
 
 export default function Sidebar() {
-  const { user, logout } = useAuth()
+  const { user, logout, switchRole, activeRole } = useAuth()
   const navigate = useNavigate()
-  const [collapsed, setCollapsed] = useState(
-    () => localStorage.getItem('sidebar-collapsed') === 'true'
-  )
-
-  const toggle = () => {
-    setCollapsed((prev) => {
-      localStorage.setItem('sidebar-collapsed', String(!prev))
-      return !prev
-    })
-  }
+  const [roleDropdownOpen, setRoleDropdownOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
 
   const handleLogout = () => {
     logout()
     navigate('/login')
   }
 
+  const handleSwitchToOrganizer = () => {
+    switchRole('organizer')
+    navigate('/organizer/dashboard')
+    setRoleDropdownOpen(false)
+  }
+
   return (
-    <aside className={`sidebar${collapsed ? ' sidebar--collapsed' : ''}`}>
-      <div className="sidebar-logo">
-        <span className="sidebar-logo-mark">T</span>
-        <span className="sidebar-logo-name">eqEvent</span>
-        <button className="sidebar-collapse-btn" onClick={toggle} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
-          {collapsed ? <IconChevronRight /> : <IconChevronLeft />}
+  <aside className={`sidebar${collapsed ? ' sidebar--collapsed' : ''}`}>
+    <div className="sidebar-logo">
+      {collapsed ? (
+        <button
+          className="sidebar-collapse-btn"
+          onClick={() => setCollapsed(c => !c)}
+          title="Expand sidebar"
+        >
+          <span style={{ fontWeight: 700, fontSize: '16px' }}>T</span>
         </button>
-      </div>
-
-      <nav className="sidebar-nav">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            title={collapsed ? item.label : undefined}
-            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+      ) : (
+        <>
+          <span style={{ fontWeight: 700 }}>Teq<span style={{ fontWeight: 300 }}>Event</span></span>
+          <button
+            className="sidebar-collapse-btn"
+            onClick={() => setCollapsed(c => !c)}
+            title="Collapse sidebar"
           >
-            <span className="nav-icon">{item.icon}</span>
-            <span className="nav-label">{item.label}</span>
-          </NavLink>
-        ))}
-      </nav>
+            <IconChevronLeft />
+          </button>
+        </>
+      )}
+    </div>
 
-      <div className="sidebar-bottom">
-        <div className="sidebar-user">
-          <span className="sidebar-user-name">
-            {user ? `${user.first_name} ${user.last_name}` : '—'}
-          </span>
-          <span className="sidebar-user-role">Attendee</span>
+    <div className="sidebar-role-label">ATTENDEE</div>
+
+    <nav className="sidebar-nav">
+      {navItems.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+        >
+          {item.icon}
+          <span className="nav-label">{item.label}</span>
+        </NavLink>
+      ))}
+    </nav>
+
+    <div className="sidebar-bottom">
+      <div className="sidebar-user">
+        <span className="sidebar-user-name">
+          {user ? `${user.first_name} ${user.last_name}` : '—'}
+        </span>
+        <div className="sidebar-role-switcher">
+          <button
+            className="sidebar-role-btn"
+            onClick={() => setRoleDropdownOpen(o => !o)}
+          >
+            <span style={{ textTransform: 'capitalize' }}>{activeRole}</span>
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <polyline points="2,4 5.5,7.5 9,4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          {roleDropdownOpen && (
+            <div className="sidebar-role-dropdown">
+              <button
+                className="sidebar-role-option active"
+                onClick={() => setRoleDropdownOpen(false)}
+              >
+                Attendee
+              </button>
+              {user?.is_organizer && (
+                <button
+                  className="sidebar-role-option"
+                  onClick={handleSwitchToOrganizer}
+                >
+                  Organizer
+                </button>
+              )}
+            </div>
+          )}
         </div>
-        <button className="logout-btn" onClick={handleLogout} title="Sign out">
-          <IconLogout />
-        </button>
       </div>
-    </aside>
-  )
+      <button className="logout-btn" onClick={handleLogout} title="Sign out">
+        <IconLogout />
+      </button>
+    </div>
+  </aside>
+)
 }
