@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { eventsApi, categoriesApi } from '../services/api'
 
 // Fallback data — matches EventResponse shape + display-only fields
@@ -59,13 +60,13 @@ const IconArrow = () => (
   </svg>
 )
 
-function DiscoverCard({ event }) {
+function DiscoverCard({ event, onNavigate }) {
   const location = getLocation(event)
   const date = formatDate(event.start_datetime)
   const priceLabel = event.is_free || event.price === 0 ? 'Free' : `$${event.price}`
 
   return (
-    <div className="discover-card">
+    <div className="discover-card" onClick={() => onNavigate(event.id)} style={{ cursor: 'pointer' }}>
       <div className="discover-card-cover">
         <span className="discover-card-category">{event.category}</span>
         <span className="discover-card-price">{priceLabel}</span>
@@ -86,7 +87,10 @@ function DiscoverCard({ event }) {
           <span className="discover-card-spots">
             <strong>{event.spotsLeft?.toLocaleString()}</strong> spots left
           </span>
-          <button className="discover-register-btn">
+          <button
+            className="discover-register-btn"
+            onClick={e => { e.stopPropagation(); onNavigate(event.id) }}
+          >
             Register <IconArrow />
           </button>
         </div>
@@ -120,6 +124,7 @@ const IconFilter = () => (
 )
 
 export default function BrowseEvents() {
+  const navigate = useNavigate()
   const [events, setEvents] = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
@@ -136,8 +141,8 @@ export default function BrowseEvents() {
       categoriesApi.list(),
     ])
       .then(([eventsRes, catsRes]) => {
-        const items = eventsRes.data.items
-        setEvents(items.length > 0 ? items : FAKE_EVENTS)
+        const items = eventsRes.data?.items ?? eventsRes.data ?? []
+        setEvents(items.length > 0 ? items : FAKE_EVENTS) 
 
         const catNames = catsRes.data.map((c) => c.name)
         setCategories(catNames.length > 0 ? catNames : FAKE_CATEGORIES)
@@ -288,7 +293,7 @@ export default function BrowseEvents() {
         ) : (
           <div className="discover-grid">
             {filtered.map((event) => (
-              <DiscoverCard key={event.id} event={event} />
+              <DiscoverCard key={event.id} event={event} onNavigate={(id) => navigate(`/events/${id}`)} />
             ))}
           </div>
         )}
