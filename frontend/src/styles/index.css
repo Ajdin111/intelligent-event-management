@@ -1051,9 +1051,16 @@ body {
 .ed-back:hover { color: var(--text); }
 
 /* hero */
+.ed-hero-frame {
+  padding: 0 32px;
+  border-top: 1px solid rgba(0,0,0,0.6);
+  border-bottom: 1px solid var(--border);
+}
 .ed-hero {
-  position: relative; width: 100%; height: 280px;
+  position: relative; width: 100%; height: 300px;
   overflow: hidden; background: var(--bg-card);
+  border-left: 1px solid rgba(0,0,0,0.5);
+  border-right: 1px solid rgba(0,0,0,0.5);
 }
 .ed-hero-img {
   position: absolute; inset: 0; width: 100%; height: 100%;
@@ -1061,7 +1068,7 @@ body {
 }
 .ed-hero-overlay {
   position: absolute; inset: 0;
-  background: linear-gradient(to bottom, rgba(26,31,34,0.15) 0%, rgba(26,31,34,0.6) 100%);
+  background: linear-gradient(to bottom, rgba(26,31,34,0.1) 0%, rgba(26,31,34,0.55) 100%);
 }
 
 /* meta bar */
@@ -1231,20 +1238,33 @@ body {
 /* responsive */
 @media (max-width: 960px) {
   .ed-body { grid-template-columns: 1fr; padding: 24px 24px 40px; }
-  .ed-sidebar { position: static; }
+  .ed-sidebar { position: static; max-width: 480px; }
   .ed-title { font-size: 24px; padding: 4px 24px 12px; }
   .ed-meta-bar { padding: 16px 24px 10px; }
-  .ed-info-row { padding: 0 24px 20px; gap: 12px; }
+  .ed-info-row { padding: 0 24px 20px; gap: 12px; flex-wrap: wrap; }
   .ed-back { padding: 16px 24px 12px; }
+  .ed-hero-frame { padding: 0 24px; }
   .ed-hero { height: 220px; }
   .ed-review-summary { flex-direction: column; gap: 20px; }
+  .ed-bars { min-width: unset; width: 100%; }
 }
 @media (max-width: 600px) {
-  .ed-title { font-size: 20px; padding: 4px 16px 10px; }
-  .ed-meta-bar { padding: 14px 16px 8px; flex-direction: column; align-items: flex-start; }
-  .ed-info-row { padding: 0 16px 16px; flex-direction: column; gap: 10px; }
-  .ed-back { padding: 14px 16px 10px; }
+  .ed-title { font-size: 19px; padding: 4px 16px 10px; }
+  .ed-meta-bar {
+    padding: 12px 16px 8px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .ed-actions { width: 100%; }
+  .ed-action-btn { flex: 1; justify-content: center; }
+  .ed-info-row { padding: 0 16px 16px; flex-direction: column; gap: 8px; }
+  .ed-back { padding: 12px 16px 10px; }
+  .ed-hero-frame { padding: 0; }
+  .ed-hero { height: 170px; border-left: none; border-right: none; }
   .ed-body { padding: 20px 16px 36px; }
-  .ed-hero { height: 170px; }
+  .ed-sidebar { max-width: unset; }
   .ed-session { grid-template-columns: 44px 1fr 36px; gap: 8px; }
+  .ed-ticket-box { padding: 16px; }
+  .ed-qty-ctrl span { width: 28px; }
 }
