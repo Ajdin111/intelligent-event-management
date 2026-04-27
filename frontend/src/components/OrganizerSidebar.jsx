@@ -51,22 +51,9 @@ const IconLogout = () => (
   </svg>
 )
 
-const IconSwitch = () => (
-  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <path d="M1 4h10M9 2l2 2-2 2" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M13 10H3M5 8l-2 2 2 2" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-)
-
 const IconChevronLeft = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
     <polyline points="9,3 5,7 9,11" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-)
-
-const IconChevronRight = () => (
-  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <polyline points="5,3 9,7 5,11" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 )
 
@@ -80,9 +67,10 @@ const navItems = [
 ]
 
 export default function OrganizerSidebar() {
-  const { user, logout, switchRole } = useAuth()
+  const { user, logout, switchRole, activeRole } = useAuth()
   const navigate = useNavigate()
   const [collapsed, setCollapsed] = useState(false)
+  const [roleDropdownOpen, setRoleDropdownOpen] = useState(false)
 
   const handleLogout = () => {
     logout()
@@ -92,19 +80,32 @@ export default function OrganizerSidebar() {
   const handleSwitchToAttendee = () => {
     switchRole('attendee')
     navigate('/dashboard')
+    setRoleDropdownOpen(false)
   }
 
   return (
-    <aside className={`sidebar${collapsed ? ' collapsed' : ''}`}>
+    <aside className={`sidebar${collapsed ? ' sidebar--collapsed' : ''}`}>
       <div className="sidebar-logo">
-        <span>Teq<span className="logo-text">Event</span></span>
-        <button
-          className="sidebar-collapse-btn"
-          onClick={() => setCollapsed(c => !c)}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {collapsed ? <IconChevronRight /> : <IconChevronLeft />}
-        </button>
+        {collapsed ? (
+          <button
+            className="sidebar-collapse-btn"
+            onClick={() => setCollapsed(c => !c)}
+            title="Expand sidebar"
+          >
+            <span style={{ fontWeight: 700, fontSize: '16px' }}>T</span>
+          </button>
+        ) : (
+          <>
+            <span style={{ fontWeight: 700 }}>Teq<span style={{ fontWeight: 300 }}>Event</span></span>
+            <button
+              className="sidebar-collapse-btn"
+              onClick={() => setCollapsed(c => !c)}
+              title="Collapse sidebar"
+            >
+              <IconChevronLeft />
+            </button>
+          </>
+        )}
       </div>
 
       <div className="sidebar-role-label nav-label">ORGANIZER</div>
@@ -124,21 +125,42 @@ export default function OrganizerSidebar() {
       </nav>
 
       <div className="sidebar-bottom">
-        <button className="role-switch-btn" onClick={handleSwitchToAttendee} title="Switch to Attendee view">
-          <IconSwitch />
-          <span className="nav-label">Attendee view</span>
-        </button>
         <div className="sidebar-user">
           <span className="sidebar-user-name">
             {user ? `${user.first_name} ${user.last_name}` : '—'}
           </span>
-          <span className="sidebar-user-role nav-label">Organizer</span>
+          <div className="sidebar-role-switcher">
+            <button
+              className="sidebar-role-btn"
+              onClick={() => setRoleDropdownOpen(o => !o)}
+            >
+              <span style={{ textTransform: 'capitalize' }}>{activeRole}</span>
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <polyline points="2,4 5.5,7.5 9,4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            {roleDropdownOpen && (
+              <div className="sidebar-role-dropdown">
+                <button
+                  className="sidebar-role-option"
+                  onClick={handleSwitchToAttendee}
+                >
+                  Attendee
+                </button>
+                <button
+                  className="sidebar-role-option active"
+                  onClick={() => setRoleDropdownOpen(false)}
+                >
+                  Organizer
+                </button>
+              </div>
+            )}
+          </div>
         </div>
         <button className="logout-btn" onClick={handleLogout} title="Sign out">
           <IconLogout />
         </button>
       </div>
-
     </aside>
   )
 }
