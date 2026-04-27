@@ -78,11 +78,11 @@ def test_login_nonexistent_user(client):
 
 def test_login_inactive_user(client, db):
     from app.models.user import User
-    user = make_user(db, email="inactive@example.com", password="pass")
+    user = make_user(db, email="inactive_solo@example.com", password="pass")
     user.is_active = False
     db.commit()
     resp = client.post("/api/auth/login", json={
-        "email": "inactive@example.com",
+        "email": "inactive_solo@example.com",
         "password": "pass",
     })
     assert resp.status_code == 403
