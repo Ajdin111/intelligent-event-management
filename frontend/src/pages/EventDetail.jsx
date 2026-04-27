@@ -407,15 +407,11 @@ export default function EventDetail() {
           })
         }
       })
-      .catch(err => {
+      .catch(() => {
         const fake = FAKE[numId] ?? null
-        if (err.response?.status === 404 || !fake) {
-          // 404 from backend or no fake enrichment for this ID → genuinely not found
-          setEvent(null)
-        } else {
-          // Network/server error but we have rich fake data → use it
-          setEvent(fake)
-        }
+        // If we have demo data for this ID, show it regardless of API error.
+        // Only show "not found" when the ID isn't in our known event set.
+        setEvent(fake)
       })
       .finally(() => setLoading(false))
   }, [id])
