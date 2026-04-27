@@ -29,7 +29,7 @@ def create_event(db: Session, data: EventCreateRequest, current_user: User) -> E
 
     if data.category_ids:
         for cid in data.category_ids:
-            if not db.query(Category).filter(Category.id == cid, Category.deleted_at.is_(None)).first():
+            if not db.query(Category).filter(Category.id == cid).first():
                 raise BadRequestError(f"Category with id {cid} does not exist")
 
     event = Event(
@@ -103,7 +103,7 @@ def update_event(db: Session, event_id: int, data: EventUpdateRequest, current_u
 
     if data.category_ids is not None:
         for cid in data.category_ids:
-            if not db.query(Category).filter(Category.id == cid, Category.deleted_at.is_(None)).first():
+            if not db.query(Category).filter(Category.id == cid).first():
                 raise BadRequestError(f"Category with id {cid} does not exist")
 
         db.query(EventCategory).filter(EventCategory.event_id == event_id).delete()

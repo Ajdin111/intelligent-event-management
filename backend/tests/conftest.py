@@ -53,7 +53,12 @@ def mock_celery():
     for p in patches:
         p.stop()
 
-
+@pytest.fixture(autouse=True)
+def disable_rate_limit():
+    from app.core.limiter import limiter
+    limiter._storage.reset()
+    yield
+    limiter._storage.reset()
 # ─── HTTP Client ─────────────────────────────────────────
 
 @pytest.fixture(scope="function")

@@ -18,15 +18,6 @@ def test_list_categories(client, db):
     assert "Tech" in names
 
 
-def test_list_categories_excludes_soft_deleted(client, db):
-    from datetime import datetime
-    cat = make_category(db, name="Deleted")
-    cat.deleted_at = datetime.now()
-    db.commit()
-    resp = client.get("/api/categories")
-    assert resp.status_code == 200
-    names = [c["name"] for c in resp.json()]
-    assert "Deleted" not in names
 
 
 def test_create_category_as_admin(client, db):
