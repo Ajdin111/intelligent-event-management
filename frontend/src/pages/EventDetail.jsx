@@ -407,12 +407,14 @@ export default function EventDetail() {
           })
         }
       })
-      .catch(() => {
-        const fake = FAKE[numId] ?? null
-        // If we have demo data for this ID, show it regardless of API error.
-        // Only show "not found" when the ID isn't in our known event set.
-        setEvent(fake)
-      })
+          .catch((error) => {
+            if (error.response && error.response.status === 404) {
+              setEvent(null)
+              return
+            }
+            const fake = FAKE[numId] ?? null
+            setEvent(fake)
+          })
       .finally(() => setLoading(false))
   }, [id])
 

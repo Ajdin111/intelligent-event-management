@@ -141,8 +141,8 @@ export default function BrowseEvents() {
       categoriesApi.list(),
     ])
       .then(([eventsRes, catsRes]) => {
-        const items = eventsRes.data.items
-        setEvents(items.length > 0 ? items : FAKE_EVENTS)
+        const items = eventsRes.data?.items ?? eventsRes.data ?? []
+        setEvents(items.length > 0 ? items : FAKE_EVENTS) 
 
         const catNames = catsRes.data.map((c) => c.name)
         setCategories(catNames.length > 0 ? catNames : FAKE_CATEGORIES)
