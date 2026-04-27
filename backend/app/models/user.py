@@ -22,6 +22,10 @@ class User(Base):
     # relationships
     roles = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
 
+    @property
+    def is_organizer(self) -> bool:
+        return any(r.role == "organizer" for r in self.roles)
+
 
 class UserRole(Base):
     __tablename__ = "user_roles"

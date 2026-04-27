@@ -20,7 +20,8 @@ api.interceptors.response.use(
       const isAuthCall = error.config?.url?.startsWith('/api/auth/')
       if (!isAuthCall) {
         localStorage.removeItem('token')
-        window.location.href = '/login'
+        localStorage.removeItem('activeRole')
+        window.dispatchEvent(new CustomEvent('auth:unauthorized'))
       }
     }
     return Promise.reject(error)
