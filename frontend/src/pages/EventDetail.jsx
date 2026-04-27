@@ -363,23 +363,60 @@ export default function EventDetail() {
   const [quantity, setQuantity] = useState(1)
 
   useEffect(() => {
-    const fake = getFake(Number(id))
+    const numId = Number(id)
+
+    // Reject non-numeric, negative, or non-integer IDs immediately
+    if (!id || isNaN(numId) || numId <= 0 || !Number.isInteger(numId)) {
+      setEvent(null)
+      setLoading(false)
+      return
+    }
+
     eventsApi.getById(id)
       .then(res => {
         const real = res.data
-        setEvent({
-          ...fake,
-          title: real.title || fake.title,
-          description: real.description || fake.description,
-          location: real.physical_address
-            || (real.location_type === 'online' ? 'Remote' : fake.location),
-          date: real.start_datetime
-            ? new Date(real.start_datetime).toLocaleDateString('en-US',
-                { month: 'long', day: 'numeric', year: 'numeric' })
-            : fake.date,
-        })
+        const fake = FAKE[numId] ?? null
+        if (!fake) {
+          // Real event exists in DB but we have no fake enrichment — use real data only
+          setEvent({
+            title: real.title,
+            category: 'Tech', organizer: 'TeqEvent',
+            date: real.start_datetime
+              ? new Date(real.start_datetime).toLocaleDateString('en-US',
+                  { month: 'long', day: 'numeric', year: 'numeric' })
+              : 'TBD',
+            time: 'TBD',
+            location: real.physical_address
+              || (real.location_type === 'online' ? 'Remote' : 'TBD'),
+            rating: 0, reviewCount: 0,
+            description: real.description || 'No description available.',
+            tiers: [{ name: 'Standard', price: real.is_free ? 0 : 99, total: real.capacity || 100, sold: 0 }],
+            tracks: [], breakdown: [], reviews: [],
+          })
+        } else {
+          setEvent({
+            ...fake,
+            title: real.title || fake.title,
+            description: real.description || fake.description,
+            location: real.physical_address
+              || (real.location_type === 'online' ? 'Remote' : fake.location),
+            date: real.start_datetime
+              ? new Date(real.start_datetime).toLocaleDateString('en-US',
+                  { month: 'long', day: 'numeric', year: 'numeric' })
+              : fake.date,
+          })
+        }
       })
-      .catch(() => setEvent(fake))
+      .catch(err => {
+        const fake = FAKE[numId] ?? null
+        if (err.response?.status === 404 || !fake) {
+          // 404 from backend or no fake enrichment for this ID → genuinely not found
+          setEvent(null)
+        } else {
+          // Network/server error but we have rich fake data → use it
+          setEvent(fake)
+        }
+      })
       .finally(() => setLoading(false))
   }, [id])
 
@@ -389,11 +426,12 @@ export default function EventDetail() {
   const cover      = COVERS[Number(id)] || DEFAULT_COVER
   const tier       = event.tiers[selectedTier]
   const soldOut    = tier && tier.sold >= tier.total
+  const available  = tier ? tier.total - tier.sold : 0
   const subtotal   = tier
     ? (tier.price === 0 ? 'Free' : `$${(tier.price * quantity).toLocaleString()}`)
     : '—'
-  const hasRating  = event.reviewCount > 0   // controls summary + count display
-  const hasSamples = event.reviews.length > 0 // controls whether sample cards show
+  const hasRating  = event.reviewCount > 0
+  const hasSamples = event.reviews.length > 0
 
   return (
     <div className="ed-wrap">
@@ -570,7 +608,7 @@ export default function EventDetail() {
                   <div className="ed-qty-ctrl">
                     <button onClick={() => setQuantity(q => Math.max(1, q - 1))}>−</button>
                     <span>{quantity}</span>
-                    <button onClick={() => setQuantity(q => q + 1)}>+</button>
+                    <button onClick={() => setQuantity(q => Math.min(available, q + 1))}>+</button>
                   </div>
                 </div>
                 <div className="ed-subtotal-row">
