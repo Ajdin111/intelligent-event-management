@@ -6,21 +6,6 @@ from app.models.notification import Notification, NotificationPreferences
 from app.models.user import User
 from app.schemas.notification import NotificationPreferencesUpdateRequest
 
-'''
-get_my_notifications(db, current_user)        — list all non-expired notifications for user
-mark_as_read(db, notification_id, current_user) — mark one as read, set read_at
-mark_all_as_read(db, current_user)            — mark all as read
-get_unread_count(db, current_user)            — count where is_read=False
-delete_notification(db, notification_id, current_user) — delete one
-get_preferences(db, current_user)             — get or create preferences row
-update_preferences(db, data, current_user)    — update preference toggles
-'''
-
-def _normalize_dt(dt: datetime) -> datetime:
-    if dt is None:
-        return None
-    return dt.replace(tzinfo=None)
-
 def get_my_notifications(db: Session, current_user: User):
     notifications = db.query(Notification).filter(
         Notification.user_id == current_user.id,
