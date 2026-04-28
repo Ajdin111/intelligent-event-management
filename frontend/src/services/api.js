@@ -50,4 +50,10 @@ export const categoriesApi = {
   list: () => api.get('/api/categories'),
 }
 
+export const registrationsApi = {
+  create: (data) => api.post('/api/registrations', data),
+  getMine: ()     => api.get('/api/registrations/me'),
+  getById: (id)   => api.get(`/api/registrations/${id}`),
+}
+
 export default api

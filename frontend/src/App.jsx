@@ -6,6 +6,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Dashboard from './pages/Dashboard'
 import BrowseEvents from './pages/BrowseEvents'
 import EventDetail from './pages/EventDetail'
+import RegisterEvent from './pages/RegisterEvent'
 import MyRegistrations from './pages/MyRegistrations'
 import MyTickets from './pages/MyTickets'
 import Feedback from './pages/Feedback'
@@ -18,6 +19,7 @@ import ManageEvent from './pages/organizer/ManageEvent'
 import OrganizerAnalytics from './pages/organizer/OrganizerAnalytics'
 import OrganizerAgenda from './pages/organizer/OrganizerAgenda'
 import OrganizerNotifications from './pages/organizer/OrganizerNotifications'
+import NotFound from './pages/NotFound'
 
 function NotFoundRoute() {
   return (
@@ -57,10 +59,12 @@ export default function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="events" element={<BrowseEvents />} />
             <Route path="events/:id" element={<EventDetail />} />
+            <Route path="events/:id/register" element={<RegisterEvent />} />
             <Route path="registrations" element={<MyRegistrations />} />
             <Route path="tickets" element={<MyTickets />} />
             <Route path="feedback" element={<Feedback />} />
             <Route path="preferences" element={<Preferences />} />
+            <Route path="*" element={<NotFound />} />
           </Route>
 
           {/* Organizer routes */}

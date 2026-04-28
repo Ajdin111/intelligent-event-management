@@ -1,6 +1,6 @@
 import html as html_lib
 import logging
-from celery import shared_task
+from app.core.celery_app import celery_app
 from datetime import datetime, timedelta
 
 from app.db.session import get_db_context
@@ -9,7 +9,7 @@ from app.core.constants import NOTIFICATION_RETENTION_DAYS, WAITLIST_CONFIRMATIO
 logger = logging.getLogger(__name__)
 
 
-@shared_task
+@celery_app.task
 def cleanup_expired_notifications():
     """Periodic task — runs every 24h. Hard-deletes notifications older than 90 days."""
     with get_db_context() as db:
@@ -25,7 +25,7 @@ def cleanup_expired_notifications():
         return deleted
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=30)
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=30)
 def create_in_app_notification(
     self,
     user_id: int,
@@ -58,7 +58,7 @@ def create_in_app_notification(
         raise self.retry(exc=exc)
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=30)
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=30)
 def notify_waitlist_user(self, waitlist_id: int):
     try:
         with get_db_context() as db:
