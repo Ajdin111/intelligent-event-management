@@ -6,6 +6,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Dashboard from './pages/Dashboard'
 import BrowseEvents from './pages/BrowseEvents'
 import EventDetail from './pages/EventDetail'
+import RegisterEvent from './pages/RegisterEvent'
 import MyRegistrations from './pages/MyRegistrations'
 import MyTickets from './pages/MyTickets'
 import Feedback from './pages/Feedback'
@@ -40,6 +41,7 @@ export default function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="events" element={<BrowseEvents />} />
             <Route path="events/:id" element={<EventDetail />} />
+            <Route path="events/:id/register" element={<RegisterEvent />} />
             <Route path="registrations" element={<MyRegistrations />} />
             <Route path="tickets" element={<MyTickets />} />
             <Route path="feedback" element={<Feedback />} />
