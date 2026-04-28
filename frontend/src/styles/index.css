@@ -1126,6 +1126,26 @@ body {
   height: 300px; color: var(--text-muted); font-size: 13.5px;
 }
 
+.ed-state--center {
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  min-height: 400px;
+  text-align: center;
+}
+
+.ed-state-code {
+  font-size: 4rem;
+  font-weight: 700;
+  color: var(--border-med);
+  line-height: 1;
+}
+
+.ed-state-msg {
+  font-size: 1rem;
+  color: var(--text-sub);
+}
+
 .ed-wrap { margin: -36px -40px; }
 
 .ed-back {

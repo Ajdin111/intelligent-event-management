@@ -75,13 +75,15 @@ export default function RegisterEvent() {
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult]         = useState(null) // { type: 'confirmed'|'pending'|'waitlisted', data }
   const [error, setError]           = useState('')
-  const [pageLoading, setPageLoading] = useState(!state?.eventTitle)
+  const [pageLoading, setPageLoading] = useState(true)
+  const [notFound, setNotFound]     = useState(false)
 
   // If navigated directly (no state), fetch event + tiers
   useEffect(() => {
     const numId = Number(id)
     if (!id || isNaN(numId) || numId <= 0) {
-      navigate('/events', { replace: true })
+      setNotFound(true)
+      setPageLoading(false)
       return
     }
 
@@ -106,7 +108,13 @@ export default function RegisterEvent() {
             setSelectedTierId(activeTiers[0].id)
           }
         })
-        .catch(() => navigate('/events', { replace: true }))
+        .catch((err) => {
+          if (err?.response?.status === 404) {
+            setNotFound(true)
+          } else {
+            navigate('/events', { replace: true })
+          }
+        })
         .finally(() => setPageLoading(false))
     } else {
       setPageLoading(false)
@@ -206,6 +214,16 @@ export default function RegisterEvent() {
   }
 
   if (pageLoading) return <div className="ed-state">Loading…</div>
+
+  if (notFound) return (
+    <div className="ed-state ed-state--center">
+      <p className="ed-state-code">404</p>
+      <p className="ed-state-msg">Event not found</p>
+      <button className="reg-btn-secondary" style={{ marginTop: 20, maxWidth: 200 }} onClick={() => navigate('/events')}>
+        Back to events
+      </button>
+    </div>
+  )
 
   // ── main form ───────────────────────────────────────────────────────────
 
