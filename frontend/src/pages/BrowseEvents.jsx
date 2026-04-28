@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { eventsApi, categoriesApi, ticketTiersApi } from '../services/api'
 
 const FILTER_DATES = ['Anytime', 'This week', 'This month', 'Next 3 months']
+const MAX_PRICE = 500
 
 function getLocation(event) {
   if (event.location_type === 'online') return 'Remote'
@@ -49,16 +50,6 @@ function formatPriceLabel(event) {
   return `$${event.lowestTicketPrice}`
 }
 
-function getPriceRangeMax(events) {
-  const highestPrice = events.reduce((max, event) => {
-    const price = getEventPrice(event)
-    if (!Number.isFinite(price)) return max
-    return Math.max(max, price)
-  }, 0)
-
-  if (highestPrice <= 0) return 0
-  return Math.ceil(highestPrice / 25) * 25
-}
 
 function normalizeEvent(event, categoryMap, ticketTiers) {
   const prices = (ticketTiers ?? [])
@@ -172,7 +163,7 @@ export default function BrowseEvents() {
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [selectedLocation, setSelectedLocation] = useState('All')
   const [selectedDate, setSelectedDate] = useState('Anytime')
-  const [maxPrice, setMaxPrice] = useState(0)
+  const [maxPrice, setMaxPrice] = useState(MAX_PRICE)
 
   useEffect(() => {
     let isActive = true
@@ -206,12 +197,10 @@ export default function BrowseEvents() {
 
         setEvents(normalizedEvents)
         setCategories(categoryItems.map((category) => category.name))
-        setMaxPrice(getPriceRangeMax(normalizedEvents))
       } catch {
         if (!isActive) return
         setEvents([])
         setCategories([])
-        setMaxPrice(0)
       } finally {
         if (isActive) {
           setLoading(false)
@@ -240,9 +229,9 @@ export default function BrowseEvents() {
       const matchLoc = selectedLocation === 'All' || getLocation(event) === selectedLocation
       const matchDate = isWithinDate(event.start_datetime, selectedDate)
       const matchPrice =
-        maxPrice === 0
-          ? price === 0
-          : Number.isFinite(price) && price <= maxPrice
+        maxPrice === MAX_PRICE
+          ? true
+          : price <= maxPrice
 
       return matchSearch && matchCat && matchLoc && matchDate && matchPrice
     })
@@ -252,7 +241,7 @@ export default function BrowseEvents() {
     setSelectedCategory('All')
     setSelectedLocation('All')
     setSelectedDate('Anytime')
-    setMaxPrice(getPriceRangeMax(events))
+    setMaxPrice(MAX_PRICE)
     setSearchInput('')
     setQuery('')
   }
@@ -323,8 +312,8 @@ export default function BrowseEvents() {
           <input
             type="range"
             min={0}
-            max={getPriceRangeMax(events)}
-            step={25}
+            max={MAX_PRICE}
+            step={10}
             value={maxPrice}
             onChange={(e) => setMaxPrice(Number(e.target.value))}
             className="filter-range"
