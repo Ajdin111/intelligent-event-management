@@ -1,25 +1,14 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { eventsApi, categoriesApi } from '../services/api'
+import { eventsApi, categoriesApi, ticketTiersApi } from '../services/api'
 
-// Fallback data — matches EventResponse shape + display-only fields
-const FAKE_EVENTS = [
-  { id: 9, title: 'Model Eval Workshop', organizer: 'Northwind Labs', location_type: 'online', physical_address: null, start_datetime: '2026-10-01T09:00:00', is_free: false, price: 99, capacity: 800, spotsLeft: 520, category: 'AI & ML', code: 'E9', status: 'published' },
-  { id: 5, title: 'Warehouse & Lakehouse Days', organizer: 'Stratus Data', location_type: 'physical', physical_address: 'New York, NY', start_datetime: '2026-07-15T09:00:00', is_free: false, price: 349, capacity: 500, spotsLeft: 210, category: 'Data', code: 'E5', status: 'published' },
-  { id: 8, title: 'Interface 2026', organizer: 'Studio Kilo', location_type: 'physical', physical_address: 'Amsterdam, NL', start_datetime: '2026-09-09T09:00:00', is_free: false, price: 399, capacity: 300, spotsLeft: 74, category: 'Design', code: 'E8', status: 'published' },
-  { id: 1, title: 'Vector Summit 2026', organizer: 'Northwind Labs', location_type: 'physical', physical_address: 'San Francisco, CA', start_datetime: '2026-05-14T09:00:00', is_free: false, price: 199, capacity: 600, spotsLeft: 412, category: 'AI & ML', code: 'E1', status: 'published' },
-  { id: 4, title: 'EdgeCloud Conf', organizer: 'Helix Platform', location_type: 'physical', physical_address: 'Austin, TX', start_datetime: '2026-06-03T09:00:00', is_free: false, price: 249, capacity: 400, spotsLeft: 88, category: 'Cloud', code: 'E4', status: 'published' },
-  { id: 2, title: 'ReactNext: Motion', organizer: 'Parallel', location_type: 'physical', physical_address: 'Berlin, DE', start_datetime: '2026-06-18T09:00:00', is_free: true, price: 0, capacity: 250, spotsLeft: 22, category: 'Frontend', code: 'E2', status: 'published' },
-  { id: 7, title: 'ZeroTrust World', organizer: 'Aegis Security', location_type: 'online', physical_address: null, start_datetime: '2026-07-02T09:00:00', is_free: false, price: 149, capacity: 2000, spotsLeft: 1240, category: 'Security', code: 'E7', status: 'published' },
-  { id: 6, title: 'PlatformCon', organizer: 'Runbook', location_type: 'online', physical_address: null, start_datetime: '2026-08-05T09:00:00', is_free: false, price: 249, capacity: 350, spotsLeft: 156, category: 'DevOps', code: 'E6', status: 'published' },
-  { id: 3, title: 'Product Craft Summit', organizer: 'Orbit', location_type: 'physical', physical_address: 'Toronto, CA', start_datetime: '2026-08-22T09:00:00', is_free: true, price: 0, capacity: 400, spotsLeft: 340, category: 'Product', code: 'E3', status: 'published' },
-]
-
-const FAKE_CATEGORIES = ['AI & ML', 'Cloud', 'Frontend', 'Security', 'Data', 'DevOps', 'Product', 'Design']
 const FILTER_DATES = ['Anytime', 'This week', 'This month', 'Next 3 months']
 
 function getLocation(event) {
   if (event.location_type === 'online') return 'Remote'
+  if (event.location_type === 'hybrid') {
+    return event.physical_address ? `${event.physical_address} + Online` : 'Hybrid'
+  }
   if (event.physical_address) return event.physical_address
   return 'TBA'
 }
@@ -33,17 +22,61 @@ function isWithinDate(iso, filter) {
   const d = new Date(iso)
   const now = new Date()
   if (filter === 'This week') {
-    const end = new Date(now); end.setDate(now.getDate() + 7)
+    const end = new Date(now)
+    end.setDate(now.getDate() + 7)
     return d >= now && d <= end
   }
   if (filter === 'This month') {
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
   }
   if (filter === 'Next 3 months') {
-    const end = new Date(now); end.setMonth(now.getMonth() + 3)
+    const end = new Date(now)
+    end.setMonth(now.getMonth() + 3)
     return d >= now && d <= end
   }
   return true
+}
+
+function getEventPrice(event) {
+  if (event.is_free) return 0
+  if (event.lowestTicketPrice == null) return Number.POSITIVE_INFINITY
+  return event.lowestTicketPrice
+}
+
+function formatPriceLabel(event) {
+  if (event.is_free || event.lowestTicketPrice === 0) return 'Free'
+  if (event.lowestTicketPrice == null) return 'TBA'
+  return `$${event.lowestTicketPrice}`
+}
+
+function getPriceRangeMax(events) {
+  const highestPrice = events.reduce((max, event) => {
+    const price = getEventPrice(event)
+    if (!Number.isFinite(price)) return max
+    return Math.max(max, price)
+  }, 0)
+
+  if (highestPrice <= 0) return 0
+  return Math.ceil(highestPrice / 25) * 25
+}
+
+function normalizeEvent(event, categoryMap, ticketTiers) {
+  const prices = (ticketTiers ?? [])
+    .filter((tier) => tier.is_active)
+    .map((tier) => Number(tier.price))
+    .filter((price) => Number.isFinite(price))
+
+  const lowestTicketPrice = prices.length > 0 ? Math.min(...prices) : null
+  const primaryCategoryId = event.category_ids?.[0]
+  const category = primaryCategoryId ? categoryMap.get(primaryCategoryId) : null
+
+  return {
+    ...event,
+    category: category ?? 'Uncategorized',
+    code: `E${event.id}`,
+    lowestTicketPrice,
+    spotsLeft: event.capacity ?? null,
+  }
 }
 
 const IconSearch = () => (
@@ -63,7 +96,7 @@ const IconArrow = () => (
 function DiscoverCard({ event, onNavigate }) {
   const location = getLocation(event)
   const date = formatDate(event.start_datetime)
-  const priceLabel = event.is_free || event.price === 0 ? 'Free' : `$${event.price}`
+  const priceLabel = formatPriceLabel(event)
 
   return (
     <div className="discover-card" onClick={() => onNavigate(event.id)} style={{ cursor: 'pointer' }}>
@@ -74,7 +107,9 @@ function DiscoverCard({ event, onNavigate }) {
       </div>
       <div className="discover-card-body">
         <p className="discover-card-title">{event.title}</p>
-        <p className="discover-card-organizer">{event.organizer}</p>
+        {event.online_link && (
+          <p className="discover-card-organizer">Online registration available</p>
+        )}
         <div className="discover-card-meta">
           <span className="discover-card-date">
             <IconCalSmall /> {date}
@@ -85,11 +120,15 @@ function DiscoverCard({ event, onNavigate }) {
         </div>
         <div className="discover-card-footer">
           <span className="discover-card-spots">
-            <strong>{event.spotsLeft?.toLocaleString()}</strong> spots left
+            <strong>{event.spotsLeft?.toLocaleString() ?? 'Open'}</strong>{' '}
+            {event.spotsLeft == null ? 'capacity' : 'spots left'}
           </span>
           <button
             className="discover-register-btn"
-            onClick={e => { e.stopPropagation(); onNavigate(event.id) }}
+            onClick={(e) => {
+              e.stopPropagation()
+              onNavigate(event.id)
+            }}
           >
             Register <IconArrow />
           </button>
@@ -133,42 +172,78 @@ export default function BrowseEvents() {
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [selectedLocation, setSelectedLocation] = useState('All')
   const [selectedDate, setSelectedDate] = useState('Anytime')
-  const [maxPrice, setMaxPrice] = useState(500)
+  const [maxPrice, setMaxPrice] = useState(0)
 
   useEffect(() => {
-    Promise.all([
-      eventsApi.list({ limit: 100 }),
-      categoriesApi.list(),
-    ])
-      .then(([eventsRes, catsRes]) => {
-        const items = eventsRes.data?.items ?? eventsRes.data ?? []
-        setEvents(items.length > 0 ? items : FAKE_EVENTS) 
+    let isActive = true
 
-        const catNames = catsRes.data.map((c) => c.name)
-        setCategories(catNames.length > 0 ? catNames : FAKE_CATEGORIES)
-      })
-      .catch(() => {
-        setEvents(FAKE_EVENTS)
-        setCategories(FAKE_CATEGORIES)
-      })
-      .finally(() => setLoading(false))
+    async function loadDiscoverData() {
+      try {
+        const [eventsRes, catsRes] = await Promise.all([
+          eventsApi.list({ limit: 100 }),
+          categoriesApi.list(),
+        ])
+
+        const eventItems = eventsRes.data?.items ?? []
+        const categoryItems = catsRes.data ?? []
+        const categoryMap = new Map(categoryItems.map((category) => [category.id, category.name]))
+
+        const ticketTierResults = await Promise.all(
+          eventItems.map((event) =>
+            ticketTiersApi
+              .listByEvent(event.id)
+              .then((res) => [event.id, res.data ?? []])
+              .catch(() => [event.id, []])
+          )
+        )
+
+        if (!isActive) return
+
+        const ticketTierMap = new Map(ticketTierResults)
+        const normalizedEvents = eventItems.map((event) =>
+          normalizeEvent(event, categoryMap, ticketTierMap.get(event.id))
+        )
+
+        setEvents(normalizedEvents)
+        setCategories(categoryItems.map((category) => category.name))
+        setMaxPrice(getPriceRangeMax(normalizedEvents))
+      } catch {
+        if (!isActive) return
+        setEvents([])
+        setCategories([])
+        setMaxPrice(0)
+      } finally {
+        if (isActive) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadDiscoverData()
+
+    return () => {
+      isActive = false
+    }
   }, [])
 
   const locations = useMemo(() => {
-    const locs = ['All', ...new Set(events.map(getLocation).filter(Boolean))]
-    return locs
+    return ['All', ...new Set(events.map(getLocation).filter(Boolean))]
   }, [events])
 
   const filtered = useMemo(() => {
-    return events.filter((e) => {
-      const cat = e.category || ''
-      const loc = getLocation(e)
-      const price = e.price ?? 0
-      const matchSearch = !query || e.title.toLowerCase().includes(query.toLowerCase()) || (e.organizer || '').toLowerCase().includes(query.toLowerCase())
-      const matchCat = selectedCategory === 'All' || cat.toLowerCase() === selectedCategory.toLowerCase()
-      const matchLoc = selectedLocation === 'All' || loc === selectedLocation
-      const matchDate = isWithinDate(e.start_datetime, selectedDate)
-      const matchPrice = price <= maxPrice
+    return events.filter((event) => {
+      const price = getEventPrice(event)
+      const matchSearch =
+        !query || event.title.toLowerCase().includes(query.toLowerCase())
+      const matchCat =
+        selectedCategory === 'All' || event.category.toLowerCase() === selectedCategory.toLowerCase()
+      const matchLoc = selectedLocation === 'All' || getLocation(event) === selectedLocation
+      const matchDate = isWithinDate(event.start_datetime, selectedDate)
+      const matchPrice =
+        maxPrice === 0
+          ? price === 0
+          : Number.isFinite(price) && price <= maxPrice
+
       return matchSearch && matchCat && matchLoc && matchDate && matchPrice
     })
   }, [events, query, selectedCategory, selectedLocation, selectedDate, maxPrice])
@@ -177,7 +252,7 @@ export default function BrowseEvents() {
     setSelectedCategory('All')
     setSelectedLocation('All')
     setSelectedDate('Anytime')
-    setMaxPrice(500)
+    setMaxPrice(getPriceRangeMax(events))
     setSearchInput('')
     setQuery('')
   }
@@ -188,7 +263,6 @@ export default function BrowseEvents() {
 
   return (
     <div className="discover-layout">
-      {/* Filter Panel */}
       <aside className="filter-panel">
         <div className="filter-panel-header">
           <IconFilter />
@@ -244,12 +318,12 @@ export default function BrowseEvents() {
           <p className="filter-section-label">PRICE</p>
           <div className="filter-price-row">
             <span>$0</span>
-            <span>Up to ${maxPrice}</span>
+            <span>{maxPrice === 0 ? 'Free only' : `Up to $${maxPrice}`}</span>
           </div>
           <input
             type="range"
             min={0}
-            max={500}
+            max={getPriceRangeMax(events)}
             step={25}
             value={maxPrice}
             onChange={(e) => setMaxPrice(Number(e.target.value))}
@@ -259,7 +333,6 @@ export default function BrowseEvents() {
         </div>
       </aside>
 
-      {/* Main Content */}
       <div className="discover-content">
         <div className="discover-top">
           <div>
@@ -274,7 +347,7 @@ export default function BrowseEvents() {
             <IconSearch />
             <input
               type="text"
-              placeholder="Search events, organizers…"
+              placeholder="Search events…"
               className="discover-search"
               value={searchInput}
               onChange={(e) => {
