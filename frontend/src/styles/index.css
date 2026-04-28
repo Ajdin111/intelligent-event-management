@@ -2476,6 +2476,65 @@ select.form-input option {
   margin-left: 0;
 }
 
+.not-found-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 34%),
+    linear-gradient(180deg, rgb(17, 21, 24), rgb(12, 15, 17));
+}
+
+.not-found-card {
+  width: min(100%, 480px);
+  padding: 36px 32px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  text-align: center;
+}
+
+.not-found-code {
+  font-size: 12px;
+  letter-spacing: 0.28em;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.not-found-title {
+  font-size: 34px;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+  margin-bottom: 12px;
+}
+
+.not-found-text {
+  font-size: 14px;
+  color: var(--text-sub);
+  line-height: 1.6;
+  margin-bottom: 22px;
+}
+
+.not-found-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 180px;
+  padding: 11px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border-med);
+  color: var(--text);
+  text-decoration: none;
+  transition: background 0.14s, border-color 0.14s;
+}
+
+.not-found-link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: #ffffff;
+}
+
 /* ─── Registration Flow ──────────────────────────────────────────────── */
 
 .reg-wrap {

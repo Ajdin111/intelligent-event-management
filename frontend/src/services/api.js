@@ -42,12 +42,12 @@ export const eventsApi = {
   getById: (id) => api.get(`/api/events/${id}`),
 }
 
-export const categoriesApi = {
-  list: () => api.get('/api/categories'),
-}
-
 export const ticketTiersApi = {
   listByEvent: (eventId) => api.get(`/api/events/${eventId}/ticket-tiers`),
+}
+
+export const categoriesApi = {
+  list: () => api.get('/api/categories'),
 }
 
 export const registrationsApi = {

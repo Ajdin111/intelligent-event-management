@@ -21,6 +21,23 @@ import OrganizerAgenda from './pages/organizer/OrganizerAgenda'
 import OrganizerNotifications from './pages/organizer/OrganizerNotifications'
 import NotFound from './pages/NotFound'
 
+function NotFoundRoute() {
+  return (
+    <div className="not-found-page">
+      <div className="not-found-card">
+        <p className="not-found-code">404</p>
+        <h1 className="not-found-title">Page not found</h1>
+        <p className="not-found-text">
+          The page you requested does not exist or may have been moved.
+        </p>
+        <a href="/dashboard" className="not-found-link">
+          Back to dashboard
+        </a>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -68,7 +85,7 @@ export default function App() {
             <Route path="notifications" element={<OrganizerNotifications />} />
           </Route>
 
-          <Route path="*" element={<NotFound />} />
+          <Route path="*" element={<NotFoundRoute />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
