@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { eventsApi } from '../services/api'
+import { eventsApi, ticketTiersApi } from '../services/api'
 
 // Per-event cover images — themed to each event's spirit
 const COVERS = {
@@ -358,6 +358,7 @@ export default function EventDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [event, setEvent] = useState(null)
+  const [realTiers, setRealTiers] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedTier, setSelectedTier] = useState(0)
   const [quantity, setQuantity] = useState(1)
@@ -365,19 +366,20 @@ export default function EventDetail() {
   useEffect(() => {
     const numId = Number(id)
 
-    // Reject non-numeric, negative, or non-integer IDs immediately
     if (!id || isNaN(numId) || numId <= 0 || !Number.isInteger(numId)) {
       setEvent(null)
       setLoading(false)
       return
     }
 
-    eventsApi.getById(id)
-      .then(res => {
-        const real = res.data
+    Promise.all([
+      eventsApi.getById(id),
+      ticketTiersApi.listByEvent(id),
+    ])
+      .then(([evRes, tiersRes]) => {
+        const real = evRes.data
         const fake = FAKE[numId] ?? null
         if (!fake) {
-          // Real event exists in DB but we have no fake enrichment — use real data only
           setEvent({
             title: real.title,
             category: 'Tech', organizer: 'TeqEvent',
@@ -390,8 +392,7 @@ export default function EventDetail() {
               || (real.location_type === 'online' ? 'Remote' : 'TBD'),
             rating: 0, reviewCount: 0,
             description: real.description || 'No description available.',
-            tiers: [{ name: 'Standard', price: real.is_free ? 0 : 99, total: real.capacity || 100, sold: 0 }],
-            tracks: [], breakdown: [], reviews: [],
+            tiers: [], tracks: [], breakdown: [], reviews: [],
           })
         } else {
           setEvent({
@@ -406,30 +407,64 @@ export default function EventDetail() {
               : fake.date,
           })
         }
+        setRealTiers(tiersRes.data)
       })
-          .catch((error) => {
-            if (error.response && error.response.status === 404) {
-              setEvent(null)
-              return
-            }
-            const fake = FAKE[numId] ?? null
-            setEvent(fake)
-          })
+      .catch(() => {
+        const fake = FAKE[numId] ?? null
+        setEvent(fake)
+      })
       .finally(() => setLoading(false))
   }, [id])
 
   if (loading) return <div className="ed-state">Loading…</div>
   if (!event)  return <div className="ed-state">Event not found.</div>
 
-  const cover      = COVERS[Number(id)] || DEFAULT_COVER
-  const tier       = event.tiers[selectedTier]
-  const soldOut    = tier && tier.sold >= tier.total
-  const available  = tier ? tier.total - tier.sold : 0
-  const subtotal   = tier
+  const cover = COVERS[Number(id)] || DEFAULT_COVER
+
+  // Prefer real tiers from API; fall back to FAKE tiers
+  const displayTiers = realTiers.length > 0
+    ? realTiers.map(t => ({
+        id:        t.id,
+        name:      t.name,
+        price:     parseFloat(t.price),
+        total:     t.quantity,
+        sold:      t.quantity_sold,
+        available: t.quantity_available,
+        soldOut:   t.is_sold_out || !t.is_active,
+      }))
+    : (event.tiers || []).map(t => ({
+        id:        null,
+        name:      t.name,
+        price:     t.price,
+        total:     t.total,
+        sold:      t.sold,
+        available: t.total - t.sold,
+        soldOut:   t.sold >= t.total,
+      }))
+
+  const tier      = displayTiers[selectedTier]
+  const soldOut   = tier?.soldOut ?? true
+  const available = tier?.available ?? 0
+  const subtotal  = tier
     ? (tier.price === 0 ? 'Free' : `$${(tier.price * quantity).toLocaleString()}`)
     : '—'
   const hasRating  = event.reviewCount > 0
   const hasSamples = event.reviews.length > 0
+
+  const handleRegister = () => {
+    if (!tier || soldOut) return
+    navigate(`/events/${id}/register`, {
+      state: {
+        eventId:       Number(id),
+        eventTitle:    event.title,
+        eventDate:     event.date,
+        eventLocation: event.location,
+        eventCategory: event.category,
+        tier:          { id: tier.id, name: tier.name, price: tier.price },
+        quantity,
+      },
+    })
+  }
 
   return (
     <div className="ed-wrap">
@@ -567,29 +602,29 @@ export default function EventDetail() {
           <div className="ed-ticket-box">
             <p className="ed-ticket-label">CHOOSE A TIER</p>
             <div className="ed-tiers">
-              {event.tiers.map((t, i) => {
-                const out  = t.sold >= t.total
-                const left = t.total - t.sold
-                const fill = Math.round((t.sold / t.total) * 100)
+              {displayTiers.length === 0 ? (
+                <p className="ed-desc" style={{ fontSize: 13, padding: '8px 0' }}>No ticket tiers available yet.</p>
+              ) : displayTiers.map((t, i) => {
+                const fill = t.total > 0 ? Math.round((t.sold / t.total) * 100) : 0
                 return (
                   <button
                     key={t.name}
-                    disabled={out}
-                    onClick={() => { if (!out) { setSelectedTier(i); setQuantity(1) } }}
+                    disabled={t.soldOut}
+                    onClick={() => { if (!t.soldOut) { setSelectedTier(i); setQuantity(1) } }}
                     className={[
                       'ed-tier',
-                      selectedTier === i && !out ? 'ed-tier--active' : '',
-                      out ? 'ed-tier--soldout' : '',
+                      selectedTier === i && !t.soldOut ? 'ed-tier--active' : '',
+                      t.soldOut ? 'ed-tier--soldout' : '',
                     ].join(' ')}
                   >
                     <div className="ed-tier-row">
                       <span className="ed-tier-name">{t.name}</span>
                       <span className="ed-tier-price">
-                        {out ? 'Sold out' : t.price === 0 ? 'Free' : `$${t.price}`}
+                        {t.soldOut ? 'Sold out' : t.price === 0 ? 'Free' : `$${t.price}`}
                       </span>
                     </div>
                     <span className="ed-tier-avail">
-                      {out ? 'No spots remaining' : `${left} of ${t.total} left`}
+                      {t.soldOut ? 'No spots remaining' : `${t.available} of ${t.total} left`}
                     </span>
                     <div className="ed-tier-track">
                       <div className="ed-tier-fill" style={{ width: `${fill}%` }} />
@@ -599,7 +634,7 @@ export default function EventDetail() {
               })}
             </div>
 
-            {!soldOut && (
+            {!soldOut && displayTiers.length > 0 && (
               <>
                 <div className="ed-qty-row">
                   <span className="ed-qty-label">Quantity</span>
@@ -616,11 +651,15 @@ export default function EventDetail() {
               </>
             )}
 
-            <button className="ed-register-btn" disabled={soldOut}>
+            <button
+              className="ed-register-btn"
+              disabled={soldOut || displayTiers.length === 0}
+              onClick={handleRegister}
+            >
               {soldOut ? 'Sold out' : 'Register now →'}
             </button>
 
-            {!soldOut && (
+            {!soldOut && displayTiers.length > 0 && (
               <p className="ed-register-note">
                 Secure checkout · Refundable up to 7 days before event
               </p>
