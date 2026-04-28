@@ -63,12 +63,12 @@ const IconArrow = () => (
 function DiscoverCard({ event, onNavigate }) {
   const location = getLocation(event)
   const date = formatDate(event.start_datetime)
-  const priceLabel = event.is_free || event.price === 0 ? 'Free' : `$${event.price}`
+  const priceLabel = event.is_free || event.price === 0 ? 'Free' : event.price != null ? `$${event.price}` : 'Paid'
 
   return (
     <div className="discover-card" onClick={() => onNavigate(event.id)} style={{ cursor: 'pointer' }}>
       <div className="discover-card-cover">
-        <span className="discover-card-category">{event.category}</span>
+        {event.category && <span className="discover-card-category">{event.category}</span>}
         <span className="discover-card-price">{priceLabel}</span>
         <span className="discover-card-code">EVENT · {event.code}</span>
       </div>
@@ -142,10 +142,28 @@ export default function BrowseEvents() {
     ])
       .then(([eventsRes, catsRes]) => {
         const items = eventsRes.data?.items ?? eventsRes.data ?? []
-        setEvents(items.length > 0 ? items : FAKE_EVENTS) 
+        const cats = catsRes.data || []
 
-        const catNames = catsRes.data.map((c) => c.name)
+        const catNames = cats.map((c) => c.name)
         setCategories(catNames.length > 0 ? catNames : FAKE_CATEGORIES)
+
+        if (items.length > 0) {
+          const enriched = items.map((ev) => {
+            const catId = ev.category_ids?.[0]
+            const catObj = cats.find((c) => c.id === catId)
+            return {
+              ...ev,
+              category: catObj?.name || '',
+              organizer: ev.organizer || 'TeqEvent',
+              code: `E${ev.id}`,
+              spotsLeft: ev.capacity ?? null,
+              price: ev.is_free ? 0 : (ev.price ?? null),
+            }
+          })
+          setEvents(enriched)
+        } else {
+          setEvents(FAKE_EVENTS)
+        }
       })
       .catch(() => {
         setEvents(FAKE_EVENTS)

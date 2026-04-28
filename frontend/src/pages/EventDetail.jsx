@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { eventsApi } from '../services/api'
+import { eventsApi, categoriesApi } from '../services/api'
 
 // Per-event cover images — themed to each event's spirit
 const COVERS = {
@@ -377,21 +377,51 @@ export default function EventDetail() {
         const real = res.data
         const fake = FAKE[numId] ?? null
         if (!fake) {
-          // Real event exists in DB but we have no fake enrichment — use real data only
-          setEvent({
-            title: real.title,
-            category: 'Tech', organizer: 'TeqEvent',
-            date: real.start_datetime
-              ? new Date(real.start_datetime).toLocaleDateString('en-US',
-                  { month: 'long', day: 'numeric', year: 'numeric' })
-              : 'TBD',
-            time: 'TBD',
-            location: real.physical_address
-              || (real.location_type === 'online' ? 'Remote' : 'TBD'),
-            rating: 0, reviewCount: 0,
-            description: real.description || 'No description available.',
-            tiers: [{ name: 'Standard', price: real.is_free ? 0 : 99, total: real.capacity || 100, sold: 0 }],
-            tracks: [], breakdown: [], reviews: [],
+          return Promise.all([
+            eventsApi.getTiers(id).catch(() => ({ data: [] })),
+            categoriesApi.list().catch(() => ({ data: [] })),
+          ]).then(([tiersRes, catsRes]) => {
+            const tiers = (tiersRes.data || []).map(t => ({
+              name: t.name,
+              price: Number(t.price),
+              total: t.quantity,
+              sold: t.quantity_sold,
+            }))
+            const cats = catsRes.data || []
+            const catId = real.category_ids?.[0]
+            const catObj = cats.find(c => c.id === catId)
+            const category = catObj?.name || 'Tech'
+
+            const fmt = dt => dt
+              ? new Date(dt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+              : null
+            const t0 = fmt(real.start_datetime)
+            const t1 = fmt(real.end_datetime)
+            const time = t0 && t1 ? `${t0} – ${t1}` : 'TBD'
+
+            const location = real.physical_address
+              || (real.location_type === 'online' || real.location_type === 'hybrid'
+                ? 'Remote' : 'TBD')
+
+            setEvent({
+              title: real.title,
+              category,
+              organizer: 'TeqEvent',
+              date: real.start_datetime
+                ? new Date(real.start_datetime).toLocaleDateString('en-US',
+                    { month: 'long', day: 'numeric', year: 'numeric' })
+                : 'TBD',
+              time,
+              location,
+              rating: 0, reviewCount: 0,
+              description: real.description || 'No description available.',
+              tiers: tiers.length > 0
+                ? tiers
+                : real.is_free
+                  ? [{ name: 'Free Entry', price: 0, total: real.capacity || 0, sold: 0 }]
+                  : [],
+              tracks: [], breakdown: [], reviews: [],
+            })
           })
         } else {
           setEvent({

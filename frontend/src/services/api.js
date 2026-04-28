@@ -40,6 +40,7 @@ export const authApi = {
 export const eventsApi = {
   list: (params = {}) => api.get('/api/events', { params }),
   getById: (id) => api.get(`/api/events/${id}`),
+  getTiers: (id) => api.get(`/api/events/${id}/ticket-tiers`),
 }
 
 export const categoriesApi = {

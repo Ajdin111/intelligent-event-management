@@ -2455,3 +2455,11 @@ select.form-input option {
 .sidebar--collapsed .sidebar-collapse-btn {
   margin-left: 0;
 }
+/* ── Create event — select dropdown arrow ────────────────────────────── */
+select.form-input {
+  appearance: none;
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+  cursor: pointer;
+}
