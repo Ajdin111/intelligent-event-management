@@ -1,5 +1,5 @@
 import logging
-from celery import shared_task
+from app.core.celery_app import celery_app
 from datetime import datetime, date
 
 from app.db.session import get_db_context
@@ -7,7 +7,7 @@ from app.db.session import get_db_context
 logger = logging.getLogger(__name__)
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=120)
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=120)
 def compute_event_analytics(self, event_id: int):
     try:
         with get_db_context() as db:
@@ -122,7 +122,7 @@ def compute_event_analytics(self, event_id: int):
         raise self.retry(exc=exc)
 
 
-@shared_task
+@celery_app.task
 def compute_platform_analytics():
     """Daily platform-wide analytics snapshot — uses yesterday's totals as baseline."""
     with get_db_context() as db:

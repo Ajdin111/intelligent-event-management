@@ -1,7 +1,7 @@
 import html as html_lib
 import smtplib
 import logging
-from celery import shared_task
+from app.core.celery_app import celery_app
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -30,7 +30,7 @@ def send_email(to: str, subject: str, html_body: str) -> bool:
         return False
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=60)
 def send_registration_confirmation(self, registration_id: int):
     try:
         with get_db_context() as db:
@@ -81,7 +81,7 @@ def send_registration_confirmation(self, registration_id: int):
         raise self.retry(exc=exc)
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=60)
 def send_event_reminder(self, event_id: int, hours_before: int):
     try:
         with get_db_context() as db:
@@ -142,7 +142,7 @@ def send_event_reminder(self, event_id: int, hours_before: int):
         raise self.retry(exc=exc)
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=60)
 def send_feedback_request(self, event_id: int):
     try:
         with get_db_context() as db:
@@ -190,7 +190,7 @@ def send_feedback_request(self, event_id: int):
         raise self.retry(exc=exc)
 
 
-@shared_task
+@celery_app.task
 def send_upcoming_event_reminders():
     """Periodic task — runs every hour. Triggers reminders for events starting in ~24h or ~1h."""
     with get_db_context() as db:

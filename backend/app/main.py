@@ -10,6 +10,7 @@ from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
 from app.core.exceptions import AppError
 from app.core.limiter import limiter
+from app.core.celery_app import celery_app  # noqa: F401 — initializes Celery app for shared_task binding
 from app.api.auth import router as auth_router
 from app.api.event import router as events_router
 from app.api.categories import router as categories_router

@@ -148,13 +148,16 @@ def create_registration(
     db.refresh(registration)
 
     if reg_status == "confirmed":
-        send_registration_confirmation.delay(registration.id)
-        create_in_app_notification.delay(
-            user_id=current_user.id,
-            title="Registration confirmed",
-            message=f"You're registered for {event.title}",
-            notification_type="registration_confirmation",
-        )
+        try:
+            send_registration_confirmation.delay(registration.id)
+            create_in_app_notification.delay(
+                user_id=current_user.id,
+                title="Registration confirmed",
+                message=f"You're registered for {event.title}",
+                notification_type="registration_confirmation",
+            )
+        except Exception:
+            pass
 
     return registration
 
@@ -273,7 +276,10 @@ def _process_waitlist(db: Session, event_id: int) -> None:
         db.commit()
 
         from app.tasks.notifications import notify_waitlist_user
-        notify_waitlist_user.delay(next_in_line.id)
+        try:
+            notify_waitlist_user.delay(next_in_line.id)
+        except Exception:
+            pass
 
 
 def get_event_registrations(
@@ -336,13 +342,16 @@ def approve_registration(db: Session, registration_id: int, current_user: User) 
     db.commit()
     db.refresh(registration)
 
-    send_registration_confirmation.delay(registration.id)
-    create_in_app_notification.delay(
-        user_id=registration.user_id,
-        title="Registration approved",
-        message="Your registration has been approved",
-        notification_type="approval",
-    )
+    try:
+        send_registration_confirmation.delay(registration.id)
+        create_in_app_notification.delay(
+            user_id=registration.user_id,
+            title="Registration approved",
+            message="Your registration has been approved",
+            notification_type="approval",
+        )
+    except Exception:
+        pass
 
     return registration
 
