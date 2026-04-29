@@ -35,6 +35,12 @@ export const authApi = {
     api.post('/api/auth/register', data),
   me: () =>
     api.get('/api/auth/me'),
+  updateProfile: (data) =>
+    api.patch('/api/auth/me', data),
+  changePassword: (data) =>
+    api.post('/api/auth/change-password', data),
+  deleteAccount: (data) =>
+    api.delete('/api/auth/me', { data }),
 }
 
 export const eventsApi = {

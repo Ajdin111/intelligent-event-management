@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { notificationsApi } from '../services/api'
+import { authApi, notificationsApi } from '../services/api'
 
 const notificationFields = [
   ['registration_confirmation', 'Registration confirmations'],
@@ -38,14 +38,23 @@ function getDeliveryLabel(prefs) {
 }
 
 export default function Preferences() {
-  const { user, activeRole } = useAuth()
+  const { user, setUser, logout, activeRole } = useAuth()
   const { hash } = useLocation()
+  const navigate = useNavigate()
   const [nameDraft, setNameDraft] = useState({ first_name: '', last_name: '' })
   const [passwordDraft, setPasswordDraft] = useState({
     current_password: '',
     new_password: '',
     confirm_password: '',
   })
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [profileMessage, setProfileMessage] = useState('')
+  const [savingPassword, setSavingPassword] = useState(false)
+  const [passwordMessage, setPasswordMessage] = useState('')
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deletingAccount, setDeletingAccount] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const [prefs, setPrefs] = useState(null)
   const [history, setHistory] = useState([])
   const [loadingPrefs, setLoadingPrefs] = useState(true)
@@ -84,6 +93,62 @@ export default function Preferences() {
     if (!user) return 'Your profile'
     return `${user.first_name} ${user.last_name}`
   }, [user])
+
+  const handleSaveProfile = async () => {
+    setSavingProfile(true)
+    setProfileMessage('')
+    try {
+      const res = await authApi.updateProfile(nameDraft)
+      setUser(res.data)
+      setProfileMessage('Profile updated.')
+    } catch {
+      setProfileMessage('Could not save profile changes.')
+    } finally {
+      setSavingProfile(false)
+    }
+  }
+
+  const handleChangePassword = async () => {
+    setPasswordMessage('')
+    if (!passwordDraft.current_password || !passwordDraft.new_password || !passwordDraft.confirm_password) {
+      setPasswordMessage('Please fill in all password fields.')
+      return
+    }
+    if (passwordDraft.new_password !== passwordDraft.confirm_password) {
+      setPasswordMessage('New passwords do not match.')
+      return
+    }
+    setSavingPassword(true)
+    try {
+      await authApi.changePassword({
+        current_password: passwordDraft.current_password,
+        new_password: passwordDraft.new_password,
+      })
+      setPasswordDraft({ current_password: '', new_password: '', confirm_password: '' })
+      setPasswordMessage('Password updated successfully.')
+    } catch (err) {
+      setPasswordMessage(err.response?.data?.detail ?? 'Could not update password.')
+    } finally {
+      setSavingPassword(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      setDeleteError('Please enter your password.')
+      return
+    }
+    setDeletingAccount(true)
+    setDeleteError('')
+    try {
+      await authApi.deleteAccount({ password: deletePassword })
+      logout()
+      navigate('/login')
+    } catch (err) {
+      setDeleteError(err.response?.data?.detail ?? 'Could not delete account.')
+      setDeletingAccount(false)
+    }
+  }
 
   const handlePrefToggle = (field) => {
     setPrefs((current) => current ? { ...current, [field]: !current[field] } : current)
@@ -128,15 +193,6 @@ export default function Preferences() {
 
   return (
     <div className="settings-page">
-      <div className="settings-header">
-        <div>
-          <h1 className="page-header">Profile Settings</h1>
-          <p className="settings-subtitle">
-            Manage your profile details and notification preferences from one place.
-          </p>
-        </div>
-      </div>
-
       <div className="settings-grid">
         <section className="settings-card settings-card--profile">
           <div className="settings-card-head">
@@ -147,7 +203,9 @@ export default function Preferences() {
             <div className="settings-avatar">{getInitials(user)}</div>
             <div>
               <p className="settings-identity-name">{fullName}</p>
-              <p className="settings-identity-role">{activeRole}</p>
+              <p className="settings-identity-role">
+                {user?.is_organizer ? 'attendee · organizer' : 'attendee'}
+              </p>
               <p className="settings-identity-email">{user?.email}</p>
             </div>
           </div>
@@ -176,9 +234,16 @@ export default function Preferences() {
             <input className="form-input" value={user?.email ?? ''} disabled />
           </label>
 
-          <button className="settings-btn settings-btn--muted" disabled>
-            Save profile changes
-          </button>
+          <div className="settings-actions">
+            <button
+              className="settings-btn"
+              onClick={handleSaveProfile}
+              disabled={savingProfile}
+            >
+              {savingProfile ? 'Saving…' : 'Save profile changes'}
+            </button>
+            {profileMessage && <span className="settings-feedback">{profileMessage}</span>}
+          </div>
 
           <div className="settings-divider" />
 
@@ -216,9 +281,16 @@ export default function Preferences() {
             </label>
           </div>
 
-          <button className="settings-btn settings-btn--muted" disabled>
-            Update password
-          </button>
+          <div className="settings-actions">
+            <button
+              className="settings-btn"
+              onClick={handleChangePassword}
+              disabled={savingPassword}
+            >
+              {savingPassword ? 'Updating…' : 'Update password'}
+            </button>
+            {passwordMessage && <span className="settings-feedback">{passwordMessage}</span>}
+          </div>
         </section>
 
         <section className="settings-card" id="notification-settings">
@@ -359,8 +431,43 @@ export default function Preferences() {
               )}
             </>
           )}
+          <div className="settings-danger-zone">
+            <button className="settings-btn settings-btn--danger" onClick={() => { setDeleteModalOpen(true); setDeleteError(''); setDeletePassword('') }}>
+              Delete account
+            </button>
+          </div>
         </section>
       </div>
+
+      {deleteModalOpen && (
+        <div className="delete-modal-overlay" onClick={() => setDeleteModalOpen(false)}>
+          <div className="delete-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="delete-modal-title">Delete account</h3>
+            <p className="delete-modal-body">
+              This action is permanent and cannot be undone. Enter your password to confirm.
+            </p>
+            <label className="field">
+              <span className="field-label">Password</span>
+              <input
+                type="password"
+                className="form-input"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                autoFocus
+              />
+            </label>
+            {deleteError && <p className="delete-modal-error">{deleteError}</p>}
+            <div className="delete-modal-actions">
+              <button className="settings-btn settings-btn--ghost" onClick={() => setDeleteModalOpen(false)} disabled={deletingAccount}>
+                Cancel
+              </button>
+              <button className="settings-btn settings-btn--danger" onClick={handleDeleteAccount} disabled={deletingAccount}>
+                {deletingAccount ? 'Deleting…' : 'Delete account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

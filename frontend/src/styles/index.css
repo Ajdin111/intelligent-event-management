@@ -1081,7 +1081,7 @@ body {
 .settings-page {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 12px;
 }
 
 .settings-header {
@@ -1107,7 +1107,9 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 18px;
-  padding: 22px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
 }
 
 .settings-card--profile {
@@ -1119,12 +1121,12 @@ body {
   align-items: baseline;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 18px;
+  margin-bottom: 10px;
 }
 
 .settings-card-head--subsection {
-  margin-top: 4px;
-  margin-bottom: 14px;
+  margin-top: 2px;
+  margin-bottom: 8px;
 }
 
 .settings-panel-head {
@@ -1132,19 +1134,19 @@ body {
   align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
-  margin-bottom: 22px;
+  margin-bottom: 12px;
 }
 
 .settings-panel-title {
-  font-size: 22px;
+  font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.03em;
   color: var(--text);
 }
 
 .settings-panel-subtitle {
-  margin-top: 6px;
-  font-size: 14px;
+  margin-top: 3px;
+  font-size: 12.5px;
   color: var(--text-sub);
 }
 
@@ -1164,23 +1166,23 @@ body {
 .settings-identity {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 16px;
+  gap: 12px;
+  padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 14px;
-  margin-bottom: 18px;
+  margin-bottom: 10px;
   background: rgba(255, 255, 255, 0.03);
 }
 
 .settings-avatar {
-  width: 52px;
-  height: 52px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: rgba(255, 255, 255, 0.12);
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.04em;
 }
@@ -1215,24 +1217,24 @@ body {
 }
 
 .settings-form-block {
-  margin-bottom: 12px;
+  margin-bottom: 7px;
 }
 
 .settings-form-block--spaced {
-  margin-top: 18px;
+  margin-top: 10px;
 }
 
 .settings-form-stack {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .settings-divider {
   height: 1px;
   background: var(--border);
-  margin: 22px 0;
+  margin: 12px 0;
 }
 
 .settings-toggle-list {
@@ -1290,6 +1292,72 @@ body {
 
 .settings-placeholder--compact {
   height: 140px;
+}
+
+.settings-btn--danger {
+  color: #fff;
+  background: #c0392b;
+  border-color: #c0392b;
+}
+
+.settings-btn--danger:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.settings-danger-zone {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+  padding-top: 18px;
+}
+
+.delete-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgb(26, 31, 34);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 900;
+}
+
+.delete-modal {
+  background: var(--surface);
+  border: 1px solid var(--border-med);
+  border-radius: 14px;
+  padding: 28px 28px 24px;
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.delete-modal-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.delete-modal-body {
+  font-size: 13px;
+  color: var(--text-sub);
+  margin: 0;
+  line-height: 1.55;
+}
+
+.delete-modal-error {
+  font-size: 12.5px;
+  color: #c0392b;
+  margin: 0;
+}
+
+.delete-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
 }
 
 .org-settings-card-grid {
