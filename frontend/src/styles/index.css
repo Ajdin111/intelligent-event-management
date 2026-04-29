@@ -1127,6 +1127,27 @@ body {
   margin-bottom: 14px;
 }
 
+.settings-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.settings-panel-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text);
+}
+
+.settings-panel-subtitle {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--text-sub);
+}
+
 .settings-card-title {
   font-size: 16px;
   font-weight: 600;
@@ -1251,6 +1272,13 @@ body {
   border-color: var(--border);
 }
 
+.settings-btn--ghost {
+  color: var(--text);
+  background: transparent;
+  border-color: var(--border-med);
+  text-decoration: none;
+}
+
 .settings-feedback {
   font-size: 12.5px;
   color: var(--text-sub);
@@ -1258,6 +1286,127 @@ body {
 
 .settings-placeholder {
   height: 220px;
+}
+
+.settings-placeholder--compact {
+  height: 140px;
+}
+
+.org-settings-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.org-settings-card {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.org-settings-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.org-settings-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.org-settings-card-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-med);
+  color: var(--text-sub);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.org-settings-card-copy {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-sub);
+  margin-bottom: 14px;
+}
+
+.org-settings-mini-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.org-settings-mini-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.org-settings-mini-label {
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.org-settings-history {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.org-settings-history-head {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.org-settings-history-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.org-settings-table-wrap {
+  overflow-x: auto;
+}
+
+.org-settings-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.org-settings-table th,
+.org-settings-table td {
+  padding: 16px 20px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.org-settings-table th {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.org-settings-table td {
+  font-size: 14px;
+  color: var(--text-sub);
+}
+
+.org-settings-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.org-settings-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 /* ─── Auth Pages ────────────────────────────────────────────────────── */
@@ -4288,6 +4437,20 @@ select.form-input option {
   .settings-header {
     flex-direction: column;
     gap: 10px;
+  }
+
+  .settings-panel-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .org-settings-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .org-settings-table th,
+  .org-settings-table td {
+    padding: 14px 16px;
   }
 
   .profile-meta {

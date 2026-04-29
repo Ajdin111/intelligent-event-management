@@ -66,6 +66,7 @@ export const registrationsApi = {
 }
 
 export const notificationsApi = {
+  list: () => api.get('/api/notifications/'),
   getUnreadCount: () => api.get('/api/notifications/unread-count'),
   getPreferences: () => api.get('/api/notifications/preferences'),
   updatePreferences: (data) => api.patch('/api/notifications/preferences', data),
