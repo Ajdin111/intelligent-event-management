@@ -63,7 +63,7 @@ export default function App() {
             <Route path="registrations" element={<MyRegistrations />} />
             <Route path="tickets" element={<MyTickets />} />
             <Route path="feedback" element={<Feedback />} />
-            <Route path="preferences" element={<Preferences />} />
+            <Route path="profile" element={<Preferences />} />
             <Route path="*" element={<NotFound />} />
           </Route>
 

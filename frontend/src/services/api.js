@@ -35,6 +35,12 @@ export const authApi = {
     api.post('/api/auth/register', data),
   me: () =>
     api.get('/api/auth/me'),
+  updateProfile: (data) =>
+    api.patch('/api/auth/me', data),
+  changePassword: (data) =>
+    api.post('/api/auth/change-password', data),
+  deleteAccount: (data) =>
+    api.delete('/api/auth/me', { data }),
 }
 
 export const eventsApi = {
@@ -63,6 +69,13 @@ export const registrationsApi = {
   getById: (id)             => api.get(`/api/registrations/${id}`),
   cancel:  (id, reason)     => api.delete(`/api/registrations/${id}`, { data: { cancellation_reason: reason ?? null } }),
   getTickets: (id)          => api.get(`/api/registrations/${id}/tickets`),
+}
+
+export const notificationsApi = {
+  list: () => api.get('/api/notifications/'),
+  getUnreadCount: () => api.get('/api/notifications/unread-count'),
+  getPreferences: () => api.get('/api/notifications/preferences'),
+  updatePreferences: (data) => api.patch('/api/notifications/preferences', data),
 }
 
 export default api

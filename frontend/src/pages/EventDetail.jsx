@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { eventsApi, ticketTiersApi, reviewsApi } from '../services/api'
+import NotFound from './NotFound'
 
 // Per-event cover images — themed to each event's spirit
 const COVERS = {
@@ -432,7 +433,7 @@ export default function EventDetail() {
   }, [id])
 
   if (loading) return <div className="ed-state">Loading…</div>
-  if (!event)  return <div className="ed-state">Event not found.</div>
+  if (!event)  return <NotFound />
 
   const cover = COVERS[Number(id)] || DEFAULT_COVER
 

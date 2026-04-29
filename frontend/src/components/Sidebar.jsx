@@ -39,13 +39,6 @@ const IconChat = () => (
   </svg>
 )
 
-const IconBell = () => (
-  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <path d="M7.5 1.5A4 4 0 0 0 3.5 5.5V9l-1.5 2h11L11.5 9V5.5A4 4 0 0 0 7.5 1.5Z" strokeLinejoin="round" />
-    <path d="M6 11.5a1.5 1.5 0 0 0 3 0" />
-  </svg>
-)
-
 const IconLogout = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
     <path d="M5 2H2a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3" strokeLinecap="round" />
@@ -54,11 +47,6 @@ const IconLogout = () => (
   </svg>
 )
 
-const IconChevronDown = () => (
-  <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <polyline points="2,4 5.5,7.5 9,4" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-)
 const IconChevronLeft = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
     <polyline points="9,3 5,7 9,11" strokeLinecap="round" strokeLinejoin="round" />
@@ -71,24 +59,16 @@ const navItems = [
   { to: '/registrations', label: 'My Registrations', icon: <IconCalendar /> },
   { to: '/tickets', label: 'My Tickets', icon: <IconTicket /> },
   { to: '/feedback', label: 'Feedback', icon: <IconChat /> },
-  { to: '/preferences', label: 'Preferences', icon: <IconBell /> },
 ]
 
 export default function Sidebar() {
-  const { user, logout, switchRole, activeRole } = useAuth()
+  const { user, logout, activeRole } = useAuth()
   const navigate = useNavigate()
-  const [roleDropdownOpen, setRoleDropdownOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
 
   const handleLogout = () => {
     logout()
     navigate('/login')
-  }
-
-  const handleSwitchToOrganizer = () => {
-    switchRole('organizer')
-    navigate('/organizer/dashboard')
-    setRoleDropdownOpen(false)
   }
 
   return (
@@ -136,35 +116,7 @@ export default function Sidebar() {
         <span className="sidebar-user-name">
           {user ? `${user.first_name} ${user.last_name}` : '—'}
         </span>
-        <div className="sidebar-role-switcher">
-          <button
-            className="sidebar-role-btn"
-            onClick={() => setRoleDropdownOpen(o => !o)}
-          >
-            <span style={{ textTransform: 'capitalize' }}>{activeRole}</span>
-            <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <polyline points="2,4 5.5,7.5 9,4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-          {roleDropdownOpen && (
-            <div className="sidebar-role-dropdown">
-              <button
-                className="sidebar-role-option active"
-                onClick={() => setRoleDropdownOpen(false)}
-              >
-                Attendee
-              </button>
-              {user?.is_organizer && (
-                <button
-                  className="sidebar-role-option"
-                  onClick={handleSwitchToOrganizer}
-                >
-                  Organizer
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+        <span className="sidebar-user-role" style={{ textTransform: 'capitalize' }}>{activeRole}</span>
       </div>
       <button className="logout-btn" onClick={handleLogout} title="Sign out">
         <IconLogout />
