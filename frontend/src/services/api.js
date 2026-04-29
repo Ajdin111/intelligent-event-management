@@ -50,6 +50,13 @@ export const categoriesApi = {
   list: () => api.get('/api/categories'),
 }
 
+export const reviewsApi = {
+  listByEvent: (eventId) => api.get(`/api/events/${eventId}/reviews`),
+  getMyReview: (eventId) => api.get(`/api/events/${eventId}/reviews/me`),
+  create:      (data)    => api.post('/api/reviews', data),
+  delete:      (id)      => api.delete(`/api/reviews/${id}`),
+}
+
 export const registrationsApi = {
   create:  (data)           => api.post('/api/registrations', data),
   getMine: ()               => api.get('/api/registrations/me'),
