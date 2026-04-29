@@ -373,6 +373,7 @@ export default function EventDetail() {
   const [realTiers, setRealTiers] = useState([])
   const [reviews, setReviews] = useState([])
   const [loading, setLoading] = useState(true)
+  const [realEventData, setRealEventData] = useState(null)
   const [selectedTier, setSelectedTier] = useState(0)
   const [quantity, setQuantity] = useState(1)
 
@@ -392,6 +393,7 @@ export default function EventDetail() {
     ])
       .then(([evRes, tiersRes, realReviews]) => {
         const real = evRes.data
+        setRealEventData(real)
         const fake = FAKE[numId] ?? null
         if (!fake) {
           setEvent({
@@ -436,7 +438,8 @@ export default function EventDetail() {
 
   const cover = COVERS[Number(id)] || DEFAULT_COVER
 
-  // Prefer real tiers from API; fall back to FAKE tiers
+  // Prefer real tiers from API; only fall back to FAKE tiers for paid events without real tiers
+  const isFreeEvent = realEventData?.is_free ?? false
   const displayTiers = realTiers.length > 0
     ? realTiers.map(t => ({
         id:        t.id,
@@ -447,22 +450,28 @@ export default function EventDetail() {
         available: t.quantity_available,
         soldOut:   t.is_sold_out || !t.is_active,
       }))
-    : (event.tiers || []).map(t => ({
-        id:        null,
-        name:      t.name,
-        price:     t.price,
-        total:     t.total,
-        sold:      t.sold,
-        available: t.total - t.sold,
-        soldOut:   t.sold >= t.total,
-      }))
+    : isFreeEvent
+      ? []
+      : (event.tiers || []).map(t => ({
+          id:        null,
+          name:      t.name,
+          price:     t.price,
+          total:     t.total,
+          sold:      t.sold,
+          available: t.total - t.sold,
+          soldOut:   t.sold >= t.total,
+        }))
 
-  const tier      = displayTiers[selectedTier]
-  const soldOut   = tier?.soldOut ?? true
+  // Free events with no ticketing tiers register directly without a tier selection
+  const isFreeNoTier = isFreeEvent && displayTiers.length === 0
+  const tier      = isFreeNoTier ? null : displayTiers[selectedTier]
+  const soldOut   = isFreeNoTier ? false : (tier?.soldOut ?? true)
   const available = tier?.available ?? 0
-  const subtotal  = tier
-    ? (tier.price === 0 ? 'Free' : `$${(tier.price * quantity).toLocaleString()}`)
-    : '—'
+  const subtotal  = isFreeNoTier
+    ? 'Free'
+    : tier
+      ? (tier.price === 0 ? 'Free' : `$${(tier.price * quantity).toLocaleString()}`)
+      : '—'
   const reviewCount = reviews.length
   const rating      = reviewCount > 0
     ? Math.round(reviews.reduce((s, r) => s + r.rating, 0) / reviewCount * 10) / 10
@@ -477,7 +486,7 @@ export default function EventDetail() {
   const hasSamples = reviews.some(r => r.comment)
 
   const handleRegister = () => {
-    if (!tier || soldOut) return
+    if (!isFreeNoTier && (!tier || soldOut)) return
     navigate(`/events/${id}/register`, {
       state: {
         eventId:       Number(id),
@@ -485,8 +494,8 @@ export default function EventDetail() {
         eventDate:     event.date,
         eventLocation: event.location,
         eventCategory: event.category,
-        tier:          { id: tier.id, name: tier.name, price: tier.price },
-        quantity,
+        tier:          isFreeNoTier ? null : { id: tier.id, name: tier.name, price: tier.price },
+        quantity:      isFreeNoTier ? 1 : quantity,
       },
     })
   }
@@ -626,7 +635,12 @@ export default function EventDetail() {
         {/* ── right sidebar ── */}
         <aside className="ed-sidebar">
           <div className="ed-ticket-box">
-            <p className="ed-ticket-label">CHOOSE A TIER</p>
+            <p className="ed-ticket-label">{isFreeNoTier ? 'FREE EVENT' : 'CHOOSE A TIER'}</p>
+            {isFreeNoTier ? (
+              <div style={{ padding: '12px 0 4px', fontSize: 13.5, color: 'var(--text-sub)' }}>
+                This is a free event. No ticket purchase required — just register to secure your spot.
+              </div>
+            ) : (
             <div className="ed-tiers">
               {displayTiers.length === 0 ? (
                 <p className="ed-desc" style={{ fontSize: 13, padding: '8px 0' }}>No ticket tiers available yet.</p>
@@ -659,8 +673,9 @@ export default function EventDetail() {
                 )
               })}
             </div>
+            )}
 
-            {!soldOut && displayTiers.length > 0 && (
+            {!isFreeNoTier && !soldOut && displayTiers.length > 0 && (
               <>
                 <div className="ed-qty-row">
                   <span className="ed-qty-label">Quantity</span>
@@ -679,13 +694,13 @@ export default function EventDetail() {
 
             <button
               className="ed-register-btn"
-              disabled={soldOut || displayTiers.length === 0}
+              disabled={!isFreeNoTier && (soldOut || displayTiers.length === 0)}
               onClick={handleRegister}
             >
-              {soldOut ? 'Sold out' : 'Register now →'}
+              {!isFreeNoTier && soldOut ? 'Sold out' : 'Register now →'}
             </button>
 
-            {!soldOut && displayTiers.length > 0 && (
+            {!isFreeNoTier && !soldOut && displayTiers.length > 0 && (
               <p className="ed-register-note">
                 Secure checkout · Refundable up to 7 days before event
               </p>
