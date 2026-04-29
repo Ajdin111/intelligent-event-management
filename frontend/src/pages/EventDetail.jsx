@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { eventsApi, ticketTiersApi } from '../services/api'
+import { eventsApi, ticketTiersApi, reviewsApi } from '../services/api'
 
 // Per-event cover images — themed to each event's spirit
 const COVERS = {
@@ -290,6 +290,18 @@ function getFake(id) {
   }
 }
 
+function formatRelativeDate(iso) {
+  const diffDays = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
+  if (diffDays === 0) return 'Today'
+  if (diffDays === 1) return '1 day ago'
+  if (diffDays < 7)  return `${diffDays} days ago`
+  const weeks = Math.floor(diffDays / 7)
+  if (weeks === 1)   return '1 week ago'
+  if (weeks < 5)     return `${weeks} weeks ago`
+  const months = Math.floor(diffDays / 30)
+  return months <= 1 ? '1 month ago' : `${months} months ago`
+}
+
 // ── icons ────────────────────────────────────────────────────────────────────
 
 const IcoBack = () => (
@@ -359,6 +371,7 @@ export default function EventDetail() {
   const navigate = useNavigate()
   const [event, setEvent] = useState(null)
   const [realTiers, setRealTiers] = useState([])
+  const [reviews, setReviews] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedTier, setSelectedTier] = useState(0)
   const [quantity, setQuantity] = useState(1)
@@ -375,8 +388,9 @@ export default function EventDetail() {
     Promise.all([
       eventsApi.getById(id),
       ticketTiersApi.listByEvent(id),
+      reviewsApi.listByEvent(id).then(r => r.data).catch(() => []),
     ])
-      .then(([evRes, tiersRes]) => {
+      .then(([evRes, tiersRes, realReviews]) => {
         const real = evRes.data
         const fake = FAKE[numId] ?? null
         if (!fake) {
@@ -408,6 +422,7 @@ export default function EventDetail() {
           })
         }
         setRealTiers(tiersRes.data)
+        setReviews(Array.isArray(realReviews) ? realReviews : [])
       })
       .catch(() => {
         const fake = FAKE[numId] ?? null
@@ -448,8 +463,18 @@ export default function EventDetail() {
   const subtotal  = tier
     ? (tier.price === 0 ? 'Free' : `$${(tier.price * quantity).toLocaleString()}`)
     : '—'
-  const hasRating  = event.reviewCount > 0
-  const hasSamples = event.reviews.length > 0
+  const reviewCount = reviews.length
+  const rating      = reviewCount > 0
+    ? Math.round(reviews.reduce((s, r) => s + r.rating, 0) / reviewCount * 10) / 10
+    : 0
+  const breakdown   = [5, 4, 3, 2, 1].map(stars => ({
+    stars,
+    pct: reviewCount > 0
+      ? Math.round(reviews.filter(r => r.rating === stars).length / reviewCount * 100)
+      : 0,
+  }))
+  const hasRating  = reviewCount > 0
+  const hasSamples = reviews.some(r => r.comment)
 
   const handleRegister = () => {
     if (!tier || soldOut) return
@@ -488,9 +513,9 @@ export default function EventDetail() {
           <span className="ed-cat-pill">{event.category}</span>
           {hasRating && (
             <div className="ed-rating-row">
-              <StarRow rating={event.rating} />
-              <span className="ed-rating-val">{event.rating}</span>
-              <span className="ed-rating-count">· {event.reviewCount} reviews</span>
+              <StarRow rating={rating} />
+              <span className="ed-rating-val">{rating}</span>
+              <span className="ed-rating-count">· {reviewCount} reviews</span>
             </div>
           )}
         </div>
@@ -558,12 +583,12 @@ export default function EventDetail() {
                 {/* aggregate summary — uses total reviewCount */}
                 <div className="ed-review-summary">
                   <div className="ed-score-col">
-                    <span className="ed-score-num">{event.rating}</span>
-                    <StarRow rating={event.rating} size={14} />
-                    <span className="ed-score-sub">{event.reviewCount} reviews</span>
+                    <span className="ed-score-num">{rating}</span>
+                    <StarRow rating={rating} size={14} />
+                    <span className="ed-score-sub">{reviewCount} reviews</span>
                   </div>
                   <div className="ed-bars">
-                    {event.breakdown.map(r => (
+                    {breakdown.map(r => (
                       <div key={r.stars} className="ed-bar-row">
                         <span className="ed-bar-label">{r.stars}</span>
                         <div className="ed-bar-track">
@@ -575,17 +600,18 @@ export default function EventDetail() {
                   </div>
                 </div>
 
-                {/* sample review cards — subset of all reviews */}
                 {hasSamples && (
                   <div className="ed-review-list">
-                    {event.reviews.map(r => (
+                    {reviews.filter(r => r.comment).map(r => (
                       <div key={r.id} className="ed-review-card">
                         <div className="ed-review-head">
                           <StarRow rating={r.rating} size={12} />
-                          <span className="ed-review-date">{r.date}</span>
+                          <span className="ed-review-date">{formatRelativeDate(r.created_at)}</span>
                         </div>
-                        <p className="ed-review-text">{r.text}</p>
-                        <span className="ed-review-author">Anonymous attendee</span>
+                        <p className="ed-review-text">{r.comment}</p>
+                        <span className="ed-review-author">
+                          {r.is_anonymous ? 'Anonymous attendee' : 'Verified attendee'}
+                        </span>
                       </div>
                     ))}
                   </div>
