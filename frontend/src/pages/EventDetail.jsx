@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { eventsApi, ticketTiersApi, reviewsApi } from '../services/api'
+import NotFound from './NotFound'
 
 // Per-event cover images — themed to each event's spirit
 const COVERS = {
@@ -396,6 +397,11 @@ export default function EventDetail() {
         setRealEventData(real)
         const fake = FAKE[numId] ?? null
         if (!fake) {
+          const fmtTime = dt => dt
+            ? new Date(dt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+            : null
+          const t0 = fmtTime(real.start_datetime)
+          const t1 = fmtTime(real.end_datetime)
           setEvent({
             title: real.title,
             category: 'Tech', organizer: 'TeqEvent',
@@ -403,7 +409,7 @@ export default function EventDetail() {
               ? new Date(real.start_datetime).toLocaleDateString('en-US',
                   { month: 'long', day: 'numeric', year: 'numeric' })
               : 'TBD',
-            time: 'TBD',
+            time: t0 && t1 ? `${t0} – ${t1}` : t0 || 'TBD',
             location: real.physical_address
               || (real.location_type === 'online' ? 'Remote' : 'TBD'),
             rating: 0, reviewCount: 0,
@@ -427,14 +433,13 @@ export default function EventDetail() {
         setReviews(Array.isArray(realReviews) ? realReviews : [])
       })
       .catch(() => {
-        const fake = FAKE[numId] ?? null
-        setEvent(fake)
+        setEvent(null)
       })
       .finally(() => setLoading(false))
   }, [id])
 
   if (loading) return <div className="ed-state">Loading…</div>
-  if (!event)  return <div className="ed-state">Event not found.</div>
+  if (!event)  return <NotFound />
 
   const cover = COVERS[Number(id)] || DEFAULT_COVER
 

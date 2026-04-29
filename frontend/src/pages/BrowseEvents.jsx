@@ -268,7 +268,7 @@ export default function BrowseEvents() {
                 checked={selectedCategory === cat}
                 onChange={() => setSelectedCategory(cat)}
               />
-              {cat}
+              <span className="filter-radio-label">{cat}</span>
             </label>
           ))}
         </div>
@@ -283,7 +283,7 @@ export default function BrowseEvents() {
                 checked={selectedLocation === loc}
                 onChange={() => setSelectedLocation(loc)}
               />
-              {loc}
+              <span className="filter-radio-label">{loc}</span>
             </label>
           ))}
         </div>
@@ -298,7 +298,7 @@ export default function BrowseEvents() {
                 checked={selectedDate === d}
                 onChange={() => setSelectedDate(d)}
               />
-              {d}
+              <span className="filter-radio-label">{d}</span>
             </label>
           ))}
         </div>

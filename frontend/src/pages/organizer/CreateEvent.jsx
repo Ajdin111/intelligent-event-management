@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import api, { categoriesApi, setCriticalOp } from '../../services/api'
+import api, { eventsApi, categoriesApi, setCriticalOp } from '../../services/api'
 
 const STEPS = [
   { n: 1, label: 'Basic info' },
@@ -51,6 +51,16 @@ const newTrack = () => ({
 function toNaiveDatetime(date, time) {
   if (!date || !time) return null
   return `${date}T${time}:00`
+}
+
+function todayStr() {
+  return new Date().toISOString().split('T')[0]
+}
+
+function nowDatetimeStr() {
+  const d = new Date()
+  const pad = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 export default function CreateEvent() {
@@ -129,8 +139,22 @@ export default function CreateEvent() {
     if (!form.end_date || !form.end_time) {
       setFlash({ type: 'error', message: 'End date and time are required.' }); return false
     }
-    if (toNaiveDatetime(form.end_date, form.end_time) <= toNaiveDatetime(form.date, form.start_time)) {
+    const startDt = toNaiveDatetime(form.date, form.start_time)
+    const endDt = toNaiveDatetime(form.end_date, form.end_time)
+    if (new Date(startDt) < new Date()) {
+      setFlash({ type: 'error', message: 'Start date and time cannot be in the past.' }); return false
+    }
+    if (endDt <= startDt) {
       setFlash({ type: 'error', message: 'End must be after start.' }); return false
+    }
+    if (form.capacity) {
+      const cap = parseInt(form.capacity, 10)
+      if (isNaN(cap) || cap < 1) {
+        setFlash({ type: 'error', message: 'Capacity must be a positive number.' }); return false
+      }
+      if (cap > 2_147_483_647) {
+        setFlash({ type: 'error', message: 'Capacity cannot exceed 2,147,483,647.' }); return false
+      }
     }
     if ((form.location_type === 'physical' || form.location_type === 'hybrid') && !form.physical_address.trim()) {
       setFlash({ type: 'error', message: 'Physical address is required for this location type.' }); return false
@@ -147,6 +171,14 @@ export default function CreateEvent() {
     }
     const eventStart = form.date && form.start_time ? `${form.date}T${form.start_time}` : null
     const totalQty = tiers.reduce((s, t) => s + parseInt(t.quantity || 0, 10), 0)
+    if (form.capacity && totalQty > parseInt(form.capacity, 10)) {
+      setFlash({ type: 'error', message: `Total tier quantity (${totalQty}) exceeds event capacity (${form.capacity}). Reduce tier quantities or increase capacity in Step 1.` }); return false
+    }
+    const tierNames = tiers.map(t => t.name.trim().toLowerCase()).filter(Boolean)
+    const duplicate = tierNames.find((n, i) => tierNames.indexOf(n) !== i)
+    if (duplicate) {
+      setFlash({ type: 'error', message: `Duplicate tier name "${tiers.find(t => t.name.trim().toLowerCase() === duplicate).name.trim()}". Each tier must have a unique name.` }); return false
+    }
     for (let i = 0; i < tiers.length; i++) {
       const t = tiers[i]
       const n = i + 1
@@ -158,9 +190,6 @@ export default function CreateEvent() {
       }
       if (!t.quantity || parseInt(t.quantity, 10) < 1) {
         setFlash({ type: 'error', message: `Tier ${n}: quantity must be at least 1.` }); return false
-      }
-      if (form.capacity && totalQty > parseInt(form.capacity, 10)) {
-        setFlash({ type: 'error', message: `Total tier quantity (${totalQty}) exceeds event capacity (${form.capacity}). Reduce tier quantities or increase capacity.` }); return false
       }
       if (!t.sale_start) {
         setFlash({ type: 'error', message: `Tier ${n}: sale start date and time are required.` }); return false
@@ -274,7 +303,7 @@ export default function CreateEvent() {
     setSubmitting(true)
     setCriticalOp(true)
     try {
-      const { data: event } = await api.post('/api/events', buildPayload())
+      const { data: event } = await eventsApi.create(buildPayload())
       const eventId = event.id
 
       for (const tier of tiers) {
@@ -320,7 +349,7 @@ export default function CreateEvent() {
       }
 
       if (publish) {
-        await api.patch(`/api/events/${eventId}/publish`)
+        await eventsApi.publish(eventId)
         navigate('/organizer/manage-event')
       } else {
         setFlash({ type: 'success', message: 'Draft saved successfully.' })
@@ -423,6 +452,7 @@ export default function CreateEvent() {
 
 /* ── Step 1 — Basic info ─────────────────────────────────────────────── */
 function Step1({ form, set, categories }) {
+  const today = todayStr()
   return (
     <div className="ce-fields">
       <div className="form-group">
@@ -504,6 +534,7 @@ function Step1({ form, set, categories }) {
           <input
             className="form-input"
             type="date"
+            min={today}
             value={form.date}
             onChange={e => set('date', e.target.value)}
           />
@@ -525,6 +556,7 @@ function Step1({ form, set, categories }) {
           <input
             className="form-input"
             type="date"
+            min={form.date || today}
             value={form.end_date}
             onChange={e => set('end_date', e.target.value)}
           />
@@ -546,6 +578,7 @@ function Step1({ form, set, categories }) {
           className="form-input"
           type="number"
           min="1"
+          max="2147483647"
           placeholder="e.g. 500 — leave blank for unlimited"
           value={form.capacity}
           onChange={e => set('capacity', e.target.value)}
@@ -617,6 +650,7 @@ function Step2({ form, set }) {
 
 /* ── Step 3 — Ticket tiers ───────────────────────────────────────────── */
 function Step3({ form, tiers, setTiers }) {
+  const nowDt = nowDatetimeStr()
   const eventStart = form.date && form.start_time ? `${form.date}T${form.start_time}` : null
   const totalQty = tiers.reduce((s, t) => s + parseInt(t.quantity || 0, 10), 0)
   const capacityNum = form.capacity ? parseInt(form.capacity, 10) : null
@@ -644,6 +678,8 @@ function Step3({ form, tiers, setTiers }) {
           const priceNum = parseFloat(tier.price || 0)
           const qtyNum = parseInt(tier.quantity || 0, 10)
           const saleEndAfterEvent = eventStart && tier.sale_end && tier.sale_end > eventStart
+          const nameLower = tier.name.trim().toLowerCase()
+          const isDuplicateName = nameLower && tiers.some((t, j) => j !== i && t.name.trim().toLowerCase() === nameLower)
 
           return (
             <div className="tier-card" key={tier._id}>
@@ -662,6 +698,9 @@ function Step3({ form, tiers, setTiers }) {
                   <input className="form-input" placeholder="e.g. General Admission"
                     value={tier.name}
                     onChange={e => updateTier(tier._id, 'name', e.target.value)} />
+                  {isDuplicateName && (
+                    <span className="field-warn">A tier with this name already exists.</span>
+                  )}
                 </div>
                 <div className="form-group">
                   <label className="field-label">Price ($) <span className="field-optional">(0 for free)</span></label>
@@ -700,6 +739,8 @@ function Step3({ form, tiers, setTiers }) {
                 <div className="form-group">
                   <label className="field-label">Sale starts</label>
                   <input className="form-input" type="datetime-local"
+                    min={nowDt}
+                    max={eventStart || undefined}
                     value={tier.sale_start}
                     onChange={e => updateTier(tier._id, 'sale_start', e.target.value)} />
                   {tier.sale_start && tier.sale_end && tier.sale_end <= tier.sale_start && (
@@ -709,6 +750,8 @@ function Step3({ form, tiers, setTiers }) {
                 <div className="form-group">
                   <label className="field-label">Sale ends</label>
                   <input className="form-input" type="datetime-local"
+                    min={tier.sale_start || nowDt}
+                    max={eventStart || undefined}
                     value={tier.sale_end}
                     onChange={e => updateTier(tier._id, 'sale_end', e.target.value)} />
                   {saleEndAfterEvent && (
@@ -954,8 +997,6 @@ function Step5({ tracks, setTracks, form }) {
                       <div className="form-group">
                         <label className="field-label">Start time</label>
                         <input className="form-input" type="datetime-local"
-                          min={eventStart || undefined}
-                          max={eventEnd || undefined}
                           value={sess.start_datetime}
                           onChange={e => updateSession(track._id, sess._id, 'start_datetime', e.target.value)} />
                         {startBeforeEvent && (
@@ -965,8 +1006,6 @@ function Step5({ tracks, setTracks, form }) {
                       <div className="form-group">
                         <label className="field-label">End time</label>
                         <input className="form-input" type="datetime-local"
-                          min={sess.start_datetime || eventStart || undefined}
-                          max={eventEnd || undefined}
                           value={sess.end_datetime}
                           onChange={e => updateSession(track._id, sess._id, 'end_datetime', e.target.value)} />
                         {endBeforeStart && (

@@ -62,25 +62,17 @@ const navItems = [
   { to: '/organizer/create-event', label: 'Create Event', icon: <IconPlus /> },
   { to: '/organizer/manage-event', label: 'Manage Event', icon: <IconFolder /> },
   { to: '/organizer/analytics', label: 'Analytics', icon: <IconChart /> },
-  { to: '/organizer/agenda', label: 'Agenda', icon: <IconLayers /> },
   { to: '/organizer/notifications', label: 'Notifications', icon: <IconSend /> },
 ]
 
 export default function OrganizerSidebar() {
-  const { user, logout, switchRole, activeRole } = useAuth()
+  const { user, logout, activeRole } = useAuth()
   const navigate = useNavigate()
   const [collapsed, setCollapsed] = useState(false)
-  const [roleDropdownOpen, setRoleDropdownOpen] = useState(false)
 
   const handleLogout = () => {
     logout()
     navigate('/login')
-  }
-
-  const handleSwitchToAttendee = () => {
-    switchRole('attendee')
-    navigate('/dashboard')
-    setRoleDropdownOpen(false)
   }
 
   return (
@@ -129,33 +121,7 @@ export default function OrganizerSidebar() {
           <span className="sidebar-user-name">
             {user ? `${user.first_name} ${user.last_name}` : '—'}
           </span>
-          <div className="sidebar-role-switcher">
-            <button
-              className="sidebar-role-btn"
-              onClick={() => setRoleDropdownOpen(o => !o)}
-            >
-              <span style={{ textTransform: 'capitalize' }}>{activeRole}</span>
-              <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <polyline points="2,4 5.5,7.5 9,4" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-            {roleDropdownOpen && (
-              <div className="sidebar-role-dropdown">
-                <button
-                  className="sidebar-role-option"
-                  onClick={handleSwitchToAttendee}
-                >
-                  Attendee
-                </button>
-                <button
-                  className="sidebar-role-option active"
-                  onClick={() => setRoleDropdownOpen(false)}
-                >
-                  Organizer
-                </button>
-              </div>
-            )}
-          </div>
+          <span className="sidebar-user-role" style={{ textTransform: 'capitalize' }}>{activeRole}</span>
         </div>
         <button className="logout-btn" onClick={handleLogout} title="Sign out">
           <IconLogout />

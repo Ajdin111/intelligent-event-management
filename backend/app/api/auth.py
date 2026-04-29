@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import get_db, get_current_user
 from app.core.limiter import limiter
 from app.models.user import User, UserRole
-from app.schemas.auth import RegisterRequest, LoginRequest, TokenResponse, UserResponse
-from app.services.auth import register_user, login_user
+from app.schemas.auth import RegisterRequest, LoginRequest, TokenResponse, UserResponse, UpdateProfileRequest, ChangePasswordRequest, DeleteAccountRequest
+from app.services.auth import register_user, login_user, update_profile, change_password, delete_account
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -26,6 +26,33 @@ def login(request: Request, data: LoginRequest, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserResponse)
 def me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.patch("/me", response_model=UserResponse)
+def update_me(
+    data: UpdateProfileRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return update_profile(db, current_user, data)
+
+
+@router.post("/change-password", status_code=204)
+def change_my_password(
+    data: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    change_password(db, current_user, data)
+
+
+@router.delete("/me", status_code=204)
+def delete_me(
+    data: DeleteAccountRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    delete_account(db, current_user, data)
 
 
 @router.post("/upgrade-to-organizer", response_model=UserResponse)
