@@ -51,9 +51,11 @@ export const categoriesApi = {
 }
 
 export const registrationsApi = {
-  create: (data) => api.post('/api/registrations', data),
-  getMine: ()     => api.get('/api/registrations/me'),
-  getById: (id)   => api.get(`/api/registrations/${id}`),
+  create:  (data)           => api.post('/api/registrations', data),
+  getMine: ()               => api.get('/api/registrations/me'),
+  getById: (id)             => api.get(`/api/registrations/${id}`),
+  cancel:  (id, reason)     => api.delete(`/api/registrations/${id}`, { data: { cancellation_reason: reason ?? null } }),
+  getTickets: (id)          => api.get(`/api/registrations/${id}/tickets`),
 }
 
 export default api

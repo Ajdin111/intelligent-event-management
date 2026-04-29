@@ -81,6 +81,47 @@ def send_registration_confirmation(self, registration_id: int):
         raise self.retry(exc=exc)
 
 
+@celery_app.task
+def send_registration_cancellation(registration_id: int):
+    with get_db_context() as db:
+        from app.models.registration import Registration
+        from app.models.notification import NotificationLog
+
+        registration = db.query(Registration).filter(
+            Registration.id == registration_id
+        ).first()
+
+        if not registration:
+            logger.warning(f"Registration {registration_id} not found")
+            return
+
+        user = registration.user
+        event = registration.event
+
+        body = f"""
+        <h2>Registration Cancelled — {html_lib.escape(event.title)}</h2>
+        <p>Hi {html_lib.escape(user.first_name)},</p>
+        <p>Your registration for <strong>{html_lib.escape(event.title)}</strong> has been cancelled.</p>
+        <p>If a refund is applicable, it will be processed within 5-7 business days.</p>
+        """
+
+        success = send_email(
+            to=user.email,
+            subject=f"Registration Cancelled — {event.title}",
+            html_body=body,
+        )
+
+        db.add(NotificationLog(
+            user_id=user.id,
+            event_id=event.id,
+            type="registration_cancellation",
+            channel="email",
+            status="sent" if success else "failed",
+            sent_at=datetime.now(),
+        ))
+        db.commit()
+
+
 @celery_app.task(bind=True, max_retries=3, default_retry_delay=60)
 def send_event_reminder(self, event_id: int, hours_before: int):
     try:

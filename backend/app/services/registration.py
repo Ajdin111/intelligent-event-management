@@ -16,7 +16,7 @@ from app.schemas.utils import PaginatedResponse
 from app.core.exceptions import NotFoundError, ForbiddenError, BadRequestError
 from app.core.constants import WAITLIST_MAX_SIZE, WAITLIST_CONFIRMATION_HOURS
 from app.services.common import get_event_or_404
-from app.tasks.email import send_registration_confirmation
+from app.tasks.email import send_registration_confirmation, send_registration_cancellation
 from app.tasks.notifications import create_in_app_notification
 
 
@@ -260,6 +260,12 @@ def cancel_registration(
 
     db.commit()
     db.refresh(registration)
+
+    try:
+        send_registration_cancellation.delay(registration.id)
+    except Exception:
+        pass
+
     return registration
 
 
