@@ -23,9 +23,11 @@ const IconPeople = () => (
   </svg>
 )
 
+import { Link } from 'react-router-dom'
+
 export default function EventCard({ event }) {
   return (
-    <div className="event-card">
+    <Link to={`/events/${event.id}`} className="event-card" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
       <div className="event-card-img-wrap">
         <img src={event.image} alt={event.title} />
         {event.recommended && (
@@ -55,6 +57,6 @@ export default function EventCard({ event }) {
           </span>
         </div>
       </div>
-    </div>
+    </Link>
   )
 }

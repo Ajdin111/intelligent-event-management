@@ -1,4 +1,9 @@
-from fastapi import APIRouter, Depends
+import io
+
+import qrcode
+import qrcode.image.svg
+from fastapi import APIRouter, Depends, Query
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db, get_current_user
@@ -26,6 +31,33 @@ from app.services.ticket import (
 )
 
 router = APIRouter(tags=["tickets"])
+
+
+@router.get("/api/tickets/qr/{code}")
+def ticket_qr(
+    code: str,
+    size: int = Query(default=140, ge=64, le=600),
+):
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=max(1, size // 21),
+        border=2,
+    )
+    qr.add_data(code)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    img = img.resize((size, size))
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    png = buf.getvalue()
+
+    return Response(
+        content=png,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )
 
 
 # ticket tier endpoint

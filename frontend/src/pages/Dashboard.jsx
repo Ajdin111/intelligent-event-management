@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react'
 import EventCard from '../components/EventCard'
-import { currentUser, upcomingEvents, recommendedEvents } from '../data/fakeData'
+import { currentUser } from '../data/fakeData'
+import { mlApi, eventsApi, registrationsApi } from '../services/api'
 
 function getGreeting() {
   const hour = new Date().getHours()
@@ -8,7 +10,121 @@ function getGreeting() {
   return 'Good evening'
 }
 
+function fmtDate(iso) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+}
+
+function toCardShape(event, opts = {}) {
+  const loc =
+    event.location_type === 'online'  ? 'Online'
+    : event.location_type === 'hybrid' ? 'Hybrid'
+    : event.physical_address           ? event.physical_address
+    : 'In-person'
+
+  return {
+    id:           event.id,
+    title:        event.title,
+    date:         fmtDate(event.start_datetime),
+    locationType: loc,
+    ticketTier:   event.is_free ? 'Free' : 'Paid',
+    spotsLeft:    event.capacity ?? '—',
+    recommended:  opts.recommended ?? false,
+    image:        event.cover_image || `https://picsum.photos/seed/${event.id}/600/340`,
+  }
+}
+
+function CardSkeleton() {
+  return (
+    <div className="event-card event-card--skeleton" aria-hidden="true">
+      <div className="event-card-img-wrap" style={{ background: 'rgba(255,255,255,0.06)' }} />
+      <div className="event-card-body" style={{ gap: 8 }}>
+        <div style={{ height: 16, width: '70%', background: 'rgba(255,255,255,0.08)', borderRadius: 4 }} />
+        <div style={{ height: 12, width: '50%', background: 'rgba(255,255,255,0.05)', borderRadius: 4 }} />
+      </div>
+    </div>
+  )
+}
+
 export default function Dashboard() {
+  const [upcomingEvents, setUpcomingEvents]       = useState([])
+  const [loadingUpcoming, setLoadingUpcoming]     = useState(true)
+  const [recommendedEvents, setRecommendedEvents] = useState([])
+  const [loadingRecs, setLoadingRecs]             = useState(true)
+
+  // ── upcoming: 3 soonest confirmed registrations with future events ──────────
+  useEffect(() => {
+    let cancelled = false
+
+    async function fetchUpcoming() {
+      try {
+        const regsRes = await registrationsApi.getMine()
+        const confirmed = (regsRes.data ?? []).filter(r => r.status === 'confirmed')
+
+        if (confirmed.length === 0) {
+          if (!cancelled) setUpcomingEvents([])
+          return
+        }
+
+        const now = Date.now()
+        const settled = await Promise.allSettled(
+          confirmed.map(r => eventsApi.getById(r.event_id).then(res => res.data))
+        )
+
+        const future = settled
+          .filter(s => s.status === 'fulfilled')
+          .map(s => s.value)
+          .filter(e => new Date(e.start_datetime).getTime() > now)
+          .sort((a, b) => new Date(a.start_datetime) - new Date(b.start_datetime))
+          .slice(0, 3)
+          .map(e => toCardShape(e))
+
+        if (!cancelled) setUpcomingEvents(future)
+      } catch {
+        if (!cancelled) setUpcomingEvents([])
+      } finally {
+        if (!cancelled) setLoadingUpcoming(false)
+      }
+    }
+
+    fetchUpcoming()
+    return () => { cancelled = true }
+  }, [])
+
+  // ── recommendations: real ML endpoint ───────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false
+
+    async function fetchRecommendations() {
+      try {
+        const recsRes = await mlApi.recommendations()
+        const recs = recsRes.data ?? []
+
+        if (recs.length === 0) {
+          if (!cancelled) setRecommendedEvents([])
+          return
+        }
+
+        const settled = await Promise.allSettled(
+          recs.map(r => eventsApi.getById(r.event_id).then(res => res.data))
+        )
+
+        const cards = settled
+          .filter(s => s.status === 'fulfilled')
+          .map(s => toCardShape(s.value, { recommended: true }))
+
+        if (!cancelled) setRecommendedEvents(cards)
+      } catch {
+        if (!cancelled) setRecommendedEvents([])
+      } finally {
+        if (!cancelled) setLoadingRecs(false)
+      }
+    }
+
+    fetchRecommendations()
+    return () => { cancelled = true }
+  }, [])
+
   return (
     <div>
       <h1 className="page-greeting">
@@ -17,20 +133,40 @@ export default function Dashboard() {
 
       <section className="section">
         <h2 className="section-title">Your Upcoming Events</h2>
-        <div className="events-grid">
-          {upcomingEvents.map((event) => (
-            <EventCard key={event.id} event={event} />
-          ))}
-        </div>
+        {loadingUpcoming ? (
+          <div className="events-grid">
+            {[1, 2, 3].map(i => <CardSkeleton key={i} />)}
+          </div>
+        ) : upcomingEvents.length === 0 ? (
+          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14, marginTop: 8 }}>
+            No upcoming events. Register for an event to see it here.
+          </p>
+        ) : (
+          <div className="events-grid">
+            {upcomingEvents.map(event => (
+              <EventCard key={event.id} event={event} />
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="section">
         <h2 className="section-title">AI Recommended Events</h2>
-        <div className="events-grid-2">
-          {recommendedEvents.map((event) => (
-            <EventCard key={event.id} event={event} />
-          ))}
-        </div>
+        {loadingRecs ? (
+          <div className="events-grid-2">
+            {[1, 2].map(i => <CardSkeleton key={i} />)}
+          </div>
+        ) : recommendedEvents.length === 0 ? (
+          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14, marginTop: 8 }}>
+            No recommendations yet. Register for more events to get personalised suggestions.
+          </p>
+        ) : (
+          <div className="events-grid-2">
+            {recommendedEvents.map(event => (
+              <EventCard key={event.id} event={event} />
+            ))}
+          </div>
+        )}
       </section>
     </div>
   )

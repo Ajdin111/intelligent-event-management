@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { authApi, eventsApi, ticketTiersApi, reviewsApi, organizerApi } from '../../services/api'
+import { authApi, eventsApi, ticketTiersApi, reviewsApi, organizerApi, mlApi } from '../../services/api'
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -145,6 +145,7 @@ export default function OrganizerAnalytics() {
   const [registrations, setRegistrations] = useState([])
   const [tiers, setTiers]             = useState([])
   const [reviews, setReviews]         = useState([])
+  const [demandForecast, setDemandForecast] = useState(null)
   const [loadingInit, setLoadingInit] = useState(true)
   const [loadingStats, setLoadingStats] = useState(false)
   const [notFound, setNotFound]       = useState(false)
@@ -185,16 +186,19 @@ export default function OrganizerAnalytics() {
     setRegistrations([])
     setTiers([])
     setReviews([])
+    setDemandForecast(null)
 
     Promise.all([
       organizerApi.listEventRegistrations(activeEventId, { limit: 100 }).then(r => r.data?.items ?? []),
       ticketTiersApi.listByEvent(activeEventId).then(r => r.data),
       reviewsApi.listByEvent(activeEventId).then(r => r.data).catch(() => []),
+      mlApi.demand(activeEventId).then(r => r.data).catch(() => null),
     ])
-      .then(([regs, tierData, reviewData]) => {
+      .then(([regs, tierData, reviewData, forecastData]) => {
         setRegistrations(Array.isArray(regs) ? regs : [])
         setTiers(Array.isArray(tierData) ? tierData : [])
         setReviews(Array.isArray(reviewData) ? reviewData : [])
+        setDemandForecast(forecastData)
       })
       .catch(() => setFetchError('Failed to load analytics data.'))
       .finally(() => setLoadingStats(false))
@@ -517,6 +521,55 @@ export default function OrganizerAnalytics() {
               )}
             </div>
 
+          </div>
+
+          {/* demand forecast */}
+          <div className="oa-charts-row">
+            <div className="oa-chart-box oa-chart-box--wide">
+              <div className="oa-chart-header">
+                <div>
+                  <p className="oa-chart-title">
+                    Demand forecast
+                    <span className="oa-ai-badge">AI</span>
+                  </p>
+                  <p className="oa-chart-sub">ML-predicted registration demand</p>
+                </div>
+              </div>
+              {demandForecast ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, paddingTop: 8 }}>
+                  <div>
+                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>Predicted demand</p>
+                    <p style={{ fontSize: 28, fontWeight: 700 }}>{demandForecast.predicted_demand}</p>
+                  </div>
+                  {demandForecast.confidence_score != null && (
+                    <div>
+                      <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>Confidence</p>
+                      <p style={{ fontSize: 28, fontWeight: 700 }}>{Number(demandForecast.confidence_score).toFixed(1)}%</p>
+                    </div>
+                  )}
+                  {demandForecast.price_action && (
+                    <div>
+                      <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>Price action</p>
+                      <p style={{ fontSize: 28, fontWeight: 700, textTransform: 'capitalize' }}>{demandForecast.price_action}</p>
+                    </div>
+                  )}
+                  {demandForecast.price_suggestion != null && (
+                    <div>
+                      <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>Suggested price</p>
+                      <p style={{ fontSize: 28, fontWeight: 700 }}>{fmtCurrency(demandForecast.price_suggestion)}</p>
+                    </div>
+                  )}
+                  {demandForecast.predicted_sellout_date && (
+                    <div>
+                      <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>Est. sellout date</p>
+                      <p style={{ fontSize: 18, fontWeight: 600 }}>{fmtDate(demandForecast.predicted_sellout_date)}</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="oa-chart-empty">Forecast not available yet</div>
+              )}
+            </div>
           </div>
 
           {/* event info footer */}

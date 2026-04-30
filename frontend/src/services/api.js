@@ -87,6 +87,12 @@ export const organizerApi = {
     api.get(`/api/events/${eventId}/registrations`, { params }),
 }
 
+export const mlApi = {
+  recommendations: () => api.get('/api/ml/recommendations'),
+  demand:          (eventId) => api.get(`/api/ml/demand/${eventId}`),
+  sentiment:       (eventId) => api.get(`/api/ml/sentiment/${eventId}`),
+}
+
 export const notificationsApi = {
   list: () => api.get('/api/notifications/'),
   getUnreadCount: () => api.get('/api/notifications/unread-count'),

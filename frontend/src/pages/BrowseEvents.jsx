@@ -1,6 +1,8 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { eventsApi, categoriesApi, ticketTiersApi } from '../services/api'
+
+const PAGE_SIZE = 15
 
 const FILTER_DATES = ['Anytime', 'This week', 'This month', 'Next 3 months']
 const MAX_PRICE = 500
@@ -164,6 +166,8 @@ export default function BrowseEvents() {
   const [selectedLocation, setSelectedLocation] = useState('All')
   const [selectedDate, setSelectedDate] = useState('Anytime')
   const [maxPrice, setMaxPrice] = useState(MAX_PRICE)
+  const [page, setPage] = useState(1)
+  const sentinelRef = useRef(null)
 
   useEffect(() => {
     let isActive = true
@@ -245,6 +249,26 @@ export default function BrowseEvents() {
     setSearchInput('')
     setQuery('')
   }
+
+  // Reset to first page whenever the filtered result set changes
+  useEffect(() => {
+    setPage(1)
+  }, [query, selectedCategory, selectedLocation, selectedDate, maxPrice])
+
+  const visible = filtered.slice(0, page * PAGE_SIZE)
+  const hasMore = visible.length < filtered.length
+
+  // Sentinel observer — load next page when bottom of grid enters viewport
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel || !hasMore) return
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setPage(p => p + 1) },
+      { rootMargin: '200px' }
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasMore, page])
 
   const handleSearchKeyDown = (e) => {
     if (e.key === 'Enter') setQuery(searchInput)
@@ -329,7 +353,7 @@ export default function BrowseEvents() {
             <p className="discover-sub">
               {loading
                 ? 'Loading…'
-                : `${filtered.length} event${filtered.length !== 1 ? 's' : ''} match your filters${query ? ` for "${query}"` : ''}.`}
+                : `Showing ${visible.length} of ${filtered.length} event${filtered.length !== 1 ? 's' : ''}${query ? ` for "${query}"` : ''}.`}
             </p>
           </div>
           <div className="discover-search-wrap">
@@ -353,11 +377,18 @@ export default function BrowseEvents() {
         ) : filtered.length === 0 ? (
           <div className="discover-empty">No events match your filters.</div>
         ) : (
-          <div className="discover-grid">
-            {filtered.map((event) => (
-              <DiscoverCard key={event.id} event={event} onNavigate={(id) => navigate(`/events/${id}`)} />
-            ))}
-          </div>
+          <>
+            <div className="discover-grid">
+              {visible.map((event) => (
+                <DiscoverCard key={event.id} event={event} onNavigate={(id) => navigate(`/events/${id}`)} />
+              ))}
+            </div>
+            {hasMore && (
+              <div ref={sentinelRef} style={{ height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>Loading more…</span>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

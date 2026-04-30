@@ -490,6 +490,12 @@ export default function EventDetail() {
   const hasRating  = reviewCount > 0
   const hasSamples = reviews.some(r => r.comment)
 
+  const sentimentReviews = reviews.filter(r => r.sentiment)
+  const sentimentTotal   = sentimentReviews.length
+  const posPct = sentimentTotal > 0 ? Math.round(sentimentReviews.filter(r => r.sentiment === 'positive').length / sentimentTotal * 100) : 0
+  const neuPct = sentimentTotal > 0 ? Math.round(sentimentReviews.filter(r => r.sentiment === 'neutral').length  / sentimentTotal * 100) : 0
+  const negPct = sentimentTotal > 0 ? Math.round(sentimentReviews.filter(r => r.sentiment === 'negative').length / sentimentTotal * 100) : 0
+
   const handleRegister = () => {
     if (!isFreeNoTier && (!tier || soldOut)) return
     navigate(`/events/${id}/register`, {
@@ -509,8 +515,8 @@ export default function EventDetail() {
     <div className="ed-wrap">
 
       {/* back */}
-      <button className="ed-back" onClick={() => navigate('/events')}>
-        <IcoBack /> Back to discover
+      <button className="ed-back" onClick={() => navigate(-1)}>
+        <IcoBack /> Back
       </button>
 
       {/* hero */}
@@ -591,7 +597,17 @@ export default function EventDetail() {
           )}
 
           <section className="ed-section">
-            <h2 className="ed-section-h">Reviews & ratings</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: sentimentTotal > 0 ? 12 : 0 }}>
+              <h2 className="ed-section-h" style={{ margin: 0 }}>Reviews & ratings</h2>
+              {sentimentTotal > 0 && (
+                <>
+                  <span style={{ fontSize: 10, letterSpacing: 1, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase' }}>AI sentiment</span>
+                  <span style={{ fontSize: 11.5, padding: '2px 9px', borderRadius: 20, background: 'rgba(74,222,128,0.13)', color: '#4ade80' }}>{posPct}% positive</span>
+                  <span style={{ fontSize: 11.5, padding: '2px 9px', borderRadius: 20, background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.55)' }}>{neuPct}% neutral</span>
+                  <span style={{ fontSize: 11.5, padding: '2px 9px', borderRadius: 20, background: 'rgba(248,113,113,0.13)', color: '#f87171' }}>{negPct}% negative</span>
+                </>
+              )}
+            </div>
             {hasRating ? (
               <>
                 {/* aggregate summary — uses total reviewCount */}
