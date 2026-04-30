@@ -82,6 +82,11 @@ export const registrationsApi = {
   getTickets: (id)          => api.get(`/api/registrations/${id}/tickets`),
 }
 
+export const agendaApi = {
+  listTracks:   (eventId) => api.get(`/api/events/${eventId}/tracks`),
+  listSessions: (eventId) => api.get(`/api/events/${eventId}/sessions`),
+}
+
 export const organizerApi = {
   listEventRegistrations: (eventId, params = {}) =>
     api.get(`/api/events/${eventId}/registrations`, { params }),
