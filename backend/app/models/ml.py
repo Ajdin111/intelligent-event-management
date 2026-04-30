@@ -12,7 +12,8 @@ class MLDemandForecast(Base):
     predicted_demand = mapped_column(Integer, nullable=False)
     predicted_sellout_date = mapped_column(DateTime, nullable=True)
     confidence_score = mapped_column(Numeric(5, 2), nullable=True)
-    # 0 to 100 percent
+    price_suggestion = mapped_column(Numeric(10, 2), nullable=True)   # new
+    price_action = mapped_column(String(20), nullable=True)            # new: 'increase' | 'decrease' | 'optimal'
     model_version = mapped_column(String(50), nullable=True)
     generated_at = mapped_column(DateTime, server_default=func.now())
 
@@ -28,7 +29,6 @@ class MLRecommendation(Base):
     user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     event_id = mapped_column(Integer, ForeignKey("events.id"), nullable=False)
     score = mapped_column(Numeric(5, 4), nullable=False)
-    # relevance score 0 to 1
     reason = mapped_column(String(100), nullable=True)
     # 'based_on_history', 'popular_in_category', 'similar_events'
     generated_at = mapped_column(DateTime, server_default=func.now())
