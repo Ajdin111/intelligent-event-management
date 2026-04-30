@@ -62,7 +62,6 @@ const navItems = [
   { to: '/organizer/create-event', label: 'Create Event', icon: <IconPlus /> },
   { to: '/organizer/manage-event', label: 'Manage Event', icon: <IconFolder /> },
   { to: '/organizer/analytics', label: 'Analytics', icon: <IconChart /> },
-  { to: '/organizer/agenda', label: 'Agenda', icon: <IconLayers /> },
   { to: '/organizer/notifications', label: 'Notifications', icon: <IconSend /> },
 ]
 

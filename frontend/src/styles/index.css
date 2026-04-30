@@ -2731,12 +2731,12 @@ body {
   }
 
   .ce-stepper {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 
-  .ce-step:nth-child(2) { border-right: none; }
-  .ce-step:nth-child(3) { border-top: 1px solid var(--border); border-right: 1px solid var(--border); }
-  .ce-step:nth-child(4) { border-top: 1px solid var(--border); border-right: none; }
+  .ce-step:nth-child(3) { border-right: none; }
+  .ce-step:nth-child(4) { border-top: 1px solid var(--border); }
+  .ce-step:nth-child(5) { border-top: 1px solid var(--border); }
 
   .ce-wizard-header {
     flex-direction: column;
@@ -2796,7 +2796,7 @@ body {
 /* ─── Stepper ───────────────────────────────────────────────────────── */
 .ce-stepper {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
@@ -4534,4 +4534,131 @@ select.form-input option {
   .fb-event-body { padding: 18px 16px 16px; }
   .fb-form-footer { flex-direction: column; align-items: flex-start; }
   .fb-event-title { max-width: 220px; }
+}
+
+/* ── Create event — select dropdown arrow ────────────────────────────── */
+select.form-input {
+  appearance: none;
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+  cursor: pointer;
+}
+
+/* ── Inline field warnings ───────────────────────────────────────────── */
+.field-warn {
+  display: block;
+  font-size: 12px;
+  color: rgb(245, 166, 35);
+  margin-top: 5px;
+}
+
+.field-optional {
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+/* ── Warning banner (above tier list) ───────────────────────────────── */
+.ce-warn-banner {
+  padding: 10px 14px;
+  background: rgba(245, 166, 35, 0.08);
+  border: 1px solid rgba(245, 166, 35, 0.3);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: rgb(245, 166, 35);
+  margin-bottom: 4px;
+}
+
+/* ── Step intro text ─────────────────────────────────────────────────── */
+.ce-step-intro {
+  margin-bottom: 4px;
+}
+
+/* ── Agenda builder ──────────────────────────────────────────────────── */
+.agenda-track-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.agenda-sessions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.agenda-session {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agenda-session-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.agenda-session-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.add-session-btn {
+  font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px dashed var(--border-med);
+  border-radius: var(--radius-sm);
+  padding: 9px 16px;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+  text-align: left;
+}
+
+.add-session-btn:hover {
+  color: var(--text-sub);
+  border-color: rgba(255, 255, 255, 0.4);
+  background: var(--bg-hover);
+}
+
+/* ── Color picker ────────────────────────────────────────────────────── */
+.color-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 6px;
+}
+
+.color-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.1s, border-color 0.1s;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.color-swatch:hover {
+  transform: scale(1.15);
+}
+
+.color-swatch.selected {
+  border-color: #fff;
+  transform: scale(1.15);
 }

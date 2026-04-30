@@ -4,6 +4,10 @@ const api = axios.create({
   baseURL: 'http://localhost:8000',
 })
 
+// When true, 401 errors will NOT trigger a global logout — the caller handles them inline.
+let _criticalOpActive = false
+export const setCriticalOp = (active) => { _criticalOpActive = active }
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token')
   if (token) {
@@ -18,7 +22,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // skip redirect if this is the login call itself failing (wrong password)
       const isAuthCall = error.config?.url?.startsWith('/api/auth/')
-      if (!isAuthCall) {
+      if (!isAuthCall && !_criticalOpActive) {
         localStorage.removeItem('token')
         localStorage.removeItem('activeRole')
         window.dispatchEvent(new CustomEvent('auth:unauthorized'))
@@ -44,12 +48,19 @@ export const authApi = {
 }
 
 export const eventsApi = {
-  list: (params = {}) => api.get('/api/events', { params }),
-  getById: (id) => api.get(`/api/events/${id}`),
+  list:    (params = {}) => api.get('/api/events', { params }),
+  getById: (id)          => api.get(`/api/events/${id}`),
+  create:  (data)        => api.post('/api/events', data),
+  publish: (id)          => api.patch(`/api/events/${id}/publish`),
 }
 
 export const ticketTiersApi = {
   listByEvent: (eventId) => api.get(`/api/events/${eventId}/ticket-tiers`),
+}
+
+export const promoCodesApi = {
+  validate: (eventId, code, ticketTierId) =>
+    api.post(`/api/events/${eventId}/promo-codes/validate`, { code, ticket_tier_id: ticketTierId }),
 }
 
 export const categoriesApi = {

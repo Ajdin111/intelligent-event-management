@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { eventsApi, ticketTiersApi, registrationsApi } from '../services/api'
+import { eventsApi, ticketTiersApi, registrationsApi, promoCodesApi } from '../services/api'
 
 // ── icons ──────────────────────────────────────────────────────────────────
 
@@ -70,6 +70,7 @@ export default function RegisterEvent() {
   const [quantity, setQuantity]   = useState(state?.quantity ?? 1)
   const [promo, setPromo]         = useState('')
   const [promoApplied, setPromoApplied] = useState('')
+  const [promoResult, setPromoResult]   = useState(null) // { discount_type, discount_value, final_price }
   const [promoError, setPromoError]     = useState('')
 
   const [submitting, setSubmitting] = useState(false)
@@ -123,15 +124,34 @@ export default function RegisterEvent() {
 
   const selectedTier = tiers.find(t => t.id === selectedTierId) ?? null
 
-  const available = selectedTier?.quantity_available ?? 0
-  const price     = selectedTier ? parseFloat(selectedTier.price) : 0
-  const isFree    = price === 0
-  const subtotal  = isFree ? 'Free' : `$${(price * quantity).toLocaleString()}`
+  const available       = selectedTier?.quantity_available ?? 0
+  const price           = selectedTier ? parseFloat(selectedTier.price) : 0
+  const isFree          = price === 0
+  const originalTotal   = price * quantity
+  const discountedPer   = promoResult ? parseFloat(promoResult.final_price) : null
+  const finalTotal      = discountedPer !== null ? discountedPer * quantity : originalTotal
+  const discountAmount  = discountedPer !== null ? originalTotal - finalTotal : 0
+  const subtotal        = isFree ? 'Free' : `$${finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-  const handleApplyPromo = () => {
+  const handleApplyPromo = async () => {
     if (!promo.trim()) return
-    setPromoError('Promo code is invalid or expired.')
-    setPromoApplied('')
+    if (!selectedTierId) { setPromoError('Please select a ticket tier first.'); return }
+    try {
+      const res = await promoCodesApi.validate(id, promo.trim(), selectedTierId)
+      if (res.data.is_valid) {
+        setPromoApplied(promo.trim())
+        setPromoResult(res.data)
+        setPromoError('')
+      } else {
+        setPromoError(res.data.message || 'Promo code is invalid or expired.')
+        setPromoApplied('')
+        setPromoResult(null)
+      }
+    } catch {
+      setPromoError('Promo code is invalid or expired.')
+      setPromoApplied('')
+      setPromoResult(null)
+    }
   }
 
   const handleSubmit = async () => {
@@ -267,7 +287,7 @@ export default function RegisterEvent() {
                     <button
                       key={t.id}
                       disabled={out}
-                      onClick={() => { if (!out) { setSelectedTierId(t.id); setQuantity(1) } }}
+                      onClick={() => { if (!out) { setSelectedTierId(t.id); setQuantity(1); setPromoApplied(''); setPromoResult(null); setPromoError('') } }}
                       className={[
                         'reg-tier-btn',
                         isSelected && !out ? 'reg-tier-btn--active' : '',
@@ -309,7 +329,7 @@ export default function RegisterEvent() {
                 className="reg-promo-input"
                 placeholder="Enter promo code"
                 value={promo}
-                onChange={e => { setPromo(e.target.value); setPromoError(''); setPromoApplied('') }}
+                onChange={e => { setPromo(e.target.value); setPromoError(''); setPromoApplied(''); setPromoResult(null) }}
               />
               <button
                 className="reg-promo-btn"
@@ -333,7 +353,7 @@ export default function RegisterEvent() {
               <>
                 <div className="reg-summary-line">
                   <span>{selectedTier.name}</span>
-                  <span>{isFree ? 'Free' : `$${price}`}</span>
+                  <span>{isFree ? 'Free' : `$${price.toFixed(2)}`}</span>
                 </div>
 
                 <div className="reg-qty-row">
@@ -344,6 +364,24 @@ export default function RegisterEvent() {
                     <button onClick={() => setQuantity(q => Math.min(available, q + 1))}>+</button>
                   </div>
                 </div>
+
+                {!isFree && (
+                  <div className="reg-summary-line" style={{ color: 'var(--text-secondary)' }}>
+                    <span>Subtotal</span>
+                    <span>${originalTotal.toFixed(2)}</span>
+                  </div>
+                )}
+
+                {promoResult && discountAmount > 0 && (
+                  <div className="reg-summary-line" style={{ color: '#16a34a' }}>
+                    <span>
+                      Discount ({promoResult.discount_type === 'percentage'
+                        ? `${parseFloat(promoResult.discount_value)}% off`
+                        : `$${parseFloat(promoResult.discount_value).toFixed(2)} off`})
+                    </span>
+                    <span>−${discountAmount.toFixed(2)}</span>
+                  </div>
+                )}
 
                 <div className="reg-divider" />
 
