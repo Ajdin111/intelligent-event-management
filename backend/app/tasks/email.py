@@ -35,7 +35,7 @@ def send_registration_confirmation(self, registration_id: int):
     try:
         with get_db_context() as db:
             from app.models.registration import Registration
-            from app.models.notification import NotificationLog
+            from app.models.notification import NotificationLog, NotificationPreferences
 
             registration = db.query(Registration).filter(
                 Registration.id == registration_id
@@ -47,6 +47,15 @@ def send_registration_confirmation(self, registration_id: int):
 
             user = registration.user
             event = registration.event
+
+            prefs = db.query(NotificationPreferences).filter(
+                NotificationPreferences.user_id == user.id
+            ).first()
+
+            if prefs and not prefs.email_enabled:
+                return
+            if prefs and not prefs.registration_confirmation:
+                return
 
             body = f"""
             <h2>You're registered for {html_lib.escape(event.title)}!</h2>
@@ -85,7 +94,7 @@ def send_registration_confirmation(self, registration_id: int):
 def send_registration_cancellation(registration_id: int):
     with get_db_context() as db:
         from app.models.registration import Registration
-        from app.models.notification import NotificationLog
+        from app.models.notification import NotificationLog, NotificationPreferences
 
         registration = db.query(Registration).filter(
             Registration.id == registration_id
@@ -97,6 +106,13 @@ def send_registration_cancellation(registration_id: int):
 
         user = registration.user
         event = registration.event
+
+        prefs = db.query(NotificationPreferences).filter(
+            NotificationPreferences.user_id == user.id
+        ).first()
+
+        if prefs and not prefs.email_enabled:
+            return
 
         body = f"""
         <h2>Registration Cancelled — {html_lib.escape(event.title)}</h2>
@@ -189,7 +205,7 @@ def send_feedback_request(self, event_id: int):
         with get_db_context() as db:
             from app.models.event import Event
             from app.models.registration import Registration
-            from app.models.notification import NotificationLog
+            from app.models.notification import NotificationLog, NotificationPreferences
 
             event = db.query(Event).filter(Event.id == event_id).first()
             if not event:
@@ -202,6 +218,15 @@ def send_feedback_request(self, event_id: int):
 
             for reg in registrations:
                 user = reg.user
+
+                prefs = db.query(NotificationPreferences).filter(
+                    NotificationPreferences.user_id == user.id
+                ).first()
+
+                if prefs and not prefs.email_enabled:
+                    continue
+                if prefs and not prefs.feedback_requests:
+                    continue
 
                 body = f"""
                 <h2>How was {html_lib.escape(event.title)}?</h2>
