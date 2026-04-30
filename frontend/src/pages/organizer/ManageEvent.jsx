@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { eventsApi, organizerApi, categoriesApi } from '../../services/api'
+import { eventsApi, organizerApi, categoriesApi, mlApi } from '../../services/api'
 import api from '../../services/api'
 
 // ── Icons ────────────────────────────────────────────────────────────────────
@@ -182,6 +182,15 @@ function OverviewTab({ event, registrations, onActionDone }) {
   const [publishing, setPublishing] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [flash, setFlash] = useState(null)
+  const [demandForecast, setDemandForecast] = useState(null)
+  const [sentiment, setSentiment] = useState(null)
+
+  useEffect(() => {
+    setDemandForecast(null)
+    setSentiment(null)
+    mlApi.demand(event.id).then(r => setDemandForecast(r.data)).catch(() => {})
+    mlApi.sentiment(event.id).then(r => setSentiment(r.data)).catch(() => {})
+  }, [event.id])
 
   const confirmed  = registrations.filter(r => r.status === 'confirmed').length
   const pending    = registrations.filter(r => r.status === 'pending').length
@@ -250,6 +259,58 @@ function OverviewTab({ event, registrations, onActionDone }) {
           <span className="me-stat-sub">Cancelled or rejected</span>
         </div>
       </div>
+
+      {/* AI insights */}
+      {(demandForecast || sentiment) && (
+        <div className="me-details-card">
+          <div className="me-details-head">
+            <h3 className="me-details-title">
+              AI insights
+              <span className="oa-ai-badge" style={{ marginLeft: 8 }}>AI</span>
+            </h3>
+          </div>
+          <div className="me-details-grid">
+            {demandForecast && (
+              <>
+                <div className="me-detail-row">
+                  <span className="me-detail-label">Predicted demand</span>
+                  <span className="me-detail-val">{Math.round(demandForecast.predicted_demand)} registrations</span>
+                </div>
+                <div className="me-detail-row">
+                  <span className="me-detail-label">Confidence</span>
+                  <span className="me-detail-val">{Math.round((demandForecast.confidence_score ?? 0) * 100)}%</span>
+                </div>
+                {demandForecast.price_action && demandForecast.price_action !== 'none' && (
+                  <div className="me-detail-row">
+                    <span className="me-detail-label">Price recommendation</span>
+                    <span className="me-detail-val" style={{ textTransform: 'capitalize' }}>
+                      {demandForecast.price_action.replace('_', ' ')}
+                      {demandForecast.price_suggestion != null ? ` → $${demandForecast.price_suggestion}` : ''}
+                    </span>
+                  </div>
+                )}
+                {demandForecast.predicted_sellout_date && (
+                  <div className="me-detail-row">
+                    <span className="me-detail-label">Predicted sellout</span>
+                    <span className="me-detail-val">{formatDate(demandForecast.predicted_sellout_date)}</span>
+                  </div>
+                )}
+              </>
+            )}
+            {sentiment && sentiment.total > 0 && (
+              <div className="me-detail-row me-detail-row--full">
+                <span className="me-detail-label">Review sentiment</span>
+                <span className="me-detail-val" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span style={{ color: '#4ade80' }}>▲ {sentiment.positive_pct}% positive</span>
+                  <span style={{ color: 'rgba(255,255,255,0.4)' }}>● {sentiment.neutral_pct}% neutral</span>
+                  <span style={{ color: '#f87171' }}>▼ {sentiment.negative_pct}% negative</span>
+                  <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>({sentiment.total} reviews)</span>
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* event details */}
       <div className="me-details-card">
