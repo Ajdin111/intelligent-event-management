@@ -9,6 +9,7 @@ const routeTitles = {
   '/tickets': 'My Tickets',
   '/feedback': 'Feedback',
   '/profile': 'Profile Settings',
+  '/organizer/profile': 'Profile Settings',
   '/organizer/dashboard': 'Organizer Dashboard',
   '/organizer/create-event': 'Create Event',
   '/organizer/manage-event': 'Manage Event',
@@ -80,6 +81,8 @@ export default function TopBar() {
     navigate(role === 'organizer' ? '/organizer/dashboard' : '/dashboard')
   }
 
+  const profileHref = activeRole === 'organizer' ? '/organizer/profile' : '/profile'
+
   return (
     <header className="topbar">
       <span className="topbar-title">{title}</span>
@@ -110,7 +113,7 @@ export default function TopBar() {
                 </div>
               </div>
 
-              <Link to="/profile" className="profile-dropdown-link" onClick={() => setMenuOpen(false)}>
+              <Link to={profileHref} className="profile-dropdown-link" onClick={() => setMenuOpen(false)}>
                 <IconSettings /> Profile settings
               </Link>
               {user?.is_organizer && (

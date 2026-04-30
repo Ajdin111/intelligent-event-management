@@ -83,6 +83,7 @@ export default function App() {
             <Route path="analytics" element={<OrganizerAnalytics />} />
             <Route path="agenda" element={<OrganizerAgenda />} />
             <Route path="notifications" element={<OrganizerNotifications />} />
+            <Route path="profile" element={<Preferences />} />
           </Route>
 
           <Route path="*" element={<NotFoundRoute />} />
