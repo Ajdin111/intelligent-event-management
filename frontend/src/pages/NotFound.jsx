@@ -1,7 +1,10 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 export default function NotFound() {
   const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const isOrganizer = pathname.startsWith('/organizer')
+
   return (
     <div className="ed-state ed-state--center">
       <p className="ed-state-code">404</p>
@@ -9,9 +12,9 @@ export default function NotFound() {
       <button
         className="reg-btn-secondary"
         style={{ marginTop: 20, maxWidth: 200 }}
-        onClick={() => navigate('/events')}
+        onClick={() => navigate(isOrganizer ? '/organizer/dashboard' : '/events')}
       >
-        Back to events
+        {isOrganizer ? 'Back to dashboard' : 'Back to events'}
       </button>
     </div>
   )

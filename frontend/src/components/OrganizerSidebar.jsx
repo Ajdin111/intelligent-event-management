@@ -37,12 +37,6 @@ const IconLayers = () => (
   </svg>
 )
 
-const IconSend = () => (
-  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <path d="M13 2L1 7l5 2.5L8.5 14 13 2Z" strokeLinejoin="round" />
-  </svg>
-)
-
 const IconLogout = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
     <path d="M5 2H2a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3" strokeLinecap="round" />
@@ -63,7 +57,6 @@ const navItems = [
   { to: '/organizer/manage-event', label: 'Manage Event', icon: <IconFolder /> },
   { to: '/organizer/analytics', label: 'Analytics', icon: <IconChart /> },
   { to: '/organizer/agenda', label: 'Agenda', icon: <IconLayers /> },
-  { to: '/organizer/notifications', label: 'Notifications', icon: <IconSend /> },
 ]
 
 export default function OrganizerSidebar() {

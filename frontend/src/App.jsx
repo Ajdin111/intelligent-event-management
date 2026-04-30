@@ -81,9 +81,11 @@ export default function App() {
             <Route path="create-event" element={<CreateEvent />} />
             <Route path="manage-event" element={<ManageEvent />} />
             <Route path="analytics" element={<OrganizerAnalytics />} />
+            <Route path="analytics/:eventId" element={<OrganizerAnalytics />} />
             <Route path="agenda" element={<OrganizerAgenda />} />
             <Route path="notifications" element={<OrganizerNotifications />} />
             <Route path="profile" element={<Preferences />} />
+            <Route path="*" element={<NotFound />} />
           </Route>
 
           <Route path="*" element={<NotFoundRoute />} />
