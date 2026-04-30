@@ -58,6 +58,11 @@ export const ticketTiersApi = {
   listByEvent: (eventId) => api.get(`/api/events/${eventId}/ticket-tiers`),
 }
 
+export const promoCodesApi = {
+  validate: (eventId, code, ticketTierId) =>
+    api.post(`/api/events/${eventId}/promo-codes/validate`, { code, ticket_tier_id: ticketTierId }),
+}
+
 export const categoriesApi = {
   list: () => api.get('/api/categories'),
 }
