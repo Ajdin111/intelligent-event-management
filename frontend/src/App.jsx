@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider } from './context/AuthContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import AppLayout from './layouts/AppLayout'
 import OrganizerLayout from './layouts/OrganizerLayout'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -21,19 +21,19 @@ import OrganizerAgenda from './pages/organizer/OrganizerAgenda'
 import OrganizerNotifications from './pages/organizer/OrganizerNotifications'
 import NotFound from './pages/NotFound'
 
-function NotFoundRoute() {
+function Page404() {
+  const { activeRole } = useAuth()
+  const dashboardPath = activeRole === 'organizer' ? '/organizer/dashboard' : '/dashboard'
   return (
-    <div className="not-found-page">
-      <div className="not-found-card">
-        <p className="not-found-code">404</p>
-        <h1 className="not-found-title">Page not found</h1>
-        <p className="not-found-text">
-          The page you requested does not exist or may have been moved.
-        </p>
-        <a href="/dashboard" className="not-found-link">
-          Back to dashboard
-        </a>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 16, textAlign: 'center', padding: '0 24px', background: 'rgb(26,31,34)' }}>
+      <div style={{ fontSize: 96, fontWeight: 700, letterSpacing: -4, color: 'rgba(255,255,255,0.08)', lineHeight: 1 }}>404</div>
+      <h1 style={{ fontSize: 22, fontWeight: 700, color: '#fff', margin: 0 }}>Page not found</h1>
+      <p style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.5)', maxWidth: 320, margin: 0 }}>
+        The page you&apos;re looking for doesn&apos;t exist or has been moved.
+      </p>
+      <a href={dashboardPath} style={{ marginTop: 8, padding: '8px 20px', background: '#fff', color: 'rgb(26,31,34)', borderRadius: 6, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
+        Go to dashboard
+      </a>
     </div>
   )
 }
@@ -88,7 +88,7 @@ export default function App() {
             <Route path="*" element={<NotFound />} />
           </Route>
 
-          <Route path="*" element={<NotFoundRoute />} />
+          <Route path="*" element={<Page404 />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
