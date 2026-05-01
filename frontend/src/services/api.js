@@ -87,6 +87,17 @@ export const organizerApi = {
     api.get(`/api/events/${eventId}/registrations`, { params }),
 }
 
+export const adminApi = {
+  analytics: ()                  => api.get('/api/admin/analytics'),
+  listUsers: (params = {})       => api.get('/api/admin/users', { params }),
+  listEvents: (params = {})      => api.get('/api/admin/events', { params }),
+  deactivateUser: (id)           => api.patch(`/api/admin/users/${id}/deactivate`),
+  activateUser:   (id)           => api.patch(`/api/admin/users/${id}/activate`),
+  deleteUser:     (id)           => api.delete(`/api/admin/users/${id}`),
+  unpublishEvent: (id)           => api.patch(`/api/admin/events/${id}/unpublish`),
+  deleteEvent:    (id)           => api.delete(`/api/admin/events/${id}`),
+}
+
 export const notificationsApi = {
   list: () => api.get('/api/notifications/'),
   getUnreadCount: () => api.get('/api/notifications/unread-count'),

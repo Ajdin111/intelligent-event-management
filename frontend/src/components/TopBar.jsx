@@ -16,6 +16,10 @@ const routeTitles = {
   '/organizer/analytics': 'Analytics',
   '/organizer/agenda': 'Agenda',
   '/organizer/notifications': 'Notifications',
+  '/admin/overview': 'Platform overview',
+  '/admin/users':    'Users',
+  '/admin/events':   'Events',
+  '/admin/analytics':'Platform analytics',
 }
 
 const IconChevronDown = () => (
@@ -81,7 +85,10 @@ export default function TopBar() {
     navigate(role === 'organizer' ? '/organizer/dashboard' : '/dashboard')
   }
 
-  const profileHref = activeRole === 'organizer' ? '/organizer/profile' : '/profile'
+  const isAdminPanel = pathname.startsWith('/admin')
+  const profileHref  = isAdminPanel ? '/admin/profile'
+    : activeRole === 'organizer'    ? '/organizer/profile'
+    : '/profile'
 
   return (
     <header className="topbar">
@@ -96,7 +103,7 @@ export default function TopBar() {
             <span className="profile-avatar" aria-hidden="true">{getInitials(user)}</span>
             <span className="profile-meta">
               <span className="profile-name">{fullName}</span>
-              <span className="profile-role">{activeRole}</span>
+              <span className="profile-role">{isAdminPanel ? 'Admin' : activeRole}</span>
             </span>
             <span className="profile-chevron" aria-hidden="true">
               <IconChevronDown />
@@ -116,17 +123,41 @@ export default function TopBar() {
               <Link to={profileHref} className="profile-dropdown-link" onClick={() => setMenuOpen(false)}>
                 <IconSettings /> Profile settings
               </Link>
-              {user?.is_organizer && (
+              {isAdminPanel ? (
                 <>
                   <div className="profile-dropdown-divider" />
-                  {activeRole !== 'attendee' ? (
-                    <button className="profile-dropdown-link" onClick={() => handleSwitchRole('attendee')}>
-                      Switch to attendee
-                    </button>
-                  ) : (
+                  <button className="profile-dropdown-link" onClick={() => handleSwitchRole('attendee')}>
+                    Attendee panel
+                  </button>
+                  {user?.is_organizer && (
                     <button className="profile-dropdown-link" onClick={() => handleSwitchRole('organizer')}>
-                      Switch to organizer
+                      Organizer panel
                     </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  {user?.is_organizer && (
+                    <>
+                      <div className="profile-dropdown-divider" />
+                      {activeRole !== 'attendee' ? (
+                        <button className="profile-dropdown-link" onClick={() => handleSwitchRole('attendee')}>
+                          Switch to attendee
+                        </button>
+                      ) : (
+                        <button className="profile-dropdown-link" onClick={() => handleSwitchRole('organizer')}>
+                          Switch to organizer
+                        </button>
+                      )}
+                    </>
+                  )}
+                  {user?.is_admin && (
+                    <>
+                      <div className="profile-dropdown-divider" />
+                      <button className="profile-dropdown-link" onClick={() => { setMenuOpen(false); navigate('/admin/overview') }}>
+                        Admin panel
+                      </button>
+                    </>
                   )}
                 </>
               )}
