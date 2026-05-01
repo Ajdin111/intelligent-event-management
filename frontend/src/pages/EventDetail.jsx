@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { eventsApi, ticketTiersApi, reviewsApi } from '../services/api'
 import NotFound from './NotFound'
 
@@ -370,6 +370,8 @@ function StarRow({ rating, size = 13 }) {
 export default function EventDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+  const backTo = location.state?.from ?? -1
   const [event, setEvent] = useState(null)
   const [realTiers, setRealTiers] = useState([])
   const [reviews, setReviews] = useState([])
@@ -507,6 +509,7 @@ export default function EventDetail() {
         eventCategory: event.category,
         tier:          isFreeNoTier ? null : { id: tier.id, name: tier.name, price: tier.price },
         quantity:      isFreeNoTier ? 1 : quantity,
+        from:          backTo,
       },
     })
   }
@@ -515,7 +518,7 @@ export default function EventDetail() {
     <div className="ed-wrap">
 
       {/* back */}
-      <button className="ed-back" onClick={() => navigate(-1)}>
+      <button className="ed-back" onClick={() => navigate(backTo)}>
         <IcoBack /> Back
       </button>
 

@@ -103,7 +103,6 @@ def recompute_demand_forecasts():
             now = datetime.utcnow()
             events = db.query(Event).filter(
                 Event.status == "published",
-                Event.end_datetime > now,
                 Event.deleted_at.is_(None),
             ).all()
 

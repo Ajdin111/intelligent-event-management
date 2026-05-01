@@ -380,7 +380,7 @@ export default function BrowseEvents() {
           <>
             <div className="discover-grid">
               {visible.map((event) => (
-                <DiscoverCard key={event.id} event={event} onNavigate={(id) => navigate(`/events/${id}`)} />
+                <DiscoverCard key={event.id} event={event} onNavigate={(id) => navigate(`/events/${id}`, { state: { from: '/events' } })} />
               ))}
             </div>
             {hasMore && (

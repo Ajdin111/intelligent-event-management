@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import EventCard from '../components/EventCard'
 import { currentUser } from '../data/fakeData'
-import { mlApi, eventsApi, registrationsApi } from '../services/api'
+import { mlApi, eventsApi, registrationsApi, categoriesApi } from '../services/api'
 
 function getGreeting() {
   const hour = new Date().getHours()
@@ -29,7 +29,7 @@ function toCardShape(event, opts = {}) {
     locationType: loc,
     ticketTier:   event.is_free ? 'Free' : 'Paid',
     spotsLeft:    event.capacity ?? '—',
-    recommended:  opts.recommended ?? false,
+    category:     opts.categoryMap?.get(event.category_ids?.[0]) ?? null,
     image:        event.cover_image || `https://picsum.photos/seed/${event.id}/600/340`,
   }
 }
@@ -52,76 +52,65 @@ export default function Dashboard() {
   const [recommendedEvents, setRecommendedEvents] = useState([])
   const [loadingRecs, setLoadingRecs]             = useState(true)
 
-  // ── upcoming: 3 soonest confirmed registrations with future events ──────────
   useEffect(() => {
     let cancelled = false
 
-    async function fetchUpcoming() {
+    async function fetchAll() {
       try {
-        const regsRes = await registrationsApi.getMine()
-        const confirmed = (regsRes.data ?? []).filter(r => r.status === 'confirmed')
+        const [regsRes, recsRes, catsRes] = await Promise.all([
+          registrationsApi.getMine(),
+          mlApi.recommendations(),
+          categoriesApi.list(),
+        ])
 
-        if (confirmed.length === 0) {
-          if (!cancelled) setUpcomingEvents([])
-          return
-        }
+        const categoryMap = new Map((catsRes.data ?? []).map(c => [c.id, c.name]))
+        const allRegs = regsRes.data ?? []
+        const registeredIds = new Set(allRegs.map(r => r.event_id))
+        const confirmed = allRegs.filter(r => r.status === 'confirmed')
+        const recs = recsRes.data ?? []
 
         const now = Date.now()
-        const settled = await Promise.allSettled(
+
+        // upcoming: 3 soonest confirmed future events
+        const upcomingSettled = await Promise.allSettled(
           confirmed.map(r => eventsApi.getById(r.event_id).then(res => res.data))
         )
-
-        const future = settled
+        const future = upcomingSettled
           .filter(s => s.status === 'fulfilled')
           .map(s => s.value)
           .filter(e => new Date(e.start_datetime).getTime() > now)
           .sort((a, b) => new Date(a.start_datetime) - new Date(b.start_datetime))
           .slice(0, 3)
-          .map(e => toCardShape(e))
+          .map(e => toCardShape(e, { categoryMap }))
 
-        if (!cancelled) setUpcomingEvents(future)
-      } catch {
-        if (!cancelled) setUpcomingEvents([])
-      } finally {
-        if (!cancelled) setLoadingUpcoming(false)
-      }
-    }
-
-    fetchUpcoming()
-    return () => { cancelled = true }
-  }, [])
-
-  // ── recommendations: real ML endpoint ───────────────────────────────────────
-  useEffect(() => {
-    let cancelled = false
-
-    async function fetchRecommendations() {
-      try {
-        const recsRes = await mlApi.recommendations()
-        const recs = recsRes.data ?? []
-
-        if (recs.length === 0) {
-          if (!cancelled) setRecommendedEvents([])
-          return
-        }
-
-        const settled = await Promise.allSettled(
-          recs.map(r => eventsApi.getById(r.event_id).then(res => res.data))
+        // recommendations: top 9, excluding already-registered events
+        const filteredRecs = recs.filter(r => !registeredIds.has(r.event_id))
+        const recsSettled = await Promise.allSettled(
+          filteredRecs.map(r => eventsApi.getById(r.event_id).then(res => res.data))
         )
-
-        const cards = settled
+        const cards = recsSettled
           .filter(s => s.status === 'fulfilled')
-          .map(s => toCardShape(s.value, { recommended: true }))
+          .map(s => toCardShape(s.value, { categoryMap }))
+          .slice(0, 9)
 
-        if (!cancelled) setRecommendedEvents(cards)
+        if (!cancelled) {
+          setUpcomingEvents(future)
+          setRecommendedEvents(cards)
+        }
       } catch {
-        if (!cancelled) setRecommendedEvents([])
+        if (!cancelled) {
+          setUpcomingEvents([])
+          setRecommendedEvents([])
+        }
       } finally {
-        if (!cancelled) setLoadingRecs(false)
+        if (!cancelled) {
+          setLoadingUpcoming(false)
+          setLoadingRecs(false)
+        }
       }
     }
 
-    fetchRecommendations()
+    fetchAll()
     return () => { cancelled = true }
   }, [])
 
@@ -144,7 +133,7 @@ export default function Dashboard() {
         ) : (
           <div className="events-grid">
             {upcomingEvents.map(event => (
-              <EventCard key={event.id} event={event} />
+              <EventCard key={event.id} event={event} from="/dashboard" />
             ))}
           </div>
         )}
@@ -153,7 +142,7 @@ export default function Dashboard() {
       <section className="section">
         <h2 className="section-title">AI Recommended Events</h2>
         {loadingRecs ? (
-          <div className="events-grid-2">
+          <div className="events-grid">
             {[1, 2].map(i => <CardSkeleton key={i} />)}
           </div>
         ) : recommendedEvents.length === 0 ? (
@@ -161,9 +150,9 @@ export default function Dashboard() {
             No recommendations yet. Register for more events to get personalised suggestions.
           </p>
         ) : (
-          <div className="events-grid-2">
+          <div className="events-grid">
             {recommendedEvents.map(event => (
-              <EventCard key={event.id} event={event} />
+              <EventCard key={event.id} event={event} from="/dashboard" />
             ))}
           </div>
         )}

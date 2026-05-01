@@ -133,6 +133,9 @@ export default function CreateEvent() {
     if (!form.description.trim()) {
       setFlash({ type: 'error', message: 'Event description is required.' }); return false
     }
+    if (!form.category_id) {
+      setFlash({ type: 'error', message: 'Event category is required.' }); return false
+    }
     if (!form.date || !form.start_time) {
       setFlash({ type: 'error', message: 'Start date and time are required.' }); return false
     }

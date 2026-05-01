@@ -278,7 +278,7 @@ function OverviewTab({ event, registrations, onActionDone }) {
                 </div>
                 <div className="me-detail-row">
                   <span className="me-detail-label">Confidence</span>
-                  <span className="me-detail-val">{Math.round((demandForecast.confidence_score ?? 0) * 100)}%</span>
+                  <span className="me-detail-val">{Number(demandForecast.confidence_score ?? 0).toFixed(1)}%</span>
                 </div>
                 {demandForecast.price_action && demandForecast.price_action !== 'none' && (
                   <div className="me-detail-row">
@@ -297,14 +297,14 @@ function OverviewTab({ event, registrations, onActionDone }) {
                 )}
               </>
             )}
-            {sentiment && sentiment.total > 0 && (
+            {sentiment && sentiment.total_reviews > 0 && (
               <div className="me-detail-row me-detail-row--full">
                 <span className="me-detail-label">Review sentiment</span>
                 <span className="me-detail-val" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <span style={{ color: '#4ade80' }}>▲ {sentiment.positive_pct}% positive</span>
-                  <span style={{ color: 'rgba(255,255,255,0.4)' }}>● {sentiment.neutral_pct}% neutral</span>
-                  <span style={{ color: '#f87171' }}>▼ {sentiment.negative_pct}% negative</span>
-                  <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>({sentiment.total} reviews)</span>
+                  <span style={{ color: '#4ade80' }}>▲ {Math.round(sentiment.positive_pct * 100)}% positive</span>
+                  <span style={{ color: 'rgba(255,255,255,0.4)' }}>● {Math.round(sentiment.neutral_pct * 100)}% neutral</span>
+                  <span style={{ color: '#f87171' }}>▼ {Math.round(sentiment.negative_pct * 100)}% negative</span>
+                  <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>({sentiment.total_reviews} reviews)</span>
                 </span>
               </div>
             )}
@@ -415,6 +415,7 @@ function EditTab({ event, categories, onSaved }) {
 
   const handleSave = async () => {
     if (!form.title.trim()) { showFlash('Title is required.', 'error'); return }
+    if (form.category_ids.length === 0) { showFlash('Category is required.', 'error'); return }
     if (!form.date || !form.start_time) { showFlash('Start date and time are required.', 'error'); return }
     if (!form.end_date || !form.end_time) { showFlash('End date and time are required.', 'error'); return }
 
@@ -470,7 +471,7 @@ function EditTab({ event, categories, onSaved }) {
               value={form.category_ids[0] || ''}
               onChange={e => set('category_ids', e.target.value ? [parseInt(e.target.value)] : [])}
             >
-              <option value="">No category</option>
+              <option value="">Select category…</option>
               {categories.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}

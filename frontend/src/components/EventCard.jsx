@@ -25,13 +25,13 @@ const IconPeople = () => (
 
 import { Link } from 'react-router-dom'
 
-export default function EventCard({ event }) {
+export default function EventCard({ event, from }) {
   return (
-    <Link to={`/events/${event.id}`} className="event-card" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+    <Link to={`/events/${event.id}`} state={from ? { from } : undefined} className="event-card" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
       <div className="event-card-img-wrap">
         <img src={event.image} alt={event.title} />
-        {event.recommended && (
-          <span className="recommended-badge">Recommended</span>
+        {event.category && (
+          <span className="recommended-badge">{event.category}</span>
         )}
       </div>
 
