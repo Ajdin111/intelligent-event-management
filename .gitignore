@@ -26,6 +26,8 @@ Thumbs.db
 *.joblib
 
 # Secrets
+.env
+.env.*
 *.env
 .env.local
 .env.production
