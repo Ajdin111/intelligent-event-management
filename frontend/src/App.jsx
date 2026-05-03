@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import AppLayout from './layouts/AppLayout'
 import OrganizerLayout from './layouts/OrganizerLayout'
+import AdminLayout from './layouts/AdminLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import Dashboard from './pages/Dashboard'
 import BrowseEvents from './pages/BrowseEvents'
@@ -19,6 +20,7 @@ import ManageEvent from './pages/organizer/ManageEvent'
 import OrganizerAnalytics from './pages/organizer/OrganizerAnalytics'
 import OrganizerAgenda from './pages/organizer/OrganizerAgenda'
 import OrganizerNotifications from './pages/organizer/OrganizerNotifications'
+import AdminOverview from './pages/admin/AdminOverview'
 import NotFound from './pages/NotFound'
 
 function Page404() {
@@ -86,6 +88,20 @@ export default function App() {
             <Route path="notifications" element={<OrganizerNotifications />} />
             <Route path="profile" element={<Preferences />} />
             <Route path="*" element={<NotFound />} />
+          </Route>
+
+          {/* Admin routes */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="/admin/overview" replace />} />
+            <Route path="overview"  element={<AdminOverview />} />
+            <Route path="*"         element={<NotFound />} />
           </Route>
 
           <Route path="*" element={<Page404 />} />
