@@ -13,7 +13,12 @@ ENV PYTHONUNBUFFERED=1
 # Install system dependencies needed by some Python packages
 RUN apt-get update && apt-get install -y \
     gcc \
+    g++ \
+    gfortran \
     libpq-dev \
+    libopenblas-dev \
+    pkg-config \
+    cmake \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy and install Python dependencies first
@@ -30,4 +35,4 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 EXPOSE 8000
 
 # Start the FastAPI app with hot reload enabled for development
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["bash", "start.sh"]
