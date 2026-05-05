@@ -95,6 +95,7 @@ export const organizerApi = {
 export const adminApi = {
   analytics: ()                  => api.get('/api/admin/analytics'),
   listUsers: (params = {})       => api.get('/api/admin/users', { params }),
+  getUser:   (id)                => api.get(`/api/admin/users/${id}`),
   listEvents: (params = {})      => api.get('/api/admin/events', { params }),
   deactivateUser: (id)           => api.patch(`/api/admin/users/${id}/deactivate`),
   activateUser:   (id)           => api.patch(`/api/admin/users/${id}/activate`),
