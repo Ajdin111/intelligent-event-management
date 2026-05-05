@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { notificationsApi } from '../services/api'
 
 const routeTitles = {
   '/dashboard': 'Dashboard',
@@ -20,6 +21,36 @@ const routeTitles = {
   '/admin/users':    'Users',
   '/admin/events':   'Events',
   '/admin/analytics':'Platform analytics',
+}
+
+const IconBell = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M8 1.5a5 5 0 0 1 5 5v3l1.5 2H1.5L3 9.5v-3a5 5 0 0 1 5-5Z" strokeLinejoin="round" />
+    <path d="M6.5 13.5a1.5 1.5 0 0 0 3 0" strokeLinecap="round" />
+  </svg>
+)
+
+const NOTIF_ICONS = {
+  registration_confirmation: { bg: 'rgba(34,197,94,0.15)',  color: '#22c55e', symbol: '✓' },
+  approval:                  { bg: 'rgba(34,197,94,0.15)',  color: '#22c55e', symbol: '✓' },
+  rejection:                 { bg: 'rgba(239,68,68,0.15)',  color: '#ef4444', symbol: '✕' },
+  reminder:                  { bg: 'rgba(255,255,255,0.08)',color: 'rgba(255,255,255,0.6)', symbol: '◷' },
+  feedback_request:          { bg: 'rgba(251,191,36,0.15)', color: '#fbbf24', symbol: '★' },
+  waitlist_notification:     { bg: 'rgba(99,102,241,0.15)', color: '#818cf8', symbol: '↑' },
+  invite:                    { bg: 'rgba(99,102,241,0.15)', color: '#818cf8', symbol: '✉' },
+}
+
+function fmtNotifTime(iso) {
+  if (!iso) return ''
+  const diffMs   = Date.now() - new Date(iso.replace('T', ' ')).getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  if (diffMins < 1)  return 'Just now'
+  if (diffMins < 60) return `${diffMins}m ago`
+  const diffHrs = Math.floor(diffMins / 60)
+  if (diffHrs < 24)  return `${diffHrs}h ago`
+  const diffDays = Math.floor(diffHrs / 24)
+  if (diffDays < 7)  return `${diffDays}d ago`
+  return `${Math.floor(diffDays / 7)}w ago`
 }
 
 const IconChevronDown = () => (
@@ -54,8 +85,17 @@ export default function TopBar() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { user, activeRole, switchRole, logout } = useAuth()
+
+  // profile dropdown
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef(null)
+
+  // notification bell
+  const [bellOpen, setBellOpen]         = useState(false)
+  const [notifications, setNotifications] = useState([])
+  const [unreadCount, setUnreadCount]   = useState(0)
+  const [notifLoading, setNotifLoading] = useState(false)
+  const bellRef = useRef(null)
 
   const title = routeTitles[pathname] ?? ''
   const fullName = useMemo(() => {
@@ -63,16 +103,56 @@ export default function TopBar() {
     return `${user.first_name} ${user.last_name}`
   }, [user])
 
+  // click-outside closes both dropdowns
   useEffect(() => {
-    function handleClickOutside(event) {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setMenuOpen(false)
-      }
+    function handleClickOutside(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false)
+      if (bellRef.current && !bellRef.current.contains(e.target))  setBellOpen(false)
     }
-
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  // fetch unread count on mount and every 60s
+  const fetchUnreadCount = useCallback(() => {
+    if (!user) return
+    notificationsApi.getUnreadCount()
+      .then(r => setUnreadCount(r.data.unread_count))
+      .catch(() => {})
+  }, [user])
+
+  useEffect(() => {
+    fetchUnreadCount()
+    const interval = setInterval(fetchUnreadCount, 60000)
+    return () => clearInterval(interval)
+  }, [fetchUnreadCount])
+
+  const openBell = () => {
+    setMenuOpen(false)
+    if (bellOpen) { setBellOpen(false); return }
+    setBellOpen(true)
+    setNotifLoading(true)
+    notificationsApi.list()
+      .then(r => {
+        const sorted = [...r.data].sort((a, b) =>
+          (b.created_at ?? '').localeCompare(a.created_at ?? ''))
+        setNotifications(sorted)
+      })
+      .catch(() => {})
+      .finally(() => setNotifLoading(false))
+  }
+
+  const markRead = (id) => {
+    notificationsApi.markRead(id).catch(() => {})
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n))
+    setUnreadCount(prev => Math.max(0, prev - 1))
+  }
+
+  const markAll = () => {
+    notificationsApi.markAllRead().catch(() => {})
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+    setUnreadCount(0)
+  }
 
   const handleLogout = () => {
     logout()
@@ -94,10 +174,64 @@ export default function TopBar() {
     <header className="topbar">
       <span className="topbar-title">{title}</span>
       <div className="topbar-actions">
+
+        {/* ── notification bell ── */}
+        <div className="notif-wrap" ref={bellRef}>
+          <button
+            className={`notif-bell${bellOpen ? ' notif-bell--open' : ''}`}
+            onClick={openBell}
+            aria-label="Notifications"
+          >
+            <IconBell />
+            {unreadCount > 0 && (
+              <span className="notif-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+            )}
+          </button>
+
+          {bellOpen && (
+            <div className="notif-dropdown">
+              <div className="notif-dropdown-head">
+                <span className="notif-dropdown-title">Notifications</span>
+                {notifications.some(n => !n.is_read) && (
+                  <button className="notif-mark-all" onClick={markAll}>Mark all read</button>
+                )}
+              </div>
+
+              <div className="notif-list">
+                {notifLoading ? (
+                  <p className="notif-empty">Loading…</p>
+                ) : notifications.length === 0 ? (
+                  <p className="notif-empty">You're all caught up.</p>
+                ) : notifications.map(n => {
+                  const icon = NOTIF_ICONS[n.type] ?? NOTIF_ICONS.reminder
+                  return (
+                    <button
+                      key={n.id}
+                      className={`notif-item${n.is_read ? '' : ' notif-item--unread'}`}
+                      onClick={() => markRead(n.id)}
+                    >
+                      <span className="notif-icon" style={{ background: icon.bg, color: icon.color }}>
+                        {icon.symbol}
+                      </span>
+                      <span className="notif-body">
+                        <span className="notif-title">{n.title}</span>
+                        <span className="notif-msg">{n.message}</span>
+                        <span className="notif-time">{fmtNotifTime(n.created_at)}</span>
+                      </span>
+                      {!n.is_read && <span className="notif-unread-dot" />}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── profile menu ── */}
         <div className="profile-menu" ref={menuRef}>
           <button
             className={`profile-card${menuOpen ? ' open' : ''}`}
-            onClick={() => setMenuOpen((open) => !open)}
+            onClick={() => { setBellOpen(false); setMenuOpen(o => !o) }}
             aria-expanded={menuOpen}
           >
             <span className="profile-avatar" aria-hidden="true">{getInitials(user)}</span>
