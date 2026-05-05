@@ -7,6 +7,7 @@ from app.models.event import Event
 from app.models.analytics import PlatformAnalytics
 from app.models.registration import Registration
 from app.core.exceptions import NotFoundError, BadRequestError
+from app.core.constants import EVENT_STATUS_DRAFT
 from app.services.common import get_event_or_404
 
 
@@ -96,7 +97,7 @@ def get_all_events(db: Session, status: str = None) -> list[Event]:
 
 def force_unpublish_event(db: Session, event_id: int) -> Event:
     event = get_event_or_404(db, event_id)
-    event.status = "draft"
+    event.status = EVENT_STATUS_DRAFT
     db.commit()
     return event
 

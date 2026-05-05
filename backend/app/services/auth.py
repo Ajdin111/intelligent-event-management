@@ -6,6 +6,7 @@ from app.models.user import User, UserRole
 from app.models.event import Event
 from app.schemas.auth import RegisterRequest, UpdateProfileRequest, ChangePasswordRequest, DeleteAccountRequest
 from app.core.security import hash_password, verify_password, create_access_token
+from app.core.constants import EVENT_STATUS_PUBLISHED, EVENT_STATUS_DRAFT
 
 
 def register_user(db: Session, data: RegisterRequest) -> User:
@@ -105,7 +106,7 @@ def delete_account(db: Session, user: User, data: DeleteAccountRequest) -> None:
         now = datetime.utcnow()
         active_published = db.query(Event).filter(
             Event.owner_id == user.id,
-            Event.status == "published",
+            Event.status == EVENT_STATUS_PUBLISHED,
             Event.end_datetime > now,
             Event.deleted_at.is_(None),
         ).first()
@@ -117,7 +118,7 @@ def delete_account(db: Session, user: User, data: DeleteAccountRequest) -> None:
 
         db.query(Event).filter(
             Event.owner_id == user.id,
-            Event.status == "draft",
+            Event.status == EVENT_STATUS_DRAFT,
             Event.deleted_at.is_(None),
         ).update({"deleted_at": now})
 

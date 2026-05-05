@@ -7,9 +7,22 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from app.core.config import settings
+from app.core.constants import REG_STATUS_CONFIRMED, EVENT_STATUS_PUBLISHED
 from app.db.session import get_db_context
 
 logger = logging.getLogger(__name__)
+
+
+def _is_email_allowed(db, user_id: int, pref_attr: str = None) -> bool:
+    from app.models.notification import NotificationPreferences
+    prefs = db.query(NotificationPreferences).filter(
+        NotificationPreferences.user_id == user_id
+    ).first()
+    if prefs and not prefs.email_enabled:
+        return False
+    if pref_attr and prefs and not getattr(prefs, pref_attr, True):
+        return False
+    return True
 
 
 def send_email(to: str, subject: str, html_body: str) -> bool:
@@ -35,7 +48,7 @@ def send_registration_confirmation(self, registration_id: int):
     try:
         with get_db_context() as db:
             from app.models.registration import Registration
-            from app.models.notification import NotificationLog, NotificationPreferences
+            from app.models.notification import NotificationLog
 
             registration = db.query(Registration).filter(
                 Registration.id == registration_id
@@ -48,13 +61,7 @@ def send_registration_confirmation(self, registration_id: int):
             user = registration.user
             event = registration.event
 
-            prefs = db.query(NotificationPreferences).filter(
-                NotificationPreferences.user_id == user.id
-            ).first()
-
-            if prefs and not prefs.email_enabled:
-                return
-            if prefs and not prefs.registration_confirmation:
+            if not _is_email_allowed(db, user.id, "registration_confirmation"):
                 return
 
             body = f"""
@@ -95,7 +102,7 @@ def send_registration_cancellation(self, registration_id: int):
     try:
         with get_db_context() as db:
             from app.models.registration import Registration
-            from app.models.notification import NotificationLog, NotificationPreferences
+            from app.models.notification import NotificationLog
 
             registration = db.query(Registration).filter(
                 Registration.id == registration_id
@@ -108,11 +115,7 @@ def send_registration_cancellation(self, registration_id: int):
             user = registration.user
             event = registration.event
 
-            prefs = db.query(NotificationPreferences).filter(
-                NotificationPreferences.user_id == user.id
-            ).first()
-
-            if prefs and not prefs.email_enabled:
+            if not _is_email_allowed(db, user.id):
                 return
 
             body = f"""
@@ -149,7 +152,7 @@ def send_event_reminder(self, event_id: int, hours_before: int):
         with get_db_context() as db:
             from app.models.event import Event
             from app.models.registration import Registration
-            from app.models.notification import NotificationPreferences, NotificationLog
+            from app.models.notification import NotificationLog
 
             event = db.query(Event).filter(Event.id == event_id).first()
             if not event:
@@ -157,19 +160,13 @@ def send_event_reminder(self, event_id: int, hours_before: int):
 
             registrations = db.query(Registration).filter(
                 Registration.event_id == event_id,
-                Registration.status == "confirmed",
+                Registration.status == REG_STATUS_CONFIRMED,
             ).all()
 
             for reg in registrations:
                 user = reg.user
 
-                prefs = db.query(NotificationPreferences).filter(
-                    NotificationPreferences.user_id == user.id
-                ).first()
-
-                if prefs and not prefs.event_reminders:
-                    continue
-                if prefs and not prefs.email_enabled:
+                if not _is_email_allowed(db, user.id, "event_reminders"):
                     continue
 
                 plural = "s" if hours_before > 1 else ""
@@ -210,7 +207,7 @@ def send_feedback_request(self, event_id: int):
         with get_db_context() as db:
             from app.models.event import Event
             from app.models.registration import Registration
-            from app.models.notification import NotificationLog, NotificationPreferences
+            from app.models.notification import NotificationLog
 
             event = db.query(Event).filter(Event.id == event_id).first()
             if not event:
@@ -218,19 +215,13 @@ def send_feedback_request(self, event_id: int):
 
             registrations = db.query(Registration).filter(
                 Registration.event_id == event_id,
-                Registration.status == "confirmed",
+                Registration.status == REG_STATUS_CONFIRMED,
             ).all()
 
             for reg in registrations:
                 user = reg.user
 
-                prefs = db.query(NotificationPreferences).filter(
-                    NotificationPreferences.user_id == user.id
-                ).first()
-
-                if prefs and not prefs.email_enabled:
-                    continue
-                if prefs and not prefs.feedback_requests:
+                if not _is_email_allowed(db, user.id, "feedback_requests"):
                     continue
 
                 body = f"""
@@ -278,7 +269,7 @@ def send_upcoming_event_reminders(self):
 
             for lower, upper, hours in windows:
                 events = db.query(Event).filter(
-                    Event.status == "published",
+                    Event.status == EVENT_STATUS_PUBLISHED,
                     Event.start_datetime >= now + lower,
                     Event.start_datetime <= now + upper,
                     Event.deleted_at.is_(None),
