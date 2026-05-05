@@ -21,6 +21,7 @@ import OrganizerAnalytics from './pages/organizer/OrganizerAnalytics'
 import OrganizerAgenda from './pages/organizer/OrganizerAgenda'
 import OrganizerNotifications from './pages/organizer/OrganizerNotifications'
 import AdminOverview from './pages/admin/AdminOverview'
+import AdminUsers, { AdminUserDetail } from './pages/admin/AdminUsers'
 import NotFound from './pages/NotFound'
 
 function Page404() {
@@ -101,6 +102,8 @@ export default function App() {
           >
             <Route index element={<Navigate to="/admin/overview" replace />} />
             <Route path="overview"  element={<AdminOverview />} />
+            <Route path="users"     element={<AdminUsers />} />
+            <Route path="users/:userId" element={<AdminUserDetail />} />
             <Route path="*"         element={<NotFound />} />
           </Route>
 
