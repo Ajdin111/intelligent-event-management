@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Response, Request
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db, get_current_user
+from app.core.limiter import limiter
 from app.models.user import User
 from app.models.registration import Waitlist
 from app.schemas.registration import (
@@ -30,7 +31,9 @@ router = APIRouter(tags=["registrations"])
 # ─── Registration Endpoints ───────────────────────────────
 
 @router.post("/api/registrations", status_code=201)
+@limiter.limit("20/minute")
 def register(
+    request: Request,
     data: RegistrationCreateRequest,
     response: Response,
     current_user: User = Depends(get_current_user),
@@ -61,7 +64,9 @@ def get_registration(
 
 
 @router.delete("/api/registrations/{registration_id}", response_model=RegistrationResponse)
+@limiter.limit("20/minute")
 def cancel(
+    request: Request,
     registration_id: int,
     data: RegistrationCancelRequest,
     current_user: User = Depends(get_current_user),
@@ -87,7 +92,9 @@ def event_registrations(
 
 
 @router.patch("/api/registrations/{registration_id}/approve", response_model=RegistrationResponse)
+@limiter.limit("30/minute")
 def approve(
+    request: Request,
     registration_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -96,7 +103,9 @@ def approve(
 
 
 @router.patch("/api/registrations/{registration_id}/reject", response_model=RegistrationResponse)
+@limiter.limit("30/minute")
 def reject(
+    request: Request,
     registration_id: int,
     data: RegistrationRejectRequest,
     current_user: User = Depends(get_current_user),

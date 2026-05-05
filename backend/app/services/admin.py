@@ -1,12 +1,14 @@
 from datetime import datetime, date
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
-from fastapi import HTTPException, status
 
 from app.models.user import User, UserRole
 from app.models.event import Event
 from app.models.analytics import PlatformAnalytics
 from app.models.registration import Registration
+from app.core.exceptions import NotFoundError, BadRequestError
+from app.core.constants import EVENT_STATUS_DRAFT
+from app.services.common import get_event_or_404
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────
@@ -17,24 +19,8 @@ def _get_user_or_404(db: Session, user_id: int) -> User:
         User.deleted_at.is_(None)
     ).first()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
+        raise NotFoundError("User not found")
     return user
-
-
-def _get_event_or_404(db: Session, event_id: int) -> Event:
-    event = db.query(Event).filter(
-        Event.id == event_id,
-        Event.deleted_at.is_(None)
-    ).first()
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Event not found"
-        )
-    return event
 
 
 # ─── User Services ────────────────────────────────────────────────────
@@ -56,10 +42,7 @@ def get_all_users(db: Session, search: str = None, role: str = None) -> list[Use
     elif role == "attendee":
         query = query.join(UserRole).filter(UserRole.role.ilike("attendee"))
     elif role is not None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid role filter. Must be attendee, organizer, or admin"
-        )
+        raise BadRequestError("Invalid role filter. Must be attendee, organizer, or admin")
 
     return query.all()
 
@@ -71,10 +54,7 @@ def get_user_by_id(db: Session, user_id: int) -> User:
 def deactivate_user(db: Session, user_id: int, current_user: User) -> User:
     user = _get_user_or_404(db, user_id)
     if user.id == current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot deactivate your own account"
-        )
+        raise BadRequestError("Cannot deactivate your own account")
     user.is_active = False
     db.commit()
     return user
@@ -87,11 +67,12 @@ def activate_user(db: Session, user_id: int) -> User:
     return user
 
 
-def delete_user(db: Session, user_id: int) -> dict:
+def delete_user(db: Session, user_id: int) -> None:
     user = _get_user_or_404(db, user_id)
 
     has_events = db.query(Event).filter(
-        Event.owner_id == user_id
+        Event.owner_id == user_id,
+        Event.deleted_at.is_(None)
     ).first() is not None
 
     has_registrations = db.query(Registration).filter(
@@ -99,14 +80,10 @@ def delete_user(db: Session, user_id: int) -> dict:
     ).first() is not None
 
     if has_events or has_registrations:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot delete user with associated events or registrations"
-        )
+        raise BadRequestError("Cannot delete user with associated events or registrations")
 
-    db.delete(user)
+    user.deleted_at = datetime.utcnow()
     db.commit()
-    return {"detail": "User deleted"}
 
 
 # ─── Event Services ───────────────────────────────────────────────────
@@ -119,17 +96,16 @@ def get_all_events(db: Session, status: str = None) -> list[Event]:
 
 
 def force_unpublish_event(db: Session, event_id: int) -> Event:
-    event = _get_event_or_404(db, event_id)
-    event.status = "draft"
+    event = get_event_or_404(db, event_id)
+    event.status = EVENT_STATUS_DRAFT
     db.commit()
     return event
 
 
-def force_delete_event(db: Session, event_id: int) -> dict:
-    event = _get_event_or_404(db, event_id)
-    db.delete(event)
+def force_delete_event(db: Session, event_id: int) -> None:
+    event = get_event_or_404(db, event_id)
+    event.deleted_at = datetime.utcnow()
     db.commit()
-    return {"detail": "Event deleted"}
 
 
 # ─── Analytics Services ───────────────────────────────────────────────
@@ -149,7 +125,7 @@ def get_platform_analytics(db: Session) -> PlatformAnalytics:
             total_registrations=0,
             total_revenue=0.00,
             active_events=0,
-            computed_at=datetime.now()
+            computed_at=datetime.utcnow()
         )
 
     return analytics

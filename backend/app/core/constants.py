@@ -1,3 +1,16 @@
 WAITLIST_MAX_SIZE: int = 50
 NOTIFICATION_RETENTION_DAYS: int = 90
 WAITLIST_CONFIRMATION_HOURS: int = 24
+
+# Event status constants
+EVENT_STATUS_DRAFT = "draft"
+EVENT_STATUS_PUBLISHED = "published"
+EVENT_STATUS_CANCELLED = "cancelled"
+EVENT_STATUS_CLOSED = "closed"
+
+# Registration status constants
+REG_STATUS_PENDING = "pending"
+REG_STATUS_CONFIRMED = "confirmed"
+REG_STATUS_REJECTED = "rejected"
+REG_STATUS_CANCELLED = "cancelled"
+REG_STATUS_WAITLISTED = "waiting"

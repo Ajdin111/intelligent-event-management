@@ -43,6 +43,7 @@ def db():
 def mock_celery():
     patches = [
         patch("app.tasks.email.send_registration_confirmation.delay"),
+        patch("app.tasks.email.send_registration_cancellation.delay"),
         patch("app.tasks.email.send_feedback_request.delay"),
         patch("app.tasks.analytics.compute_event_analytics.delay"),
         patch("app.tasks.notifications.create_in_app_notification.delay"),
