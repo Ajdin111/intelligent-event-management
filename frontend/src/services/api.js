@@ -104,10 +104,12 @@ export const adminApi = {
 }
 
 export const notificationsApi = {
-  list: () => api.get('/api/notifications/'),
-  getUnreadCount: () => api.get('/api/notifications/unread-count'),
-  getPreferences: () => api.get('/api/notifications/preferences'),
-  updatePreferences: (data) => api.patch('/api/notifications/preferences', data),
+  list:              ()    => api.get('/api/notifications/'),
+  getUnreadCount:    ()    => api.get('/api/notifications/unread-count'),
+  markRead:          (id)  => api.patch(`/api/notifications/${id}/read`),
+  markAllRead:       ()    => api.patch('/api/notifications/read-all'),
+  getPreferences:    ()    => api.get('/api/notifications/preferences'),
+  updatePreferences: (data)=> api.patch('/api/notifications/preferences', data),
 }
 
 export default api
