@@ -81,7 +81,7 @@ def send_registration_confirmation(self, registration_id: int):
                 type="registration_confirmation",
                 channel="email",
                 status="sent" if success else "failed",
-                sent_at=datetime.now(),
+                sent_at=datetime.utcnow(),
             ))
             db.commit()
 
@@ -90,52 +90,57 @@ def send_registration_confirmation(self, registration_id: int):
         raise self.retry(exc=exc)
 
 
-@celery_app.task
-def send_registration_cancellation(registration_id: int):
-    with get_db_context() as db:
-        from app.models.registration import Registration
-        from app.models.notification import NotificationLog, NotificationPreferences
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=60)
+def send_registration_cancellation(self, registration_id: int):
+    try:
+        with get_db_context() as db:
+            from app.models.registration import Registration
+            from app.models.notification import NotificationLog, NotificationPreferences
 
-        registration = db.query(Registration).filter(
-            Registration.id == registration_id
-        ).first()
+            registration = db.query(Registration).filter(
+                Registration.id == registration_id
+            ).first()
 
-        if not registration:
-            logger.warning(f"Registration {registration_id} not found")
-            return
+            if not registration:
+                logger.warning(f"Registration {registration_id} not found")
+                return
 
-        user = registration.user
-        event = registration.event
+            user = registration.user
+            event = registration.event
 
-        prefs = db.query(NotificationPreferences).filter(
-            NotificationPreferences.user_id == user.id
-        ).first()
+            prefs = db.query(NotificationPreferences).filter(
+                NotificationPreferences.user_id == user.id
+            ).first()
 
-        if prefs and not prefs.email_enabled:
-            return
+            if prefs and not prefs.email_enabled:
+                return
 
-        body = f"""
-        <h2>Registration Cancelled — {html_lib.escape(event.title)}</h2>
-        <p>Hi {html_lib.escape(user.first_name)},</p>
-        <p>Your registration for <strong>{html_lib.escape(event.title)}</strong> has been cancelled.</p>
-        <p>If a refund is applicable, it will be processed within 5-7 business days.</p>
-        """
+            body = f"""
+            <h2>Registration Cancelled — {html_lib.escape(event.title)}</h2>
+            <p>Hi {html_lib.escape(user.first_name)},</p>
+            <p>Your registration for <strong>{html_lib.escape(event.title)}</strong> has been cancelled.</p>
+            <p>If a refund is applicable, it will be processed within 5-7 business days.</p>
+            """
 
-        success = send_email(
-            to=user.email,
-            subject=f"Registration Cancelled — {event.title}",
-            html_body=body,
-        )
+            success = send_email(
+                to=user.email,
+                subject=f"Registration Cancelled — {event.title}",
+                html_body=body,
+            )
 
-        db.add(NotificationLog(
-            user_id=user.id,
-            event_id=event.id,
-            type="registration_cancellation",
-            channel="email",
-            status="sent" if success else "failed",
-            sent_at=datetime.now(),
-        ))
-        db.commit()
+            db.add(NotificationLog(
+                user_id=user.id,
+                event_id=event.id,
+                type="registration_cancellation",
+                channel="email",
+                status="sent" if success else "failed",
+                sent_at=datetime.utcnow(),
+            ))
+            db.commit()
+
+    except Exception as exc:
+        logger.error(f"Task failed for registration {registration_id}: {exc}")
+        raise self.retry(exc=exc)
 
 
 @celery_app.task(bind=True, max_retries=3, default_retry_delay=60)
@@ -190,7 +195,7 @@ def send_event_reminder(self, event_id: int, hours_before: int):
                     type="reminder",
                     channel="email",
                     status="sent" if success else "failed",
-                    sent_at=datetime.now(),
+                    sent_at=datetime.utcnow(),
                 ))
 
             db.commit()
@@ -247,7 +252,7 @@ def send_feedback_request(self, event_id: int):
                     type="feedback_request",
                     channel="email",
                     status="sent" if success else "failed",
-                    sent_at=datetime.now(),
+                    sent_at=datetime.utcnow(),
                 ))
 
             db.commit()
@@ -256,43 +261,48 @@ def send_feedback_request(self, event_id: int):
         raise self.retry(exc=exc)
 
 
-@celery_app.task
-def send_upcoming_event_reminders():
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=120)
+def send_upcoming_event_reminders(self):
     """Periodic task — runs every hour. Triggers reminders for events starting in ~24h or ~1h."""
-    with get_db_context() as db:
-        from app.models.event import Event
-        from app.models.notification import EventReminder
+    try:
+        with get_db_context() as db:
+            from app.models.event import Event
+            from app.models.notification import EventReminder
 
-        now = datetime.now()
+            now = datetime.utcnow()
 
-        windows = [
-            (timedelta(hours=23, minutes=30), timedelta(hours=24, minutes=30), 24),
-            (timedelta(minutes=30), timedelta(hours=1, minutes=30), 1),
-        ]
+            windows = [
+                (timedelta(hours=23, minutes=30), timedelta(hours=24, minutes=30), 24),
+                (timedelta(minutes=30), timedelta(hours=1, minutes=30), 1),
+            ]
 
-        for lower, upper, hours in windows:
-            events = db.query(Event).filter(
-                Event.status == "published",
-                Event.start_datetime >= now + lower,
-                Event.start_datetime <= now + upper,
-                Event.deleted_at.is_(None),
-            ).all()
+            for lower, upper, hours in windows:
+                events = db.query(Event).filter(
+                    Event.status == "published",
+                    Event.start_datetime >= now + lower,
+                    Event.start_datetime <= now + upper,
+                    Event.deleted_at.is_(None),
+                ).all()
 
-            for event in events:
-                existing = db.query(EventReminder).filter(
-                    EventReminder.event_id == event.id,
-                    EventReminder.reminder_type == f"{hours}h_before",
-                    EventReminder.status == "sent",
-                ).first()
+                for event in events:
+                    existing = db.query(EventReminder).filter(
+                        EventReminder.event_id == event.id,
+                        EventReminder.reminder_type == f"{hours}h_before",
+                        EventReminder.status == "sent",
+                    ).first()
 
-                if not existing:
-                    send_event_reminder.delay(event.id, hours)
+                    if not existing:
+                        send_event_reminder.delay(event.id, hours)
 
-                    db.add(EventReminder(
-                        event_id=event.id,
-                        reminder_type=f"{hours}h_before",
-                        scheduled_at=now,
-                        status="sent",
-                    ))
+                        db.add(EventReminder(
+                            event_id=event.id,
+                            reminder_type=f"{hours}h_before",
+                            scheduled_at=now,
+                            status="sent",
+                        ))
 
-        db.commit()
+            db.commit()
+
+    except Exception as exc:
+        logger.error(f"send_upcoming_event_reminders failed: {exc}")
+        raise self.retry(exc=exc)

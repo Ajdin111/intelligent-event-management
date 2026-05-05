@@ -72,10 +72,8 @@ def login_user(db: Session, email: str, password: str) -> str:
 
 
 def update_profile(db: Session, user: User, data: UpdateProfileRequest) -> User:
-    if data.first_name is not None:
-        user.first_name = data.first_name
-    if data.last_name is not None:
-        user.last_name = data.last_name
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(user, field, value)
     db.commit()
     db.refresh(user)
     return user

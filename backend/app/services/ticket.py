@@ -141,7 +141,7 @@ def get_promo_codes(db: Session, event_id: int, current_user: User) -> list[Prom
 
 
 def _check_promo_validity(promo: PromoCode) -> bool:
-    now = datetime.now()
+    now = datetime.utcnow()
     return (
         promo.is_active
         and promo.uses_count < promo.max_uses

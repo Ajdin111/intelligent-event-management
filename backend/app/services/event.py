@@ -125,7 +125,7 @@ def delete_event(db: Session, event_id: int, current_user: User) -> None:
     if event.owner_id != current_user.id:
         raise ForbiddenError("Only the event owner can delete this event")
 
-    event.deleted_at = datetime.now()
+    event.deleted_at = datetime.utcnow()
     db.commit()
 
 

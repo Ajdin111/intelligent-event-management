@@ -1,32 +1,13 @@
-# backend/app/services/review.py
 from datetime import datetime
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 
 from app.models.user import User
-from app.models.event import Event
 from app.models.review import Review
 from app.models.registration import Registration
-from app.schemas.review import ReviewCreateRequest, ReviewUpdateRequest
-
-
-def _normalize_dt(dt: datetime) -> datetime:
-    if dt is None:
-        return None
-    return dt.replace(tzinfo=None)
-
-
-def _get_event_or_404(db: Session, event_id: int) -> Event:
-    event = db.query(Event).filter(
-        Event.id == event_id,
-        Event.deleted_at.is_(None)
-    ).first()
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Event not found"
-        )
-    return event
+from app.schemas.review import ReviewCreateRequest
+from app.core.exceptions import NotFoundError, ForbiddenError, BadRequestError
+from app.services.common import get_event_or_404
+from app.core.constants import REG_STATUS_CONFIRMED
 
 
 def create_or_update_review(
@@ -34,25 +15,19 @@ def create_or_update_review(
     data: ReviewCreateRequest,
     current_user: User
 ) -> Review:
-    event = _get_event_or_404(db, data.event_id)
+    event = get_event_or_404(db, data.event_id)
 
-    if _normalize_dt(datetime.now()) < _normalize_dt(event.end_datetime):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You can only review an event after it has ended"
-        )
+    if datetime.utcnow() < event.end_datetime:
+        raise BadRequestError("You can only review an event after it has ended")
 
     registration = db.query(Registration).filter(
         Registration.event_id == data.event_id,
         Registration.user_id == current_user.id,
-        Registration.status == "confirmed"
+        Registration.status == REG_STATUS_CONFIRMED
     ).first()
 
     if not registration:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You must have attended this event to leave a review"
-        )
+        raise ForbiddenError("You must have attended this event to leave a review")
 
     existing = db.query(Review).filter(
         Review.event_id == data.event_id,
@@ -63,7 +38,7 @@ def create_or_update_review(
         existing.rating = data.rating
         existing.comment = data.comment
         existing.is_anonymous = data.is_anonymous
-        existing.updated_at = datetime.now()
+        existing.updated_at = datetime.utcnow()
         db.commit()
         db.refresh(existing)
         if existing.is_anonymous:
@@ -93,14 +68,11 @@ def get_event_reviews(
     event_id: int,
     current_user: User = None
 ) -> list[Review]:
-    event = _get_event_or_404(db, event_id)
+    event = get_event_or_404(db, event_id)
 
     if event.feedback_visibility == "organizer_only":
         if current_user is None or event.owner_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Reviews for this event are not public"
-            )
+            raise ForbiddenError("Reviews for this event are not public")
 
     reviews = db.query(Review).filter(
         Review.event_id == event_id
@@ -121,16 +93,10 @@ def delete_review(
     review = db.query(Review).filter(Review.id == review_id).first()
 
     if not review:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Review not found"
-        )
+        raise NotFoundError("Review not found")
 
     if review.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only delete your own review"
-        )
+        raise ForbiddenError("You can only delete your own review")
 
     db.delete(review)
     db.commit()
@@ -141,7 +107,7 @@ def get_my_review(
     event_id: int,
     current_user: User
 ) -> Review:
-    _get_event_or_404(db, event_id)
+    get_event_or_404(db, event_id)
 
     review = db.query(Review).filter(
         Review.event_id == event_id,
@@ -149,9 +115,6 @@ def get_my_review(
     ).first()
 
     if not review:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="You have not reviewed this event yet"
-        )
+        raise NotFoundError("You have not reviewed this event yet")
 
     return review

@@ -15,7 +15,7 @@ def cleanup_expired_notifications():
     with get_db_context() as db:
         from app.models.notification import Notification
 
-        cutoff = datetime.now() - timedelta(days=NOTIFICATION_RETENTION_DAYS)
+        cutoff = datetime.utcnow() - timedelta(days=NOTIFICATION_RETENTION_DAYS)
         deleted = db.query(Notification).filter(
             Notification.created_at < cutoff
         ).delete(synchronize_session=False)
@@ -50,7 +50,7 @@ def create_in_app_notification(
                 title=title,
                 message=message,
                 type=notification_type,
-                expires_at=datetime.now() + timedelta(days=NOTIFICATION_RETENTION_DAYS),
+                expires_at=datetime.utcnow() + timedelta(days=NOTIFICATION_RETENTION_DAYS),
             ))
             db.commit()
 

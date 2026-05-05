@@ -15,7 +15,7 @@ from app.schemas.registration import (
 from app.schemas.utils import PaginatedResponse
 from app.core.exceptions import NotFoundError, ForbiddenError, BadRequestError
 from app.core.constants import WAITLIST_MAX_SIZE, WAITLIST_CONFIRMATION_HOURS
-from app.services.common import get_event_or_404
+from app.services.common import get_event_or_404, check_event_permission
 from app.tasks.email import send_registration_confirmation, send_registration_cancellation
 from app.tasks.notifications import create_in_app_notification
 
@@ -61,7 +61,7 @@ def _apply_promo_code(
     if not promo:
         raise BadRequestError("Invalid promo code")
 
-    now = datetime.now()
+    now = datetime.utcnow()
     if not (promo.uses_count < promo.max_uses and promo.valid_from <= now <= promo.valid_until):
         raise BadRequestError("Promo code is expired or no longer valid")
 
@@ -104,7 +104,7 @@ def create_registration(
         if not ticket_tier:
             raise BadRequestError("Ticket tier not found or not active")
 
-        now = datetime.now()
+        now = datetime.utcnow()
         if not (ticket_tier.sale_start <= now <= ticket_tier.sale_end):
             raise BadRequestError("Ticket tier is not currently on sale")
 
@@ -253,7 +253,7 @@ def cancel_registration(
             tier.quantity_sold = max(0, tier.quantity_sold - registration.quantity)
 
     registration.status = "cancelled"
-    registration.cancelled_at = datetime.now()
+    registration.cancelled_at = datetime.utcnow()
     registration.cancellation_reason = data.cancellation_reason
 
     _process_waitlist(db, registration.event_id)
@@ -277,8 +277,8 @@ def _process_waitlist(db: Session, event_id: int) -> None:
 
     if next_in_line:
         next_in_line.status = "notified"
-        next_in_line.notified_at = datetime.now()
-        next_in_line.confirmation_deadline = datetime.now() + timedelta(hours=WAITLIST_CONFIRMATION_HOURS)
+        next_in_line.notified_at = datetime.utcnow()
+        next_in_line.confirmation_deadline = datetime.utcnow() + timedelta(hours=WAITLIST_CONFIRMATION_HOURS)
         db.commit()
 
         from app.tasks.notifications import notify_waitlist_user
@@ -295,17 +295,8 @@ def get_event_registrations(
     skip: int = 0,
     limit: int = 50,
 ) -> PaginatedResponse:
-    from app.models.event import EventCollaborator
     event = get_event_or_404(db, event_id)
-
-    is_owner = event.owner_id == current_user.id
-    is_collaborator = db.query(EventCollaborator).filter(
-        EventCollaborator.event_id == event_id,
-        EventCollaborator.user_id == current_user.id,
-    ).first()
-
-    if not is_owner and not is_collaborator:
-        raise ForbiddenError("You do not have permission to view registrations for this event")
+    check_event_permission(db, event, current_user)
 
     base = db.query(Registration).filter(Registration.event_id == event_id)
     total = base.count()
@@ -318,23 +309,14 @@ def approve_registration(db: Session, registration_id: int, current_user: User) 
     if not registration:
         raise NotFoundError("Registration not found")
 
-    from app.models.event import EventCollaborator
     event = get_event_or_404(db, registration.event_id)
-
-    is_owner = event.owner_id == current_user.id
-    is_collaborator = db.query(EventCollaborator).filter(
-        EventCollaborator.event_id == registration.event_id,
-        EventCollaborator.user_id == current_user.id,
-    ).first()
-
-    if not is_owner and not is_collaborator:
-        raise ForbiddenError("You do not have permission to approve registrations")
+    check_event_permission(db, event, current_user)
 
     if registration.status != "pending":
         raise BadRequestError("Only pending registrations can be approved")
 
     registration.status = "confirmed"
-    registration.approved_at = datetime.now()
+    registration.approved_at = datetime.utcnow()
     registration.approved_by = current_user.id
 
     ticket_tier = None
@@ -372,24 +354,15 @@ def reject_registration(
     if not registration:
         raise NotFoundError("Registration not found")
 
-    from app.models.event import EventCollaborator
     event = get_event_or_404(db, registration.event_id)
-
-    is_owner = event.owner_id == current_user.id
-    is_collaborator = db.query(EventCollaborator).filter(
-        EventCollaborator.event_id == registration.event_id,
-        EventCollaborator.user_id == current_user.id,
-    ).first()
-
-    if not is_owner and not is_collaborator:
-        raise ForbiddenError("You do not have permission to reject registrations")
+    check_event_permission(db, event, current_user)
 
     if registration.status != "pending":
         raise BadRequestError("Only pending registrations can be rejected")
 
     registration.status = "rejected"
     registration.cancellation_reason = data.cancellation_reason
-    registration.cancelled_at = datetime.now()
+    registration.cancelled_at = datetime.utcnow()
 
     db.commit()
     db.refresh(registration)
