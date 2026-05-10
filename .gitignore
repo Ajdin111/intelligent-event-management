@@ -33,4 +33,16 @@ Thumbs.db
 celerybeat-schedule
 celerybeat.pid
 
-CLAUDE.md
+# Mobile / Expo
+.expo/
+.expo-shared/
+web-build/
+expo-env.d.ts
+npm-debug.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
