@@ -3,11 +3,19 @@ import { useNavigate, useLocation } from 'react-router-dom'
 export default function NotFound() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const isAdmin     = pathname.startsWith('/admin')
-  const isOrganizer = pathname.startsWith('/organizer')
+  const isAdminEvents = pathname.startsWith('/admin/events')
+  const isAdmin       = pathname.startsWith('/admin')
+  const isOrganizer   = pathname.startsWith('/organizer')
 
-  const dest  = isAdmin ? '/admin/overview' : isOrganizer ? '/organizer/dashboard' : '/events'
-  const label = isAdmin ? 'Back to overview' : isOrganizer ? 'Back to dashboard'   : 'Back to events'
+  const dest  = isAdminEvents ? '/admin/events'
+    : isAdmin     ? '/admin/overview'
+    : isOrganizer ? '/organizer/dashboard'
+    : '/events'
+
+  const label = isAdminEvents ? 'Back to events'
+    : isAdmin     ? 'Back to overview'
+    : isOrganizer ? 'Back to dashboard'
+    : 'Back to events'
 
   return (
     <div className="ed-state ed-state--center">

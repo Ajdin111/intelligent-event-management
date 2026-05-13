@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { notificationsApi, collaboratorApi, inviteApi } from '../services/api'
+import { notificationsApi, collaboratorApi, inviteApi, adminApi } from '../services/api'
 
 const routeTitles = {
   '/dashboard': 'Dashboard',
@@ -53,6 +53,21 @@ function fmtNotifTime(iso) {
   return `${Math.floor(diffDays / 7)}w ago`
 }
 
+const IconMenu = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <line x1="2" y1="5"  x2="16" y2="5"  strokeLinecap="round" />
+    <line x1="2" y1="9"  x2="16" y2="9"  strokeLinecap="round" />
+    <line x1="2" y1="13" x2="16" y2="13" strokeLinecap="round" />
+  </svg>
+)
+
+const IconSearch = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <circle cx="6" cy="6" r="4.6" />
+    <path d="M9.5 9.5 13 13" strokeLinecap="round" />
+  </svg>
+)
+
 const IconChevronDown = () => (
   <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.5">
     <polyline points="2,4 5.5,7.5 9,4" strokeLinecap="round" strokeLinejoin="round" />
@@ -81,7 +96,7 @@ function getInitials(user) {
   return `${first}${last}`.trim().toUpperCase() || 'U'
 }
 
-export default function TopBar() {
+export default function TopBar({ onHamburger }) {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { user, activeRole, switchRole, logout } = useAuth()
@@ -91,12 +106,21 @@ export default function TopBar() {
   const menuRef = useRef(null)
 
   // notification bell
-  const [bellOpen, setBellOpen]         = useState(false)
+  const [bellOpen, setBellOpen]           = useState(false)
   const [notifications, setNotifications] = useState([])
-  const [unreadCount, setUnreadCount]   = useState(0)
-  const [notifLoading, setNotifLoading] = useState(false)
+  const [unreadCount, setUnreadCount]     = useState(0)
+  const [notifLoading, setNotifLoading]   = useState(false)
   const [inviteActions, setInviteActions] = useState({})
   const bellRef = useRef(null)
+
+  // global admin search
+  const [searchQuery, setSearchQuery]     = useState('')
+  const [searchOpen, setSearchOpen]       = useState(false)
+  const [searchResults, setSearchResults] = useState({ users: [], events: [] })
+  const [searchLoading, setSearchLoading] = useState(false)
+  const searchRef   = useRef(null)
+  const searchTimer = useRef(null)
+  const eventsCache = useRef(null)
 
   const title = routeTitles[pathname] ?? ''
   const fullName = useMemo(() => {
@@ -104,14 +128,22 @@ export default function TopBar() {
     return `${user.first_name} ${user.last_name}`
   }, [user])
 
-  // click-outside closes both dropdowns
+  // click-outside closes all dropdowns
   useEffect(() => {
     function handleClickOutside(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false)
-      if (bellRef.current && !bellRef.current.contains(e.target))  setBellOpen(false)
+      if (menuRef.current   && !menuRef.current.contains(e.target))   setMenuOpen(false)
+      if (bellRef.current   && !bellRef.current.contains(e.target))    setBellOpen(false)
+      if (searchRef.current && !searchRef.current.contains(e.target))  setSearchOpen(false)
+    }
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') { setSearchOpen(false); setSearchQuery('') }
     }
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
   }, [])
 
   // fetch unread count on mount and every 60s
@@ -127,6 +159,59 @@ export default function TopBar() {
     const interval = setInterval(fetchUnreadCount, 60000)
     return () => clearInterval(interval)
   }, [fetchUnreadCount])
+
+  // reset events cache when leaving admin panel
+  const isAdminPanel = pathname.startsWith('/admin')
+  useEffect(() => {
+    if (!isAdminPanel) {
+      eventsCache.current = null
+      setSearchQuery('')
+      setSearchOpen(false)
+    }
+  }, [isAdminPanel])
+
+  // run search when query changes (admin panel only)
+  useEffect(() => {
+    if (!isAdminPanel) return
+    const q = searchQuery.trim()
+    if (!q) { setSearchResults({ users: [], events: [] }); setSearchOpen(false); return }
+
+    clearTimeout(searchTimer.current)
+    searchTimer.current = setTimeout(async () => {
+      setSearchLoading(true)
+      setSearchOpen(true)
+      try {
+        const eventsPromise = eventsCache.current !== null
+          ? Promise.resolve(eventsCache.current)
+          : adminApi.listEvents().then(r => {
+              eventsCache.current = Array.isArray(r.data) ? r.data : []
+              return eventsCache.current
+            }).catch(() => [])
+
+        const [usersData, allEvents] = await Promise.all([
+          adminApi.listUsers({ search: q }).then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
+          eventsPromise,
+        ])
+        const ql = q.toLowerCase()
+        setSearchResults({
+          users:  usersData.slice(0, 4),
+          events: allEvents.filter(e => e.title?.toLowerCase().includes(ql)).slice(0, 4),
+        })
+      } finally {
+        setSearchLoading(false)
+      }
+    }, 300)
+
+    return () => clearTimeout(searchTimer.current)
+  }, [searchQuery, isAdminPanel])
+
+  const handleSearchSelect = useCallback((href) => {
+    navigate(href)
+    setSearchQuery('')
+    setSearchOpen(false)
+    setMenuOpen(false)
+    setBellOpen(false)
+  }, [navigate])
 
   const openBell = () => {
     setMenuOpen(false)
@@ -217,14 +302,98 @@ export default function TopBar() {
     navigate(role === 'organizer' ? '/organizer/dashboard' : '/dashboard')
   }
 
-  const isAdminPanel = pathname.startsWith('/admin')
   const profileHref  = isAdminPanel ? '/admin/profile'
     : activeRole === 'organizer'    ? '/organizer/profile'
     : '/profile'
 
   return (
     <header className="topbar">
+      {onHamburger && (
+        <button className="topbar-hamburger" onClick={onHamburger} aria-label="Toggle navigation" type="button">
+          <IconMenu />
+        </button>
+      )}
       <span className="topbar-title">{title}</span>
+
+      {/* ── global admin search ── */}
+      {isAdminPanel && (
+        <div className="topbar-search-wrap" ref={searchRef}>
+          <label className="topbar-search">
+            <IconSearch />
+            <input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onFocus={() => searchQuery.trim() && setSearchOpen(true)}
+              placeholder="Search events, users…"
+              aria-label="Global search"
+            />
+            {searchQuery && (
+              <button
+                className="topbar-search-clear"
+                onClick={() => { setSearchQuery(''); setSearchOpen(false) }}
+                aria-label="Clear search"
+                type="button"
+              >
+                ×
+              </button>
+            )}
+          </label>
+
+          {searchOpen && (
+            <div className="topbar-search-dropdown" role="listbox">
+              {searchLoading ? (
+                <p className="topbar-search-empty">Searching…</p>
+              ) : searchResults.users.length === 0 && searchResults.events.length === 0 ? (
+                <p className="topbar-search-empty">No results for &ldquo;{searchQuery}&rdquo;</p>
+              ) : (
+                <>
+                  {searchResults.users.length > 0 && (
+                    <div className="topbar-search-group">
+                      <span className="topbar-search-group-label">Users</span>
+                      {searchResults.users.map(u => (
+                        <button
+                          key={u.id}
+                          className="topbar-search-item"
+                          onClick={() => handleSearchSelect(`/admin/users/${u.id}`)}
+                          type="button"
+                        >
+                          <span className="topbar-search-avatar">
+                            {getInitials(u)}
+                          </span>
+                          <span className="topbar-search-copy">
+                            <span>{u.first_name} {u.last_name}</span>
+                            <small>{u.email}</small>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {searchResults.events.length > 0 && (
+                    <div className="topbar-search-group">
+                      <span className="topbar-search-group-label">Events</span>
+                      {searchResults.events.map(e => (
+                        <button
+                          key={e.id}
+                          className="topbar-search-item"
+                          onClick={() => handleSearchSelect(`/admin/events/${e.id}`)}
+                          type="button"
+                        >
+                          <span className="topbar-search-event-icon" />
+                          <span className="topbar-search-copy">
+                            <span>{e.title}</span>
+                            <small>{e.status}{e.location_type ? ` · ${e.location_type}` : ''}</small>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="topbar-actions">
 
         {/* ── notification bell ── */}

@@ -22,6 +22,8 @@ import OrganizerAgenda from './pages/organizer/OrganizerAgenda'
 import OrganizerNotifications from './pages/organizer/OrganizerNotifications'
 import AdminOverview from './pages/admin/AdminOverview'
 import AdminUsers, { AdminUserDetail } from './pages/admin/AdminUsers'
+import AdminEvents from './pages/admin/AdminEvents'
+import AdminEventDetail from './pages/admin/AdminEventDetail'
 import NotFound from './pages/NotFound'
 
 function Page404() {
@@ -104,6 +106,8 @@ export default function App() {
             <Route path="overview"  element={<AdminOverview />} />
             <Route path="users"     element={<AdminUsers />} />
             <Route path="users/:userId" element={<AdminUserDetail />} />
+            <Route path="events"             element={<AdminEvents />} />
+            <Route path="events/:eventId"   element={<AdminEventDetail />} />
             <Route path="*"         element={<NotFound />} />
           </Route>
 
