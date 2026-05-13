@@ -136,4 +136,17 @@ export const collaboratorApi = {
     api.get(`/api/collaborators/my/events`),
 };
 
+export const inviteApi = {
+  sendInvite: (eventId, email) =>
+    api.post(`/api/events/${eventId}/invites`, { email }),
+  listEventInvites: (eventId) =>
+    api.get(`/api/events/${eventId}/invites`),
+  getMyInvites: () =>
+    api.get(`/api/invites/my`),
+  acceptInvite: (eventId) =>
+    api.post(`/api/invites/${eventId}/accept`),
+  declineInvite: (eventId) =>
+    api.post(`/api/invites/${eventId}/decline`),
+}
+
 export default api

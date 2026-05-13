@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { eventsApi, organizerApi, categoriesApi, collaboratorApi } from '../../services/api'
+import { eventsApi, organizerApi, categoriesApi, collaboratorApi, inviteApi } from '../../services/api'
 import api from '../../services/api'
 
 // ── Icons ────────────────────────────────────────────────────────────────────
@@ -673,15 +673,31 @@ function AttendeesTab({ event, registrations, onRefresh }) {
 // ── Send Invites Tab ──────────────────────────────────────────────────────────
 
 function SendInvitesTab({ event }) {
-  const [email, setEmail]         = useState('')
-  const [sending, setSending]     = useState(false)
-  const [flash, setFlash]         = useState(null)
-  const [sentList, setSentList]   = useState([])
+  const [email, setEmail]             = useState('')
+  const [sending, setSending]         = useState(false)
+  const [flash, setFlash]             = useState(null)
+  const [invites, setInvites]         = useState([])
+  const [loadingList, setLoadingList] = useState(true)
 
   const showFlash = (msg, type = 'success') => {
     setFlash({ msg, type })
     setTimeout(() => setFlash(null), 4000)
   }
+
+  const loadInvites = async () => {
+    try {
+      const res = await inviteApi.listEventInvites(event.id)
+      setInvites(res.data)
+    } catch {
+      // non-critical
+    } finally {
+      setLoadingList(false)
+    }
+  }
+
+  useEffect(() => {
+    loadInvites()
+  }, [event.id])
 
   const handleSend = async () => {
     const trimmed = email.trim()
@@ -691,14 +707,36 @@ function SendInvitesTab({ event }) {
 
     setSending(true)
     try {
-      await api.post(`/api/events/${event.id}/invites`, { email: trimmed })
-      setSentList(prev => [{ email: trimmed, sent_at: new Date().toISOString() }, ...prev])
+      await inviteApi.sendInvite(event.id, trimmed)
       setEmail('')
       showFlash(`Invite sent to ${trimmed}`)
+      loadInvites()
     } catch (err) {
       const detail = err.response?.data?.detail
       showFlash(typeof detail === 'string' ? detail : 'Could not send invite.', 'error')
     } finally { setSending(false) }
+  }
+
+  const statusBadge = (status) => {
+    const styles = {
+      pending:  { background: 'rgba(231,233,236,0.08)', color: '#A0A8B0', border: '1px solid rgba(160,168,176,0.3)' },
+      accepted: { background: 'rgba(29,158,117,0.12)',  color: '#1D9E75', border: '1px solid rgba(29,158,117,0.3)' },
+      declined: { background: 'rgba(220,53,69,0.1)',    color: '#E05260', border: '1px solid rgba(220,53,69,0.3)' },
+      expired:  { background: 'rgba(231,233,236,0.04)', color: 'var(--text-muted)', border: '1px solid rgba(160,168,176,0.15)' },
+    }
+    const s = styles[status] ?? styles.expired
+    return (
+      <span style={{
+        ...s,
+        padding: '2px 10px',
+        borderRadius: '999px',
+        fontSize: '11px',
+        fontWeight: 500,
+        textTransform: 'capitalize',
+      }}>
+        {status}
+      </span>
+    )
   }
 
   return (
@@ -735,14 +773,14 @@ function SendInvitesTab({ event }) {
         </div>
       </div>
 
-      {sentList.length > 0 && (
+      {!loadingList && invites.length > 0 && (
         <div className="me-sent-list">
-          <p className="me-sent-list-title">Sent this session</p>
-          {sentList.map((item, i) => (
-            <div key={i} className="me-sent-item">
-              <span className="me-sent-email">{item.email}</span>
-              <span className="me-sent-time">Just now</span>
-              <span className="me-sent-badge">Sent</span>
+          <p className="me-sent-list-title">Sent invites</p>
+          {invites.map(inv => (
+            <div key={inv.id} className="me-sent-item">
+              <span className="me-sent-email">{inv.email}</span>
+              <span className="me-sent-time">{formatDate(inv.sent_at)}</span>
+              {statusBadge(inv.status)}
             </div>
           ))}
         </div>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { notificationsApi, collaboratorApi } from '../services/api'
+import { notificationsApi, collaboratorApi, inviteApi } from '../services/api'
 
 const routeTitles = {
   '/dashboard': 'Dashboard',
@@ -162,13 +162,38 @@ export default function TopBar() {
     }
     setInviteActions(prev => ({ ...prev, [notif.id]: { loading: action, msg: null } }))
     try {
-      if (action === 'accept') {
-        await collaboratorApi.acceptInvite(notif.event_id)
+      const isAttendanceInvite = notif.message?.includes('attend')
+
+      if (isAttendanceInvite) {
+        if (action === 'accept') {
+          const res = await inviteApi.acceptInvite(notif.event_id)
+          markRead(notif.id)
+          if (res.data.requires_payment === true) {
+            setNotifications(prev => prev.filter(n => n.id !== notif.id))
+            navigate(`/events/${notif.event_id}/register`)
+          } else {
+            setInviteActions(prev => ({
+              ...prev,
+              [notif.id]: { loading: null, done: true, isError: false, msg: 'You are now registered!' },
+            }))
+          }
+        } else {
+          await inviteApi.declineInvite(notif.event_id)
+          markRead(notif.id)
+          setInviteActions(prev => ({
+            ...prev,
+            [notif.id]: { loading: null, done: true, isError: false, msg: 'Invitation declined.' },
+          }))
+        }
       } else {
-        await collaboratorApi.declineInvite(notif.event_id)
+        if (action === 'accept') {
+          await collaboratorApi.acceptInvite(notif.event_id)
+        } else {
+          await collaboratorApi.declineInvite(notif.event_id)
+        }
+        markRead(notif.id)
+        setNotifications(prev => prev.filter(n => n.id !== notif.id))
       }
-      markRead(notif.id)
-      setNotifications(prev => prev.filter(n => n.id !== notif.id))
     } catch (err) {
       const detail = err.response?.data?.detail
       const msg = typeof detail === 'string' ? detail
