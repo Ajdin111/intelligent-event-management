@@ -297,3 +297,52 @@ def send_upcoming_event_reminders(self):
     except Exception as exc:
         logger.error(f"send_upcoming_event_reminders failed: {exc}")
         raise self.retry(exc=exc)
+
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=60)
+def send_collaborator_invite(self, target_user_id: int, event_id: int, inviter_name: str):
+    try:
+        with get_db_context() as db:
+            from app.models.user import User
+            from app.models.event import Event
+            from app.models.notification import NotificationLog
+
+            target = db.query(User).filter(User.id == target_user_id).first()
+            event = db.query(Event).filter(Event.id == event_id).first()
+
+            if not target or not event:
+                logger.warning(f"send_collaborator_invite: user {target_user_id} or event {event_id} not found")
+                return
+
+            if not _is_email_allowed(db, target.id, "invite_notifications"):
+                return
+
+            body = f"""
+            <h2>You've been invited to co-manage an event</h2>
+            <p>Hi {html_lib.escape(target.first_name)},</p>
+            <p><strong>{html_lib.escape(inviter_name)}</strong> has invited you to collaborate on:</p>
+            <ul>
+                <li><strong>Event:</strong> {html_lib.escape(event.title)}</li>
+                <li><strong>Date:</strong> {event.start_datetime.strftime('%B %d, %Y') if event.start_datetime else 'TBD'}</li>
+            </ul>
+            <p>Log in to TeqEvent to accept or decline this invitation.</p>
+            """
+
+            success = send_email(
+                to=target.email,
+                subject=f"You've been invited to co-manage '{event.title}'",
+                html_body=body,
+            )
+
+            db.add(NotificationLog(
+                user_id=target.id,
+                event_id=event.id,
+                type="invite",
+                channel="email",
+                status="sent" if success else "failed",
+                sent_at=datetime.utcnow(),
+            ))
+            db.commit()
+
+    except Exception as exc:
+        logger.error(f"send_collaborator_invite failed for user {target_user_id}: {exc}")
+        raise self.retry(exc=exc)

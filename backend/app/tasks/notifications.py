@@ -54,6 +54,7 @@ def create_in_app_notification(
                 title=title,
                 message=message,
                 type=notification_type,
+                event_id=event_id,
                 expires_at=datetime.utcnow() + timedelta(days=NOTIFICATION_RETENTION_DAYS),
             ))
             db.commit()

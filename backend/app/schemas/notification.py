@@ -15,6 +15,7 @@ class NotificationResponse(BaseModel):
     created_at: datetime
     read_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
+    event_id: Optional[int] = None
 
     class Config:
         from_attributes = True
