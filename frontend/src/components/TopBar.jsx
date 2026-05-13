@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { notificationsApi } from '../services/api'
+import { notificationsApi, collaboratorApi } from '../services/api'
 
 const routeTitles = {
   '/dashboard': 'Dashboard',
@@ -95,6 +95,7 @@ export default function TopBar() {
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount]   = useState(0)
   const [notifLoading, setNotifLoading] = useState(false)
+  const [inviteActions, setInviteActions] = useState({})
   const bellRef = useRef(null)
 
   const title = routeTitles[pathname] ?? ''
@@ -154,6 +155,32 @@ export default function TopBar() {
     setUnreadCount(0)
   }
 
+  const handleInviteAction = async (notif, action) => {
+    if (!notif.event_id) {
+      setInviteActions(prev => ({ ...prev, [notif.id]: { loading: null, isError: true, msg: 'Missing event ID — re-send the invite.' } }))
+      return
+    }
+    setInviteActions(prev => ({ ...prev, [notif.id]: { loading: action, msg: null } }))
+    try {
+      if (action === 'accept') {
+        await collaboratorApi.acceptInvite(notif.event_id)
+      } else {
+        await collaboratorApi.declineInvite(notif.event_id)
+      }
+      markRead(notif.id)
+      setNotifications(prev => prev.filter(n => n.id !== notif.id))
+    } catch (err) {
+      const detail = err.response?.data?.detail
+      const msg = typeof detail === 'string' ? detail
+        : Array.isArray(detail) && detail.length > 0 ? (detail[0]?.msg ?? 'Validation error')
+        : 'Failed to process invite.'
+      setInviteActions(prev => ({
+        ...prev,
+        [notif.id]: { loading: null, done: true, isError: true, msg },
+      }))
+    }
+  }
+
   const handleLogout = () => {
     logout()
     navigate('/login')
@@ -203,13 +230,12 @@ export default function TopBar() {
                 ) : notifications.length === 0 ? (
                   <p className="notif-empty">You're all caught up.</p>
                 ) : notifications.map(n => {
-                  const icon = NOTIF_ICONS[n.type] ?? NOTIF_ICONS.reminder
-                  return (
-                    <button
-                      key={n.id}
-                      className={`notif-item${n.is_read ? '' : ' notif-item--unread'}`}
-                      onClick={() => markRead(n.id)}
-                    >
+                  const icon      = NOTIF_ICONS[n.type] ?? NOTIF_ICONS.reminder
+                  const isInvite  = n.type === 'invite'
+                  const invState  = inviteActions[n.id] ?? {}
+
+                  const body = (
+                    <>
                       <span className="notif-icon" style={{ background: icon.bg, color: icon.color }}>
                         {icon.symbol}
                       </span>
@@ -217,8 +243,56 @@ export default function TopBar() {
                         <span className="notif-title">{n.title}</span>
                         <span className="notif-msg">{n.message}</span>
                         <span className="notif-time">{fmtNotifTime(n.created_at)}</span>
+                        {isInvite && invState.msg && (
+                          <span style={{
+                            display: 'block', marginTop: 6, fontSize: 11,
+                            color: invState.isError ? '#ef4444' : '#22c55e',
+                          }}>
+                            {invState.msg}
+                          </span>
+                        )}
+                        {isInvite && !n.is_read && !invState.msg && (
+                          <span
+                            style={{ display: 'flex', gap: 6, marginTop: 8 }}
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <button
+                              className="notif-invite-btn notif-invite-btn--accept"
+                              disabled={!!invState.loading}
+                              onClick={() => handleInviteAction(n, 'accept')}
+                            >
+                              {invState.loading === 'accept' ? '…' : 'Accept'}
+                            </button>
+                            <button
+                              className="notif-invite-btn notif-invite-btn--decline"
+                              disabled={!!invState.loading}
+                              onClick={() => handleInviteAction(n, 'decline')}
+                            >
+                              {invState.loading === 'decline' ? '…' : 'Decline'}
+                            </button>
+                          </span>
+                        )}
                       </span>
                       {!n.is_read && <span className="notif-unread-dot" />}
+                    </>
+                  )
+
+                  return isInvite ? (
+                    <div
+                      key={n.id}
+                      className={`notif-item${n.is_read ? '' : ' notif-item--unread'}`}
+                      onClick={() => markRead(n.id)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {body}
+                    </div>
+                  ) : (
+                    <button
+                      key={n.id}
+                      className={`notif-item${n.is_read ? '' : ' notif-item--unread'}`}
+                      onClick={() => markRead(n.id)}
+                    >
+                      {body}
                     </button>
                   )
                 })}

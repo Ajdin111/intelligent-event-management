@@ -492,6 +492,30 @@ body {
 .notif-item:not(.notif-item--unread) .notif-icon  { opacity: 0.45; }
 .notif-item:not(.notif-item--unread) .notif-time  { color: rgba(255,255,255,0.22); }
 
+.notif-invite-btn {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+.notif-invite-btn:disabled { opacity: 0.5; cursor: default; }
+.notif-invite-btn--accept {
+  background: rgba(34,197,94,0.12);
+  color: #22c55e;
+  border-color: rgba(34,197,94,0.3);
+}
+.notif-invite-btn--accept:hover:not(:disabled) { background: rgba(34,197,94,0.22); }
+.notif-invite-btn--decline {
+  background: rgba(239,68,68,0.1);
+  color: #ef4444;
+  border-color: rgba(239,68,68,0.3);
+}
+.notif-invite-btn--decline:hover:not(:disabled) { background: rgba(239,68,68,0.18); }
+
 .notif-icon {
   flex-shrink: 0;
   width: 30px;

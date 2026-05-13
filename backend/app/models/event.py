@@ -64,8 +64,12 @@ class EventCollaborator(Base):
     id = mapped_column(Integer, primary_key=True)
     event_id = mapped_column(Integer, ForeignKey("events.id"), nullable=False)
     user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    added_by = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    status = mapped_column(String(20), nullable=False, default="pending")
+    # 'pending', 'accepted', 'declined'
     added_at = mapped_column(DateTime, server_default=func.now())
 
     # relationships
     event = relationship("Event", back_populates="collaborators")
-    user = relationship("User")
+    user = relationship("User", foreign_keys=[user_id])
+    inviter = relationship("User", foreign_keys=[added_by])
