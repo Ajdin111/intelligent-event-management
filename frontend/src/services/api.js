@@ -113,4 +113,27 @@ export const notificationsApi = {
   updatePreferences: (data)=> api.patch('/api/notifications/preferences', data),
 }
 
+export const collaboratorApi = {
+  inviteCollaborator: (eventId, email) =>
+    api.post(`/api/collaborators/events/${eventId}/invite`, { email }),
+
+  listCollaborators: (eventId) =>
+    api.get(`/api/collaborators/events/${eventId}`),
+
+  removeCollaborator: (eventId, userId) =>
+    api.delete(`/api/collaborators/events/${eventId}/remove/${userId}`),
+
+  acceptInvite: (eventId) =>
+    api.post(`/api/collaborators/events/${eventId}/accept`),
+
+  declineInvite: (eventId) =>
+    api.post(`/api/collaborators/events/${eventId}/decline`),
+
+  getMyInvites: () =>
+    api.get(`/api/collaborators/my/invites`),
+
+  getMyCollaboratingEvents: () =>
+    api.get(`/api/collaborators/my/events`),
+};
+
 export default api

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { eventsApi, organizerApi, categoriesApi } from '../../services/api'
+import { eventsApi, organizerApi, categoriesApi, collaboratorApi } from '../../services/api'
 import api from '../../services/api'
 
 // ── Icons ────────────────────────────────────────────────────────────────────
@@ -763,23 +763,159 @@ function SendInvitesTab({ event }) {
 
 // ── Collaborators Tab ─────────────────────────────────────────────────────────
 
-function CollaboratorsTab() {
+function CollaboratorsTab({ eventId }) {
+  const [collaborators, setCollaborators] = useState([])
+  const [email, setEmail] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [inviting, setInviting] = useState(false)
+  const [removing, setRemoving] = useState(null)
+  const [error, setError] = useState(null)
+  const [success, setSuccess] = useState(null)
+
+  useEffect(() => {
+    fetchCollaborators()
+  }, [eventId])
+
+  const fetchCollaborators = async () => {
+    try {
+      setLoading(true)
+      const res = await collaboratorApi.listCollaborators(eventId)
+      setCollaborators(res.data)
+    } catch (err) {
+      setError('Failed to load collaborators.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const extractError = (err, fallback) => {
+    const detail = err.response?.data?.detail
+    if (typeof detail === 'string') return detail
+    if (Array.isArray(detail) && detail.length > 0) return detail[0]?.msg ?? 'Validation error'
+    return fallback
+  }
+
+  const handleInvite = async () => {
+    if (!email.trim()) return
+    setInviting(true)
+    setError(null)
+    setSuccess(null)
+    try {
+      await collaboratorApi.inviteCollaborator(eventId, email.trim())
+      setSuccess(`Invite sent to ${email.trim()}`)
+      setEmail('')
+      fetchCollaborators()
+    } catch (err) {
+      setError(extractError(err, 'Failed to send invite.'))
+    } finally {
+      setInviting(false)
+    }
+  }
+
+  const handleRemove = async (userId) => {
+    if (!userId) {
+      setError('Cannot remove: user ID missing.')
+      return
+    }
+    if (!window.confirm('Remove this collaborator?')) return
+    setRemoving(userId)
+    setError(null)
+    setSuccess(null)
+    try {
+      await collaboratorApi.removeCollaborator(eventId, userId)
+      await fetchCollaborators()
+    } catch (err) {
+      setError(extractError(err, 'Failed to remove collaborator.'))
+    } finally {
+      setRemoving(null)
+    }
+  }
+
+  const statusBadge = (status) => {
+    const styles = {
+      accepted: { background: 'rgba(29,158,117,0.12)', color: '#1D9E75', border: '1px solid rgba(29,158,117,0.3)' },
+      pending:  { background: 'rgba(231,233,236,0.08)', color: '#A0A8B0', border: '1px solid rgba(160,168,176,0.3)' },
+      declined: { background: 'rgba(220,53,69,0.1)',   color: '#E05260', border: '1px solid rgba(220,53,69,0.3)' },
+    }
+    return (
+      <span style={{
+        ...styles[status],
+        padding: '2px 10px',
+        borderRadius: '999px',
+        fontSize: '11px',
+        fontWeight: 500,
+        textTransform: 'capitalize',
+      }}>
+        {status}
+      </span>
+    )
+  }
+
   return (
     <div className="me-tab-content">
-      <div className="me-placeholder-section">
-        <div className="me-placeholder-icon">
-          <IcoUsers />
-        </div>
-        <p className="me-placeholder-title">Collaborators</p>
-        <p className="me-placeholder-sub">
-          Collaborator management is coming soon. Once the backend endpoint is ready, you'll be able to invite team members to co-manage this event.
+      <div style={{ marginBottom: '32px' }}>
+        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+          Invite an organizer by email to co-manage this event.
         </p>
-        <div className="me-placeholder-info">
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-            Collaborators can manage registrations, view analytics, and update event details — but cannot delete the event or manage other collaborators.
-          </p>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <input
+            type="email"
+            placeholder="organizer@email.com"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleInvite()}
+            className="me-form-input"
+            style={{ flex: 1 }}
+          />
+          <button
+            onClick={handleInvite}
+            disabled={inviting || !email.trim()}
+            className="me-action-btn me-action-btn--primary"
+          >
+            {inviting ? 'Sending…' : 'Send Invite'}
+          </button>
         </div>
+        {error   && <p style={{ marginTop: '10px', fontSize: '13px', color: '#E05260' }}>{error}</p>}
+        {success && <p style={{ marginTop: '10px', fontSize: '13px', color: '#1D9E75' }}>{success}</p>}
       </div>
+
+      {loading ? (
+        <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>Loading…</p>
+      ) : collaborators.length === 0 ? (
+        <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>No collaborators yet.</p>
+      ) : (
+        <div>
+          {collaborators.map(c => (
+            <div key={c.id} style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '14px 0',
+              borderBottom: '1px solid rgba(231,233,236,0.08)',
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '14px', fontWeight: 500 }}>
+                  {c.user?.first_name} {c.user?.last_name}
+                </span>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  {c.user?.email}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {statusBadge(c.status)}
+                <button
+                  onClick={() => handleRemove(c.user?.id)}
+                  disabled={removing === c.user?.id}
+                  className="me-action-btn me-action-btn--ghost"
+                  style={{ fontSize: '12px', padding: '5px 12px' }}
+                >
+                  {removing === c.user?.id ? '…' : 'Remove'}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -793,17 +929,20 @@ export default function ManageEvent() {
   const [selectedEvent, setSelectedEvent] = useState(null)
   const [registrations, setRegistrations] = useState([])
   const [categories, setCategories]     = useState([])
+  const [currentUserId, setCurrentUserId] = useState(null)
   const [activeTab, setActiveTab]       = useState('overview')
   const [loadingList, setLoadingList]   = useState(true)
   const [loadingEvent, setLoadingEvent] = useState(false)
   const [fetchError, setFetchError]     = useState('')
+
+  const isOwner = selectedEvent && currentUserId && selectedEvent.owner_id === currentUserId
 
   const TABS = [
     { id: 'overview',      label: 'Overview' },
     { id: 'edit',          label: 'Edit details' },
     { id: 'attendees',     label: `Attendees${registrations.length ? ` (${registrations.length})` : ''}` },
     { id: 'send-invites',  label: 'Send invites' },
-    { id: 'collaborators', label: 'Collaborators' },
+    ...(isOwner ? [{ id: 'collaborators', label: 'Collaborators' }] : []),
   ]
 
   // Load organizer's events + categories
@@ -817,15 +956,25 @@ export default function ManageEvent() {
       .then(([meRes, catsRes]) => {
         if (cancelled) return
         const uid = meRes.data.id
+        setCurrentUserId(uid)
         setCategories(catsRes.data ?? [])
 
-        return eventsApi.list({ limit: 100 }).then(evRes => {
+        return Promise.all([
+          eventsApi.list({ limit: 100 }),
+          collaboratorApi.getMyCollaboratingEvents(),
+        ]).then(([evRes, collabRes]) => {
           if (cancelled) return
           const items = evRes.data?.items ?? []
           const owned = items.filter(e => e.owner_id === uid)
-          setMyEvents(owned)
-          if (owned.length > 0) {
-            loadEvent(owned[0].id, uid)
+          const collaborating = collabRes.data ?? []
+          const ownedIds = new Set(owned.map(e => e.id))
+          const merged = [
+            ...owned,
+            ...collaborating.filter(e => !ownedIds.has(e.id)),
+          ]
+          setMyEvents(merged)
+          if (merged.length > 0) {
+            loadEvent(merged[0].id)
           }
         })
       })
@@ -860,18 +1009,25 @@ export default function ManageEvent() {
     setSelectedEvent(event)
   }
 
-  const handleActionDone = () => {
-    // reload the event and the events list
-    if (selectedEvent) loadEvent(selectedEvent.id)
-    // refresh list statuses
-    api.get('/api/auth/me').then(meRes => {
-      const uid = meRes.data.id
-      eventsApi.list({ limit: 100 }).then(evRes => {
-        const items = evRes.data?.items ?? []
-        setMyEvents(items.filter(e => e.owner_id === uid))
-      })
-    }).catch(() => {})
-  }
+const handleActionDone = () => {
+  if (selectedEvent) loadEvent(selectedEvent.id)
+  api.get('/api/auth/me').then(meRes => {
+    const uid = meRes.data.id
+    Promise.all([
+      eventsApi.list({ limit: 100 }),
+      collaboratorApi.getMyCollaboratingEvents(),
+    ]).then(([evRes, collabRes]) => {
+      const items = evRes.data?.items ?? []
+      const owned = items.filter(e => e.owner_id === uid)
+      const collaborating = collabRes.data ?? []
+      const collabIds = new Set(owned.map(e => e.id))
+      setMyEvents([
+        ...owned,
+        ...collaborating.filter(e => !collabIds.has(e.id)),
+      ])
+    })
+  }).catch(() => {})
+}
 
   if (loadingList) return <div className="ed-state">Loading…</div>
 
@@ -997,7 +1153,7 @@ export default function ManageEvent() {
               <SendInvitesTab event={selectedEvent} />
             )}
             {activeTab === 'collaborators' && (
-              <CollaboratorsTab />
+                <CollaboratorsTab eventId={selectedEvent.id} />
             )}
           </>
         )}
