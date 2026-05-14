@@ -7,6 +7,8 @@ from app.models.user import User
 from app.schemas.admin import (
     AdminUserResponse,
     AdminEventResponse,
+    AdminEventDetailResponse,
+    AdminEventAnalyticsResponse,
     PlatformAnalyticsResponse,
 )
 from app.services.admin import (
@@ -16,6 +18,8 @@ from app.services.admin import (
     activate_user,
     delete_user,
     get_all_events,
+    get_event_by_id_admin,
+    get_event_analytics_admin,
     force_unpublish_event,
     force_delete_event,
     get_platform_analytics,
@@ -81,6 +85,24 @@ def list_events(
     current_user: User = Depends(require_admin),
 ):
     return get_all_events(db, status=status)
+
+
+@router.get("/events/{event_id}", response_model=AdminEventDetailResponse)
+def get_event(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    return get_event_by_id_admin(db, event_id)
+
+
+@router.get("/events/{event_id}/analytics", response_model=AdminEventAnalyticsResponse)
+def event_analytics(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    return get_event_analytics_admin(db, event_id)
 
 
 @router.patch("/events/{event_id}/unpublish", response_model=AdminEventResponse)

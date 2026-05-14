@@ -71,7 +71,7 @@ def get_event_reviews(
     event = get_event_or_404(db, event_id)
 
     if event.feedback_visibility == "organizer_only":
-        if current_user is None or event.owner_id != current_user.id:
+        if current_user is None or (not current_user.is_admin and event.owner_id != current_user.id):
             raise ForbiddenError("Reviews for this event are not public")
 
     reviews = db.query(Review).filter(

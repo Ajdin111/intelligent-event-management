@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from decimal import Decimal
 
 
@@ -33,8 +33,63 @@ class AdminEventResponse(BaseModel):
     is_free: bool
     owner_id: int
     owner_email: Optional[str] = None
+    total_registrations: Optional[int] = None
+    total_revenue: Optional[Decimal] = None
     created_at: datetime
     deleted_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class AdminEventDetailResponse(BaseModel):
+    id: int
+    title: str
+    description: str
+    status: str
+    location_type: str
+    physical_address: Optional[str] = None
+    online_link: Optional[str] = None
+    start_datetime: datetime
+    end_datetime: datetime
+    capacity: Optional[int] = None
+    registration_type: str
+    requires_registration: bool
+    has_ticketing: bool
+    is_free: bool
+    feedback_visibility: str
+    owner_id: int
+    owner_email: Optional[str] = None
+    owner_first_name: Optional[str] = None
+    owner_last_name: Optional[str] = None
+    category_ids: List[int] = []
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ─── Event Analytics Schemas ─────────────────────────────────────────
+
+class AdminEventAnalyticsResponse(BaseModel):
+    event_id: int
+    total_registrations: int
+    confirmed_registrations: int
+    cancelled_registrations: int
+    total_checked_in: int
+    attendance_rate: Decimal
+    total_revenue: Decimal
+    average_rating: Decimal
+    total_reviews: int
+    positive_sentiment_pct: Decimal
+    negative_sentiment_pct: Decimal
+    neutral_sentiment_pct: Decimal
+    last_updated: datetime
+
+    class Config:
+        from_attributes = True
+
 
 # ─── Analytics Schemas ────────────────────────────────────────────────
 
