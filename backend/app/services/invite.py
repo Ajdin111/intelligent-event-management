@@ -11,6 +11,8 @@ from app.tasks.notifications import create_in_app_notification
 
 
 def _require_owner_or_accepted_collaborator(db: Session, event, current_user: User):
+    if current_user.is_admin:
+        return
     if event.owner_id == current_user.id:
         return
     collab = db.query(EventCollaborator).filter(

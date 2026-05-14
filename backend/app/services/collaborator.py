@@ -10,6 +10,8 @@ from app.tasks.email import send_collaborator_invite
 
 
 def _require_owner(event, current_user):
+    if current_user.is_admin:
+        return
     if event.owner_id != current_user.id:
         raise ForbiddenError("Only the event owner can manage collaborators")
 
