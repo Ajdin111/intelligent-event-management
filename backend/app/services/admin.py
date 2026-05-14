@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
 from app.models.user import User, UserRole
-from app.models.event import Event
-from app.models.analytics import PlatformAnalytics
+from app.models.event import Event, EventCategory
+from app.models.analytics import PlatformAnalytics, EventAnalytics
 from app.models.registration import Registration
 from app.core.exceptions import NotFoundError, BadRequestError
 from app.core.constants import EVENT_STATUS_DRAFT
@@ -89,10 +89,61 @@ def delete_user(db: Session, user_id: int) -> None:
 # ─── Event Services ───────────────────────────────────────────────────
 
 def get_all_events(db: Session, status: str = None) -> list[Event]:
-    query = db.query(Event).filter(Event.deleted_at.is_(None))
+    query = db.query(
+        Event,
+        User.email.label("owner_email"),
+        EventAnalytics.total_registrations.label("total_registrations"),
+        EventAnalytics.total_revenue.label("total_revenue"),
+    ).join(
+        User, User.id == Event.owner_id
+    ).outerjoin(
+        EventAnalytics, EventAnalytics.event_id == Event.id
+    ).filter(Event.deleted_at.is_(None))
     if status:
         query = query.filter(Event.status.ilike(status))
-    return query.all()
+    results = query.all()
+    events = []
+    for event, owner_email, total_registrations, total_revenue in results:
+        event.owner_email = owner_email
+        event.total_registrations = total_registrations
+        event.total_revenue = total_revenue
+        events.append(event)
+    return events
+
+
+def get_event_by_id_admin(db: Session, event_id: int) -> Event:
+    result = db.query(
+        Event,
+        User.email.label("owner_email"),
+        User.first_name.label("owner_first_name"),
+        User.last_name.label("owner_last_name"),
+    ).join(
+        User, User.id == Event.owner_id
+    ).filter(
+        Event.id == event_id,
+        Event.deleted_at.is_(None)
+    ).first()
+
+    if not result:
+        raise NotFoundError("Event not found")
+
+    event, owner_email, owner_first_name, owner_last_name = result
+    event.owner_email = owner_email
+    event.owner_first_name = owner_first_name
+    event.owner_last_name = owner_last_name
+
+    category_rows = db.query(EventCategory).filter(EventCategory.event_id == event_id).all()
+    event.category_ids = [row.category_id for row in category_rows]
+
+    return event
+
+
+def get_event_analytics_admin(db: Session, event_id: int) -> EventAnalytics:
+    get_event_or_404(db, event_id)
+    analytics = db.query(EventAnalytics).filter(EventAnalytics.event_id == event_id).first()
+    if not analytics:
+        raise NotFoundError("Analytics not yet available for this event")
+    return analytics
 
 
 def force_unpublish_event(db: Session, event_id: int) -> Event:
