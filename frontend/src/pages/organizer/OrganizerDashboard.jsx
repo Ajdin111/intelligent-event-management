@@ -175,6 +175,7 @@ export default function OrganizerDashboard() {
               <h3 className="section-title">Your active events</h3>
               <Link to="/organizer/manage-event" className="view-all">View all →</Link>
             </div>
+            <div className="org-table-wrap">
             <table className="org-table">
               <thead>
                 <tr>
@@ -212,6 +213,7 @@ export default function OrganizerDashboard() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
 
