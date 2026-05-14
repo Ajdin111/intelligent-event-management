@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { usePanelTransition } from '../context/TransitionContext'
 import { notificationsApi, collaboratorApi, inviteApi, adminApi } from '../services/api'
 
 const routeTitles = {
@@ -100,6 +101,7 @@ export default function TopBar({ onHamburger }) {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { user, activeRole, switchRole, logout } = useAuth()
+  const triggerTransition = usePanelTransition()
 
   // profile dropdown
   const [menuOpen, setMenuOpen] = useState(false)
@@ -297,9 +299,11 @@ export default function TopBar({ onHamburger }) {
   }
 
   const handleSwitchRole = (role) => {
-    switchRole(role)
     setMenuOpen(false)
-    navigate(role === 'organizer' ? '/organizer/dashboard' : '/dashboard')
+    triggerTransition(() => {
+      switchRole(role)
+      navigate(role === 'organizer' ? '/organizer/dashboard' : '/dashboard')
+    })
   }
 
   const profileHref  = isAdminPanel ? '/admin/profile'
@@ -556,7 +560,7 @@ export default function TopBar({ onHamburger }) {
                   {user?.is_admin && (
                     <>
                       <div className="profile-dropdown-divider" />
-                      <button className="profile-dropdown-link" onClick={() => { setMenuOpen(false); navigate('/admin/overview') }}>
+                      <button className="profile-dropdown-link" onClick={() => { setMenuOpen(false); triggerTransition(() => navigate('/admin/overview')) }}>
                         Admin panel
                       </button>
                     </>
