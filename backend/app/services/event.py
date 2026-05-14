@@ -133,7 +133,7 @@ def delete_event(db: Session, event_id: int, current_user: User) -> None:
 def publish_event(db: Session, event_id: int, current_user: User) -> Event:
     event = get_event_or_404(db, event_id)
 
-    if event.owner_id != current_user.id:
+    if not current_user.is_admin and event.owner_id != current_user.id:
         raise ForbiddenError("Only the event owner can publish this event")
 
     if event.status != EVENT_STATUS_DRAFT:
