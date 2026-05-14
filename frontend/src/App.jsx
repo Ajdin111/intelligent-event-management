@@ -103,12 +103,13 @@ export default function App() {
             }
           >
             <Route index element={<Navigate to="/admin/overview" replace />} />
-            <Route path="overview"  element={<AdminOverview />} />
-            <Route path="users"     element={<AdminUsers />} />
-            <Route path="users/:userId" element={<AdminUserDetail />} />
-            <Route path="events"             element={<AdminEvents />} />
-            <Route path="events/:eventId"   element={<AdminEventDetail />} />
-            <Route path="*"         element={<NotFound />} />
+            <Route path="overview"        element={<AdminOverview />} />
+            <Route path="users"           element={<AdminUsers />} />
+            <Route path="users/:userId"   element={<AdminUserDetail />} />
+            <Route path="events"          element={<AdminEvents />} />
+            <Route path="events/:eventId" element={<AdminEventDetail />} />
+            <Route path="profile"         element={<Preferences />} />
+            <Route path="*"               element={<NotFound />} />
           </Route>
 
           <Route path="*" element={<Page404 />} />
