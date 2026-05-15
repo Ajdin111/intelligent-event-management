@@ -22,6 +22,7 @@ import OrganizerAnalytics from './pages/organizer/OrganizerAnalytics'
 import OrganizerAgenda from './pages/organizer/OrganizerAgenda'
 import OrganizerNotifications from './pages/organizer/OrganizerNotifications'
 import AdminOverview from './pages/admin/AdminOverview'
+import AdminAnalytics from './pages/admin/AdminAnalytics'
 import AdminUsers, { AdminUserDetail } from './pages/admin/AdminUsers'
 import AdminEvents from './pages/admin/AdminEvents'
 import AdminEventDetail from './pages/admin/AdminEventDetail'
@@ -105,12 +106,13 @@ export default function App() {
               }
             >
               <Route index element={<Navigate to="/admin/overview" replace />} />
-              <Route path="overview"       element={<AdminOverview />} />
-              <Route path="users"          element={<AdminUsers />} />
-              <Route path="users/:userId"  element={<AdminUserDetail />} />
-              <Route path="events"         element={<AdminEvents />} />
+              <Route path="overview"        element={<AdminOverview />} />
+              <Route path="analytics"       element={<AdminAnalytics />} />
+              <Route path="users"           element={<AdminUsers />} />
+              <Route path="users/:userId"   element={<AdminUserDetail />} />
+              <Route path="events"          element={<AdminEvents />} />
               <Route path="events/:eventId" element={<AdminEventDetail />} />
-              <Route path="*"              element={<NotFound />} />
+              <Route path="*"               element={<NotFound />} />
             </Route>
 
             <Route path="*" element={<Page404 />} />

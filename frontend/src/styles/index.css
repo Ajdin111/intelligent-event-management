@@ -7757,3 +7757,422 @@ select.form-input {
   pointer-events: all;
   transition: opacity 160ms ease-in;
 }
+
+/* ── Admin Analytics page ────────────────────────────────────────────────── */
+
+/* two-column grid shared by breakdown + ranking sections */
+.adm-an-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* card container */
+.adm-an-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px 22px 22px;
+}
+
+.adm-an-card-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 16px;
+}
+
+/* group label inside a breakdown card */
+.adm-an-group-title {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 14px 0 8px;
+}
+.adm-an-card .adm-an-group-title:first-of-type { margin-top: 0; }
+
+/* distribution group */
+.adm-an-dist-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* single distribution bar row */
+.adm-an-dist-row {
+  display: grid;
+  grid-template-columns: 72px 1fr 36px 34px;
+  align-items: center;
+  gap: 8px;
+}
+
+.adm-an-dist-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.adm-an-dist-track {
+  height: 5px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.adm-an-dist-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+  min-width: 2px;
+}
+
+.adm-an-dist-count {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.adm-an-dist-pct {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* rank list */
+.adm-an-rank-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.adm-an-rank-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.adm-an-rank-row:last-child { border-bottom: none; }
+
+.adm-an-rank-num {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.adm-an-rank-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.adm-an-rank-title {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #fff;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.adm-an-rank-sub {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.38);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.adm-an-rank-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* empty state */
+.adm-an-empty {
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.35);
+  margin: 0;
+  padding: 4px 0;
+  line-height: 1.5;
+}
+
+/* responsive */
+@media (max-width: 900px) {
+  .adm-an-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .adm-an-card { padding: 16px; }
+  .adm-an-dist-row { grid-template-columns: 64px 1fr 30px 28px; gap: 6px; }
+}
+
+/* ── Admin Analytics — split layout, fixed-height cards ─────────────────── */
+
+/* asymmetric two-column grid — wider right panel so legend text fits */
+.adm-an-split {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.adm-an-split:last-of-type { margin-bottom: 0; }
+
+/* every card in the split rows shares the same fixed height */
+.adm-an-chart-card,
+.adm-an-donut-card,
+.adm-an-org-card {
+  height: 290px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* chart area — flex:1 fills remaining card height; SVG stretches to fill */
+.adm-an-chart-area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.adm-an-chart-area > svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* donut + legend row — fills remaining card height, items centered vertically */
+.adm-an-donut-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+/* period dropdown trigger wrapper */
+.adm-an-period-wrap { position: relative; }
+
+.adm-an-period-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* period dropdown menu */
+.adm-an-period-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 164px;
+  background: rgb(38, 44, 48);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  padding: 4px;
+  list-style: none;
+  margin: 0;
+  z-index: 50;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.adm-an-period-item {
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.adm-an-period-item:hover           { background: rgba(255, 255, 255, 0.07); color: #fff; }
+.adm-an-period-item--active         { color: #fff; font-weight: 500; }
+.adm-an-period-item--active::before { content: '✓ '; opacity: 0.6; }
+
+/* donut legend */
+.adm-an-legend {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
+}
+
+.adm-an-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.adm-an-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.adm-an-legend-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.adm-an-legend-pct {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.adm-an-legend-count {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.3);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  min-width: 22px;
+  text-align: right;
+}
+
+/* top organizers — fills remaining card height, rows distributed evenly */
+.adm-an-org-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  justify-content: space-evenly;
+}
+
+.adm-an-org-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.adm-an-org-rank {
+  width: 16px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.28);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.adm-an-org-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: 0.03em;
+}
+
+.adm-an-org-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.adm-an-org-name {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.adm-an-org-meta {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.38);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* empty states — width:100% so text-align:center works inside flex rows too */
+.adm-an-empty {
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.3);
+  margin: 0;
+  width: 100%;
+  text-align: center;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+  /* narrow right panel at smaller desktops; hide count to keep labels readable */
+  .adm-an-split        { grid-template-columns: 1fr 320px; }
+  .adm-an-legend-count { display: none; }
+}
+
+@media (max-width: 800px) {
+  /* single column — each card stacks, period button goes full-width */
+  .adm-an-split {
+    grid-template-columns: 1fr;
+    margin-bottom: 16px;
+  }
+  .adm-an-chart-card,
+  .adm-an-donut-card,
+  .adm-an-org-card { height: 270px; }
+  /* restore legend count visibility at full width */
+  .adm-an-legend-count { display: block; }
+}
+
+@media (max-width: 640px) {
+  .adm-header-actions .adm-an-period-wrap { flex: 1; }
+  .adm-header-actions .adm-an-period-wrap .adm-btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+  .adm-an-chart-card,
+  .adm-an-donut-card,
+  .adm-an-org-card { height: 250px; }
+  .adm-an-donut-wrap { gap: 14px; }
+  .adm-an-legend      { gap: 8px; }
+}
