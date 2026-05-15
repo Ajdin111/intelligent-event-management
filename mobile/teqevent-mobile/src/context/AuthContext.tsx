@@ -75,23 +75,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(userData);
   }, []);
 
-  const register = useCallback(async (
-    email: string,
-    password: string,
-    firstName: string,
-    lastName: string,
-  ) => {
-    const { data } = await authApi.register({
-      email,
-      password,
-      first_name: firstName,
-      last_name: lastName,
-    });
-    await persistToken(data.access_token);
-    // Fetch fresh user after registration
-    const { data: userData } = await authApi.me();
-    setUser(userData);
-  }, []);
+const register = useCallback(async (
+  email: string,
+  password: string,
+  firstName: string,
+  lastName: string,
+) => {
+  await authApi.register({
+    email,
+    password,
+    first_name: firstName,
+    last_name: lastName,
+  });
+  await login(email, password);
+}, [login]);
 
   const logout = useCallback(async () => {
     // JWT is stateless — no server-side logout endpoint exists.
