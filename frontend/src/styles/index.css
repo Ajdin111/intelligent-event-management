@@ -8066,21 +8066,21 @@ select.form-input {
   text-align: right;
 }
 
-/* top organizers — fills remaining card height, rows distributed evenly */
+/* top organizers — rows start at top, separator line below each */
 .adm-an-org-list {
   list-style: none;
   padding: 0;
   margin: 0;
   display: flex;
   flex-direction: column;
-  flex: 1;
-  justify-content: space-evenly;
 }
 
 .adm-an-org-row {
   display: flex;
   align-items: center;
   gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .adm-an-org-rank {
