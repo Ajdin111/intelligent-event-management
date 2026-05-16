@@ -127,10 +127,11 @@ export default function TopBar({ onHamburger }) {
   const [searchResults, setSearchResults]     = useState({ users: [], events: [] })
   const [searchLoading, setSearchLoading]     = useState(false)
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
-  const searchRef       = useRef(null)
-  const mobileSearchRef = useRef(null)
-  const searchTimer     = useRef(null)
-  const eventsCache     = useRef(null)
+  const searchRef           = useRef(null)
+  const mobileSearchRef     = useRef(null)
+  const searchTimer         = useRef(null)
+  const eventsCache         = useRef(null)
+  const mobileSearchOpenRef = useRef(false)
 
   const title = routeTitles[pathname] ?? ''
   const fullName = useMemo(() => {
@@ -138,12 +139,15 @@ export default function TopBar({ onHamburger }) {
     return `${user.first_name} ${user.last_name}`
   }, [user])
 
+  // keep ref in sync synchronously during render so the mousedown closure always reads the current value
+  mobileSearchOpenRef.current = mobileSearchOpen
+
   // click-outside closes all dropdowns
   useEffect(() => {
     function handleClickOutside(e) {
       if (menuRef.current        && !menuRef.current.contains(e.target))        setMenuOpen(false)
       if (bellRef.current        && !bellRef.current.contains(e.target))        setBellOpen(false)
-      if (searchRef.current      && !searchRef.current.contains(e.target) && !mobileSearchOpen) setSearchOpen(false)
+      if (searchRef.current      && !searchRef.current.contains(e.target) && !mobileSearchOpenRef.current) setSearchOpen(false)
       // mobile search closing is handled by the backdrop onClick — no ref check needed
     }
     function handleKeyDown(e) {
@@ -569,7 +573,7 @@ export default function TopBar({ onHamburger }) {
           {isAdminPanel && !mobileSearchOpen && (
             <button
               className="topbar-search-mobile-btn"
-              onClick={() => setMobileSearchOpen(true)}
+              onClick={() => { setMobileSearchOpen(true); setBellOpen(false); setMenuOpen(false) }}
               aria-label="Open search"
               type="button"
             >
