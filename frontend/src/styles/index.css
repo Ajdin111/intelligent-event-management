@@ -7763,6 +7763,8 @@ select.form-input {
 
 /* edit modal */
 .adm-modal-backdrop {
+/* ── Panel switch overlay ─────────────────────────────────────────────── */
+.panel-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -8043,4 +8045,15 @@ select.form-input {
   .adm-modal-backdrop { padding: 0; align-items: flex-end; }
   .adm-modal { border-radius: 12px 12px 0 0; max-height: 92vh; overflow-y: auto; }
   .adm-form-row { grid-template-columns: 1fr; }
+  z-index: 9999;
+  background: rgb(26, 31, 34);
+  opacity: 0;
+  pointer-events: none;
+  will-change: opacity;
+  transition: opacity 280ms ease-out;
+}
+.panel-overlay--in {
+  opacity: 1;
+  pointer-events: all;
+  transition: opacity 160ms ease-in;
 }
