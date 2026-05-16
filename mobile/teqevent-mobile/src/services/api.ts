@@ -96,8 +96,15 @@ export interface Event {
   registration_type: 'automatic' | 'manual' | 'invite_only';
   owner_id: number;
   cover_image?: string;
+  is_free: boolean;
+  has_ticketing: boolean;
+  requires_registration: boolean;
+  feedback_visibility: 'public' | 'organizer_only';
   created_at: string;
+  updated_at: string;
+  category_ids: number[];
 }
+
 
 export interface EventsParams {
   skip?: number;
