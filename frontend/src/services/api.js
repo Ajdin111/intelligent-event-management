@@ -51,6 +51,7 @@ export const eventsApi = {
   list:    (params = {}) => api.get('/api/events', { params }),
   getById: (id)          => api.get(`/api/events/${id}`),
   create:  (data)        => api.post('/api/events', data),
+  update:  (id, data)    => api.patch(`/api/events/${id}`, data),
   publish: (id)          => api.patch(`/api/events/${id}/publish`),
 }
 
@@ -100,8 +101,10 @@ export const adminApi = {
   deactivateUser: (id)           => api.patch(`/api/admin/users/${id}/deactivate`),
   activateUser:   (id)           => api.patch(`/api/admin/users/${id}/activate`),
   deleteUser:     (id)           => api.delete(`/api/admin/users/${id}`),
-  unpublishEvent: (id)           => api.patch(`/api/admin/events/${id}/unpublish`),
-  deleteEvent:    (id)           => api.delete(`/api/admin/events/${id}`),
+  getEventDetail:    (id)         => api.get(`/api/admin/events/${id}`),
+  getEventAnalytics: (id)         => api.get(`/api/admin/events/${id}/analytics`),
+  unpublishEvent: (id)            => api.patch(`/api/admin/events/${id}/unpublish`),
+  deleteEvent:    (id)            => api.delete(`/api/admin/events/${id}`),
 }
 
 export const notificationsApi = {

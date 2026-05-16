@@ -112,6 +112,7 @@ export default function App() {
               <Route path="users/:userId"   element={<AdminUserDetail />} />
               <Route path="events"          element={<AdminEvents />} />
               <Route path="events/:eventId" element={<AdminEventDetail />} />
+              <Route path="profile"         element={<Preferences />} />
               <Route path="*"               element={<NotFound />} />
             </Route>
 
