@@ -318,6 +318,7 @@ body {
 
 /* ─── TopBar ────────────────────────────────────────────────────────── */
 .topbar {
+  position: relative;
   height: var(--topbar-h);
   display: flex;
   align-items: center;
@@ -562,9 +563,103 @@ body {
   text-overflow: ellipsis;
 }
 
-/* hide search on small screens */
+/* ── Mobile search icon button ──────────────────────────────────────── */
+.topbar-end-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.topbar-search-mobile-btn {
+  display: none;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: rgba(255, 255, 255, 0.55);
+  background: transparent;
+  flex-shrink: 0;
+  transition: color 0.12s;
+}
+.topbar-search-mobile-btn svg {
+  width: 18px;
+  height: 18px;
+}
+.topbar-search-mobile-btn:hover {
+  color: #fff;
+}
+
+/* ── Mobile search backdrop — transparent, full-screen, closes search on tap ── */
+.topbar-mobile-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+  cursor: pointer; /* iOS Safari requires cursor:pointer on divs to fire click */
+}
+
+/* ── Mobile search full-topbar overlay ──────────────────────────────── */
+.topbar-mobile-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+}
+
+.topbar-mobile-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  color: rgba(255, 255, 255, 0.6);
+  transition: background 0.12s, color 0.12s;
+}
+.topbar-mobile-back:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+/* override search wrap inside overlay: fill remaining width, no max-width */
+.topbar-search-wrap--mobile {
+  flex: 1;
+  max-width: none;
+  margin: 0;
+}
+
+/* hide desktop search bar on small screens */
 @media (max-width: 860px) {
-  .topbar-search-wrap { display: none; }
+  .topbar-search-wrap:not(.topbar-search-wrap--mobile) { display: none; }
+  .topbar-search-mobile-btn { display: flex; }
+  /* dropdown fills wrap width on mobile — no horizontal overflow */
+  .topbar-search-dropdown { min-width: 0; }
+
+  /* Mobile search dropdown: position fixed so it sits at viewport level.
+     The overlay is bounded to the topbar height (inset:0), so an absolutely
+     positioned dropdown inside it receives no pointer events on iOS Safari
+     once it extends below the topbar bounds. Fixed positioning solves this. */
+  .topbar-search-wrap--mobile .topbar-search-dropdown {
+    position: fixed;
+    top: var(--topbar-h);
+    left: 0;
+    right: 0;
+    border-radius: 0 0 var(--radius) var(--radius);
+    max-height: calc(100vh  - var(--topbar-h) - 8px); /* fallback for older Safari */
+    max-height: calc(100dvh - var(--topbar-h) - 8px); /* dvh accounts for iOS address bar */
+  }
+}
+
+@media (max-width: 640px) {
+  /* give end-group a preferred width so space-between keeps it at the right
+     and profile card has room to show name; flex-shrink allows graceful narrowing */
+  .topbar-end-group { flex-basis: 170px; flex-shrink: 1; }
 }
 
 /* ── Notification Bell ─────────────────────────────────────────────── */

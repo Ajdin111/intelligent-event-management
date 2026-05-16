@@ -69,6 +69,12 @@ const IconSearch = () => (
   </svg>
 )
 
+const IconBack = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <path d="M10 3L5 8l5 5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
 const IconChevronDown = () => (
   <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.5">
     <polyline points="2,4 5.5,7.5 9,4" strokeLinecap="round" strokeLinejoin="round" />
@@ -116,13 +122,15 @@ export default function TopBar({ onHamburger }) {
   const bellRef = useRef(null)
 
   // global admin search
-  const [searchQuery, setSearchQuery]     = useState('')
-  const [searchOpen, setSearchOpen]       = useState(false)
-  const [searchResults, setSearchResults] = useState({ users: [], events: [] })
-  const [searchLoading, setSearchLoading] = useState(false)
-  const searchRef   = useRef(null)
-  const searchTimer = useRef(null)
-  const eventsCache = useRef(null)
+  const [searchQuery, setSearchQuery]         = useState('')
+  const [searchOpen, setSearchOpen]           = useState(false)
+  const [searchResults, setSearchResults]     = useState({ users: [], events: [] })
+  const [searchLoading, setSearchLoading]     = useState(false)
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+  const searchRef       = useRef(null)
+  const mobileSearchRef = useRef(null)
+  const searchTimer     = useRef(null)
+  const eventsCache     = useRef(null)
 
   const title = routeTitles[pathname] ?? ''
   const fullName = useMemo(() => {
@@ -133,12 +141,17 @@ export default function TopBar({ onHamburger }) {
   // click-outside closes all dropdowns
   useEffect(() => {
     function handleClickOutside(e) {
-      if (menuRef.current   && !menuRef.current.contains(e.target))   setMenuOpen(false)
-      if (bellRef.current   && !bellRef.current.contains(e.target))    setBellOpen(false)
-      if (searchRef.current && !searchRef.current.contains(e.target))  setSearchOpen(false)
+      if (menuRef.current        && !menuRef.current.contains(e.target))        setMenuOpen(false)
+      if (bellRef.current        && !bellRef.current.contains(e.target))        setBellOpen(false)
+      if (searchRef.current      && !searchRef.current.contains(e.target) && !mobileSearchOpen) setSearchOpen(false)
+      // mobile search closing is handled by the backdrop onClick — no ref check needed
     }
     function handleKeyDown(e) {
-      if (e.key === 'Escape') { setSearchOpen(false); setSearchQuery('') }
+      if (e.key === 'Escape') {
+        setSearchOpen(false)
+        setSearchQuery('')
+        setMobileSearchOpen(false)
+      }
     }
     document.addEventListener('mousedown', handleClickOutside)
     document.addEventListener('keydown', handleKeyDown)
@@ -169,6 +182,7 @@ export default function TopBar({ onHamburger }) {
       eventsCache.current = null
       setSearchQuery('')
       setSearchOpen(false)
+      setMobileSearchOpen(false)
     }
   }, [isAdminPanel])
 
@@ -211,9 +225,16 @@ export default function TopBar({ onHamburger }) {
     navigate(href)
     setSearchQuery('')
     setSearchOpen(false)
+    setMobileSearchOpen(false)
     setMenuOpen(false)
     setBellOpen(false)
   }, [navigate])
+
+  const closeMobileSearch = useCallback(() => {
+    setMobileSearchOpen(false)
+    setSearchQuery('')
+    setSearchOpen(false)
+  }, [])
 
   const openBell = () => {
     setMenuOpen(false)
@@ -310,6 +331,61 @@ export default function TopBar({ onHamburger }) {
     : activeRole === 'organizer'    ? '/organizer/profile'
     : '/profile'
 
+  // shared dropdown — used by both desktop and mobile search
+  const renderSearchDropdown = () => {
+    if (!searchOpen) return null
+    return (
+      <div className="topbar-search-dropdown" role="listbox">
+        {searchLoading ? (
+          <p className="topbar-search-empty">Searching…</p>
+        ) : searchResults.users.length === 0 && searchResults.events.length === 0 ? (
+          <p className="topbar-search-empty">No results for &ldquo;{searchQuery}&rdquo;</p>
+        ) : (
+          <>
+            {searchResults.users.length > 0 && (
+              <div className="topbar-search-group">
+                <span className="topbar-search-group-label">Users</span>
+                {searchResults.users.map(u => (
+                  <button
+                    key={u.id}
+                    className="topbar-search-item"
+                    onClick={() => handleSearchSelect(`/admin/users/${u.id}`)}
+                    type="button"
+                  >
+                    <span className="topbar-search-avatar">{getInitials(u)}</span>
+                    <span className="topbar-search-copy">
+                      <span>{u.first_name} {u.last_name}</span>
+                      <small>{u.email}</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {searchResults.events.length > 0 && (
+              <div className="topbar-search-group">
+                <span className="topbar-search-group-label">Events</span>
+                {searchResults.events.map(e => (
+                  <button
+                    key={e.id}
+                    className="topbar-search-item"
+                    onClick={() => handleSearchSelect(`/admin/events/${e.id}`)}
+                    type="button"
+                  >
+                    <span className="topbar-search-event-icon" />
+                    <span className="topbar-search-copy">
+                      <span>{e.title}</span>
+                      <small>{e.status}{e.location_type ? ` · ${e.location_type}` : ''}</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    )
+  }
+
   return (
     <header className="topbar">
       {onHamburger && (
@@ -319,7 +395,7 @@ export default function TopBar({ onHamburger }) {
       )}
       <span className="topbar-title">{title}</span>
 
-      {/* ── global admin search ── */}
+      {/* ── global admin search (desktop) ── */}
       {isAdminPanel && (
         <div className="topbar-search-wrap" ref={searchRef}>
           <label className="topbar-search">
@@ -342,60 +418,49 @@ export default function TopBar({ onHamburger }) {
               </button>
             )}
           </label>
-
-          {searchOpen && (
-            <div className="topbar-search-dropdown" role="listbox">
-              {searchLoading ? (
-                <p className="topbar-search-empty">Searching…</p>
-              ) : searchResults.users.length === 0 && searchResults.events.length === 0 ? (
-                <p className="topbar-search-empty">No results for &ldquo;{searchQuery}&rdquo;</p>
-              ) : (
-                <>
-                  {searchResults.users.length > 0 && (
-                    <div className="topbar-search-group">
-                      <span className="topbar-search-group-label">Users</span>
-                      {searchResults.users.map(u => (
-                        <button
-                          key={u.id}
-                          className="topbar-search-item"
-                          onClick={() => handleSearchSelect(`/admin/users/${u.id}`)}
-                          type="button"
-                        >
-                          <span className="topbar-search-avatar">
-                            {getInitials(u)}
-                          </span>
-                          <span className="topbar-search-copy">
-                            <span>{u.first_name} {u.last_name}</span>
-                            <small>{u.email}</small>
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {searchResults.events.length > 0 && (
-                    <div className="topbar-search-group">
-                      <span className="topbar-search-group-label">Events</span>
-                      {searchResults.events.map(e => (
-                        <button
-                          key={e.id}
-                          className="topbar-search-item"
-                          onClick={() => handleSearchSelect(`/admin/events/${e.id}`)}
-                          type="button"
-                        >
-                          <span className="topbar-search-event-icon" />
-                          <span className="topbar-search-copy">
-                            <span>{e.title}</span>
-                            <small>{e.status}{e.location_type ? ` · ${e.location_type}` : ''}</small>
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
+          {renderSearchDropdown()}
         </div>
+      )}
+
+      {/* ── mobile search overlay (admin only, ≤860px) ── */}
+      {isAdminPanel && mobileSearchOpen && (
+        <>
+        <div className="topbar-mobile-backdrop" onClick={closeMobileSearch} />
+        <div className="topbar-mobile-overlay" ref={mobileSearchRef}>
+          <button
+            className="topbar-mobile-back"
+            onClick={closeMobileSearch}
+            aria-label="Close search"
+            type="button"
+          >
+            <IconBack />
+          </button>
+          <div className="topbar-search-wrap topbar-search-wrap--mobile">
+            <label className="topbar-search">
+              <IconSearch />
+              <input
+                autoFocus
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                onFocus={() => searchQuery.trim() && setSearchOpen(true)}
+                placeholder="Search events, users…"
+                aria-label="Global search"
+              />
+              {searchQuery && (
+                <button
+                  className="topbar-search-clear"
+                  onClick={() => { setSearchQuery(''); setSearchOpen(false) }}
+                  aria-label="Clear search"
+                  type="button"
+                >
+                  ×
+                </button>
+              )}
+            </label>
+            {renderSearchDropdown()}
+          </div>
+        </div>
+        </>
       )}
 
       <div className="topbar-actions">
@@ -499,8 +564,21 @@ export default function TopBar({ onHamburger }) {
           )}
         </div>
 
-        {/* ── profile menu ── */}
-        <div className="profile-menu" ref={menuRef}>
+        {/* ── search icon + profile card grouped so they sit flush together ── */}
+        <div className="topbar-end-group">
+          {isAdminPanel && !mobileSearchOpen && (
+            <button
+              className="topbar-search-mobile-btn"
+              onClick={() => setMobileSearchOpen(true)}
+              aria-label="Open search"
+              type="button"
+            >
+              <IconSearch />
+            </button>
+          )}
+
+          {/* ── profile menu ── */}
+          <div className="profile-menu" ref={menuRef}>
           <button
             className={`profile-card${menuOpen ? ' open' : ''}`}
             onClick={() => { setBellOpen(false); setMenuOpen(o => !o) }}
@@ -572,7 +650,8 @@ export default function TopBar({ onHamburger }) {
               </button>
             </div>
           )}
-        </div>
+          </div>
+        </div>{/* end topbar-end-group */}
       </div>
     </header>
   )
