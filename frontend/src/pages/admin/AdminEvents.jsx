@@ -34,7 +34,7 @@ function ownerLabel(usersMap, ev) {
 
 function ownerSub(usersMap, ev) {
   const u = usersMap.get(ev.owner_id)
-  return u?.email ?? null
+  return u?.email ?? ev.owner_email ?? null
 }
 
 const IcoSearch = () => (
@@ -293,8 +293,14 @@ export default function AdminEvents() {
                     </td>
                     <td className="adm-event-date">{fmtDate(ev.start_datetime)}</td>
                     <td><StatusPill status={ev.status} /></td>
-                    <td className="adm-event-dim">—</td>
-                    <td className="adm-event-dim">—</td>
+                    <td className="adm-event-dim">
+                      {ev.total_registrations != null ? ev.total_registrations.toLocaleString() : '—'}
+                    </td>
+                    <td className="adm-event-dim">
+                      {ev.total_revenue != null
+                        ? `$${parseFloat(ev.total_revenue).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+                        : '—'}
+                    </td>
                     <td>
                       <div className="adm-user-actions">
                         <Link
