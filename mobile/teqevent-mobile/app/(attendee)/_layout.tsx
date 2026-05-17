@@ -78,6 +78,12 @@ export default function AttendeeLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+      name="event/[id]"
+      options={{
+        href: null,
+        }}
+        />
     </Tabs>
   );
 }
