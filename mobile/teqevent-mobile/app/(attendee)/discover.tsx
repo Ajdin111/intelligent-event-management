@@ -10,6 +10,7 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -95,8 +96,10 @@ function EventCard({
     ? 'Online'
     : event.physical_address ?? 'Hybrid';
 
+  const navigate = () => router.push(`/(attendee)/event/${event.id}` as any);
+
   return (
-    <TouchableOpacity style={styles.card} activeOpacity={0.8} onPress={() => {}}>
+    <TouchableOpacity style={styles.card} activeOpacity={0.8} onPress={navigate}>
       {/* Image area with overlaid badges */}
       <View style={styles.cardImage}>
         <View style={styles.cardImagePlaceholder} />
@@ -142,7 +145,7 @@ function EventCard({
         ) : (
           <View />
         )}
-        <TouchableOpacity style={styles.registerBtn} activeOpacity={0.8} onPress={() => {}}>
+        <TouchableOpacity style={styles.registerBtn} activeOpacity={0.8} onPress={navigate}>
           <Text style={styles.registerBtnText}>Register →</Text>
         </TouchableOpacity>
       </View>
