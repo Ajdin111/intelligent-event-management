@@ -22,7 +22,7 @@ function EventCard({ event, compact = false }: { event: Event; compact?: boolean
   return (
     <TouchableOpacity
       style={[styles.card, compact && styles.cardCompact]}
-      onPress={() => {}}
+      onPress={() => router.push(`/(attendee)/event/${event.id}` as any)}
       activeOpacity={0.8}
     >
       <View style={[styles.cardImage, compact && styles.cardImageCompact]}>
