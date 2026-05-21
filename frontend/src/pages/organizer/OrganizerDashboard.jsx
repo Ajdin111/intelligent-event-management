@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { eventsApi, categoriesApi } from '../../services/api'
+import { useAuth } from '../../context/AuthContext'
 
 const stats = [
   { label: 'TOTAL EVENTS', value: '18', change: '+2 this quarter' },
@@ -8,12 +10,6 @@ const stats = [
   { label: 'ATTENDANCE RATE', value: '91.4%', change: 'Above avg' },
 ]
 
-const activeEvents = [
-  { id: 'E1', category: 'AI & ML', title: 'Vector Summit 2026', location: 'San Francisco, CA', date: 'May 14, 2026', registered: 188, capacity: 600, revenue: '$56,212' },
-  { id: 'E2', category: 'Cloud', title: 'EdgeCloud Conf', location: 'Austin, TX', date: 'Jun 03, 2026', registered: 312, capacity: 400, revenue: '$62,088' },
-  { id: 'E3', category: 'Frontend', title: 'ReactNext: Motion', location: 'Berlin, DE', date: 'Jun 18, 2026', registered: 228, capacity: 250, revenue: '$0' },
-  { id: 'E4', category: 'Security', title: 'ZeroTrust World', location: 'Remote', date: 'Jul 02, 2026', registered: 760, capacity: 2000, revenue: '$113,240' },
-]
 
 const recentActivity = [
   { id: 1, initials: 'AR', name: 'A. Rahimi', action: 'registered for Vector Summit 2026', time: '2m ago' },
@@ -117,8 +113,35 @@ const IconSend = () => (
   </svg>
 )
 
+function fmtDate(iso) {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+}
+
 export default function OrganizerDashboard() {
   const [period, setPeriod] = useState('90D')
+  const { user } = useAuth()
+  const [activeEvents, setActiveEvents] = useState([])
+
+  useEffect(() => {
+    if (!user) return
+    Promise.all([
+      eventsApi.list({ limit: 100 }),
+      categoriesApi.list(),
+    ]).then(([evRes, catRes]) => {
+      const catMap = Object.fromEntries(catRes.data.map(c => [c.id, c.name]))
+      const mine = (evRes.data?.items ?? [])
+        .filter(e => e.owner_id === user.id)
+        .map(e => ({
+          id: e.id,
+          category: e.category_ids?.length ? (catMap[e.category_ids[0]] ?? '—') : '—',
+          title: e.title,
+          location: e.location_type === 'online' ? 'Remote' : (e.physical_address || '—'),
+          date: fmtDate(e.start_datetime),
+          capacity: e.capacity ?? '∞',
+        }))
+      setActiveEvents(mine)
+    }).catch(() => {})
+  }, [user])
 
   return (
     <div>
@@ -181,13 +204,14 @@ export default function OrganizerDashboard() {
                 <tr>
                   <th>EVENT</th>
                   <th>DATE</th>
-                  <th>REGISTERED</th>
-                  <th>REVENUE</th>
+                  <th>CAPACITY</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {activeEvents.map((e) => (
+                {activeEvents.length === 0 ? (
+                  <tr><td colSpan={4} style={{ textAlign: 'center', opacity: 0.4, padding: '16px' }}>No events yet</td></tr>
+                ) : activeEvents.map((e) => (
                   <tr key={e.id} className="org-table-row">
                     <td>
                       <div className="org-event-cell">
@@ -202,10 +226,8 @@ export default function OrganizerDashboard() {
                     </td>
                     <td className="org-td-muted">{e.date}</td>
                     <td>
-                      <span style={{ fontWeight: 600 }}>{e.registered}</span>
-                      <span className="org-capacity"> / {e.capacity}</span>
+                      <span className="org-capacity">{e.capacity}</span>
                     </td>
-                    <td>{e.revenue}</td>
                     <td className="org-td-chevron">
                       <IconChevron />
                     </td>

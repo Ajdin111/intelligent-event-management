@@ -1063,6 +1063,19 @@ body {
   margin-bottom: 18px;
 }
 
+.dashboard-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.dashboard-empty-msg {
+  font-size: 13.5px;
+  color: var(--text-sub);
+  margin: 0;
+}
+
 .events-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -7223,6 +7236,7 @@ select.form-input {
   color: rgba(255,255,255,0.55);
   background: rgba(26,31,34,0.62);
   font-size: 13px;
+  -webkit-backdrop-filter: blur(2px);
   backdrop-filter: blur(2px);
 }
 

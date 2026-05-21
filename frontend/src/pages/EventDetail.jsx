@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { eventsApi, ticketTiersApi, reviewsApi, agendaApi } from '../services/api'
+import { eventsApi, ticketTiersApi, reviewsApi, agendaApi, categoriesApi } from '../services/api'
 import NotFound from './NotFound'
 
 // Per-event cover images — themed to each event's spirit
@@ -162,8 +162,9 @@ export default function EventDetail() {
       reviewsApi.listByEvent(id).then(r => r.data).catch(() => []),
       agendaApi.listTracks(id).then(r => r.data).catch(() => []),
       agendaApi.listSessions(id).then(r => r.data).catch(() => []),
+      categoriesApi.list().then(r => r.data).catch(() => []),
     ])
-      .then(([evRes, tiersRes, realReviews, rawTracks, rawSessions]) => {
+      .then(([evRes, tiersRes, realReviews, rawTracks, rawSessions, allCategories]) => {
         const real = evRes.data
         setRealEventData(real)
 
@@ -173,9 +174,14 @@ export default function EventDetail() {
         const t1 = fmtTime(real.end_datetime)
 
         const fake = FAKE[numId] ?? null
+        const categoryName = (() => {
+          if (!real.category_ids?.length) return fake?.category || 'Tech'
+          const catMap = Object.fromEntries(allCategories.map(c => [c.id, c.name]))
+          return real.category_ids.map(id => catMap[id]).filter(Boolean).join(', ') || fake?.category || 'Tech'
+        })()
         setEvent({
           title:       real.title || 'TeqEvent',
-          category:    fake?.category   || 'Tech',
+          category:    categoryName,
           organizer:   fake?.organizer  || 'TeqEvent',
           description: real.description || 'No description available.',
           location:    real.physical_address || (real.location_type === 'online' ? 'Remote' : 'TBD'),
