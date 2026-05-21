@@ -432,9 +432,15 @@ export default function Preferences() {
             </>
           )}
           <div className="settings-danger-zone">
-            <button className="settings-btn settings-btn--danger" onClick={() => { setDeleteModalOpen(true); setDeleteError(''); setDeletePassword('') }}>
-              Delete account
-            </button>
+            {user?.is_admin ? (
+              <p className="settings-inline-note">
+                Admin accounts cannot be self-deleted. Contact a system administrator to remove this account.
+              </p>
+            ) : (
+              <button className="settings-btn settings-btn--danger" onClick={() => { setDeleteModalOpen(true); setDeleteError(''); setDeletePassword('') }}>
+                Delete account
+              </button>
+            )}
           </div>
         </section>
       </div>
