@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,11 @@ import {
   ActivityIndicator,
   FlatList,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { registrationsApi, Registration, Ticket } from '@/services/api';
+import { registrationsApi, eventsApi, Registration, Ticket } from '@/services/api';
 import { Colors, FontFamily, FontSize, Spacing, Radius } from '@/constants/theme';
 
 // ─── Status helpers ───────────────────────────────────────────────────────────
@@ -145,25 +145,68 @@ export default function TicketsScreen() {
   const [tickets, setTickets] = useState<(Ticket & { eventTitle?: string; eventDate?: string })[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const regRes = await registrationsApi.myRegistrations();
-        setRegistrations(regRes.data);
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      setLoading(true);
 
-        // Fetch tickets for confirmed registrations
-        const confirmed = regRes.data.filter(r => r.status === 'confirmed');
-        const ticketArrays = await Promise.all(
-          confirmed.map(r => registrationsApi.tickets(r.id).then(res => res.data).catch(() => []))
-        );
-        setTickets(ticketArrays.flat());
-      } catch {
-        // silently fail
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+      (async () => {
+        try {
+          const regRes = await registrationsApi.myRegistrations();
+          const regs = regRes.data;
+
+          const uniqueEventIds = [...new Set(regs.map(r => r.event_id))];
+          const eventResults = await Promise.all(
+            uniqueEventIds.map(id => eventsApi.detail(id).then(res => res.data).catch(() => null))
+          );
+          const eventMap = new Map(uniqueEventIds.map((id, i) => [id, eventResults[i]]));
+
+          const formatDate = (iso: string) =>
+            new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+          const getLocationType = (ev: { location_type: string; physical_address?: string }) => {
+            if (ev.location_type === 'online') return 'Online';
+            if (ev.location_type === 'hybrid') return 'Hybrid';
+            return ev.physical_address ?? 'In-person';
+          };
+
+          if (!active) return;
+
+          setRegistrations(regs.map(r => {
+            const ev = eventMap.get(r.event_id);
+            return {
+              ...r,
+              eventTitle: ev?.title,
+              eventDate: ev ? formatDate(ev.start_datetime) : undefined,
+              locationType: ev ? getLocationType(ev) : undefined,
+            };
+          }));
+
+          const confirmed = regs.filter(r => r.status === 'confirmed');
+          const ticketArrays = await Promise.all(
+            confirmed.map(r =>
+              registrationsApi.tickets(r.id).then(res => {
+                const ev = eventMap.get(r.event_id);
+                return res.data.map(t => ({
+                  ...t,
+                  eventTitle: ev?.title,
+                  eventDate: ev ? formatDate(ev.start_datetime) : undefined,
+                }));
+              }).catch(() => [])
+            )
+          );
+
+          if (active) setTickets(ticketArrays.flat());
+        } catch {
+          // silently fail
+        } finally {
+          if (active) setLoading(false);
+        }
+      })();
+
+      return () => { active = false; };
+    }, [])
+  );
 
   const STATUS_TABS = ['All', 'Confirmed', 'Pending', 'Cancelled'];
 
