@@ -90,6 +90,10 @@ export default function AttendeeLayout() {
         href: null,
         }}
       />
+      <Tabs.Screen
+      name="event/feedback"
+      options={{ href: null }}
+      />
     </Tabs>
   );
 }
