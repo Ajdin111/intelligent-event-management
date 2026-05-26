@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Share,
 } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -126,7 +126,7 @@ function TicketsTab({ tiers, loading }: { tiers: TicketTier[]; loading: boolean 
 }
 
 // ─── Reviews Tab ─────────────────────────────────────────────────────────────
-function ReviewsTab({ reviews, loading }: { reviews: Review[]; loading: boolean }) {
+function ReviewsTab({ reviews, loading, eventId }: { reviews: Review[]; loading: boolean; eventId: number }) {
   if (loading) return <ActivityIndicator color={Colors.text} style={{ marginTop: 24 }} />;
 
   const avg = reviews.length > 0
@@ -135,6 +135,14 @@ function ReviewsTab({ reviews, loading }: { reviews: Review[]; loading: boolean 
 
   return (
     <View style={styles.tabContent}>
+      <TouchableOpacity
+      style={styles.leaveReviewBtn}
+      onPress={() => router.push(`/(attendee)/event/feedback?id=${eventId}` as any)}
+      activeOpacity={0.85}
+      >
+        <Ionicons name="star-outline" size={15} color={Colors.bg} />
+        <Text style={styles.leaveReviewBtnText}>Leave a review</Text>
+        </TouchableOpacity>
       {avg && (
         <View style={styles.ratingHeader}>
           <Text style={styles.ratingScore}>{avg}</Text>
@@ -201,6 +209,17 @@ export default function EventDetailScreen() {
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const tabRef = useRef(tab);
+  useEffect(() => { tabRef.current = tab; }, [tab]);
+
+  const fetchReviews = useCallback(() => {
+    setReviewsLoading(true);
+    reviewsApi.eventReviews(eventId)
+      .then(res => setReviews(res.data))
+      .catch(() => {})
+      .finally(() => setReviewsLoading(false));
+  }, [eventId]);
+
   useEffect(() => {
     eventsApi.detail(eventId)
       .then(res => setEvent(res.data))
@@ -217,13 +236,17 @@ export default function EventDetailScreen() {
         .finally(() => setTiersLoading(false));
     }
     if (tab === 'reviews' && reviews.length === 0) {
-      setReviewsLoading(true);
-      reviewsApi.eventReviews(eventId)
-        .then(res => setReviews(res.data))
-        .catch(() => {})
-        .finally(() => setReviewsLoading(false));
+      fetchReviews();
     }
   }, [tab]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (tabRef.current === 'reviews') {
+        fetchReviews();
+      }
+    }, [fetchReviews])
+  );
 
   const handleShare = async () => {
     if (!event) return;
@@ -339,7 +362,7 @@ export default function EventDetailScreen() {
         {/* Tab content */}
         {tab === 'about' && <AboutTab event={event} />}
         {tab === 'tickets' && <TicketsTab tiers={tiers} loading={tiersLoading} />}
-        {tab === 'reviews' && <ReviewsTab reviews={reviews} loading={reviewsLoading} />}
+        {tab === 'reviews' && <ReviewsTab reviews={reviews} loading={reviewsLoading} eventId={eventId} />}
       </ScrollView>
 
       {/* Sticky bottom bar */}
@@ -502,4 +525,13 @@ const styles = StyleSheet.create({
   errorState: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   errorText: { fontSize: FontSize.base, fontFamily: FontFamily.regular, color: Colors.textMuted },
   emptyText: { fontSize: FontSize.sm, fontFamily: FontFamily.regular, color: Colors.textMuted },
+
+  //feedback 
+  leaveReviewBtn: {
+  flexDirection: 'row', alignItems: 'center', gap: 7,
+  height: 40, borderRadius: Radius.md,
+  backgroundColor: Colors.accent,
+  justifyContent: 'center', marginBottom: 20,
+},
+leaveReviewBtnText: { fontSize: 13.5, fontFamily: FontFamily.semiBold, color: Colors.bg },
 });
