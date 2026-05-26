@@ -7,11 +7,14 @@ import {
   StyleSheet,
   ActivityIndicator,
   FlatList,
+  Alert,
 } from 'react-native';
+
 import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
 import { registrationsApi, eventsApi, Registration, Ticket } from '@/services/api';
 import { Colors, FontFamily, FontSize, Spacing, Radius } from '@/constants/theme';
 
@@ -31,9 +34,31 @@ const STATUS_BG: Record<string, string> = {
 };
 
 // ─── Registration Card ────────────────────────────────────────────────────────
-function RegistrationCard({ registration }: { registration: Registration & { eventTitle?: string; eventDate?: string; locationType?: string } }) {
+function RegistrationCard({ registration, onCancel, onDelete, isCancelling }: {
+  registration: Registration & { eventTitle?: string; eventDate?: string; locationType?: string };
+  onCancel: (id: number) => void;
+  onDelete: (id: number) => void;
+  isCancelling: boolean;
+}) {
   const dotColor = STATUS_COLOR[registration.status] ?? Colors.textMuted;
   const badgeBg = STATUS_BG[registration.status] ?? Colors.accentBg;
+  const canCancel = registration.status === 'confirmed' || registration.status === 'pending';
+  const isDismissable = registration.status === 'cancelled' || registration.status === 'rejected';
+
+  const handleCancel = () => {
+    Alert.alert(
+      'Cancel registration',
+      'Are you sure you want to cancel this registration? This action cannot be undone.',
+      [
+        { text: 'Keep it', style: 'cancel' },
+        {
+          text: 'Cancel registration',
+          style: 'destructive',
+          onPress: () => onCancel(registration.id),
+        },
+      ]
+    );
+  };
 
   return (
     <TouchableOpacity
@@ -79,6 +104,36 @@ function RegistrationCard({ registration }: { registration: Registration & { eve
           {parseFloat(registration.total_amount) === 0 ? 'Free' : `$${parseFloat(registration.total_amount).toFixed(2)}`}
         </Text>
       </View>
+
+      {/* Cancel button */}
+      {canCancel && (
+        <TouchableOpacity
+          style={[styles.cancelBtn, isCancelling && styles.cancelBtnDisabled]}
+          onPress={isCancelling ? undefined : handleCancel}
+          activeOpacity={0.7}
+        >
+          {isCancelling ? (
+            <View style={styles.cancelBtnInner}>
+              <ActivityIndicator size="small" color={Colors.error} />
+              <Text style={styles.cancelBtnText}>Canceling…</Text>
+            </View>
+          ) : (
+            <Text style={styles.cancelBtnText}>Cancel registration</Text>
+          )}
+        </TouchableOpacity>
+      )}
+
+      {/* Remove button for cancelled / rejected */}
+      {isDismissable && (
+        <TouchableOpacity
+          style={styles.removeBtn}
+          onPress={() => onDelete(registration.id)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="trash-outline" size={13} color={Colors.textMuted} />
+          <Text style={styles.removeBtnText}>Remove</Text>
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 }
@@ -144,6 +199,35 @@ export default function TicketsScreen() {
   const [registrations, setRegistrations] = useState<(Registration & { eventTitle?: string; eventDate?: string; locationType?: string })[]>([]);
   const [tickets, setTickets] = useState<(Ticket & { eventTitle?: string; eventDate?: string })[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
+
+  const handleCancelRegistration = async (id: number) => {
+    setCancellingId(id);
+    try {
+      await registrationsApi.cancel(id);
+      setRegistrations(prev =>
+        prev.map(r => r.id === id ? { ...r, status: 'cancelled' as any } : r)
+      );
+      setTickets(prev => prev.filter(t => t.registration_id !== id));
+    } catch {
+      Alert.alert('Error', 'Failed to cancel registration. Please try again.');
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  const handleDeleteRegistration = async (id: number) => {
+    setRegistrations(prev => prev.filter(r => r.id !== id));
+    try {
+      const raw = await SecureStore.getItemAsync('dismissed_registrations');
+      const existing: number[] = raw ? JSON.parse(raw) : [];
+      if (!existing.includes(id)) {
+        await SecureStore.setItemAsync('dismissed_registrations', JSON.stringify([...existing, id]));
+      }
+    } catch {
+      // persistence failure is non-critical
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -152,8 +236,12 @@ export default function TicketsScreen() {
 
       (async () => {
         try {
-          const regRes = await registrationsApi.myRegistrations();
-          const regs = regRes.data;
+          const [regRes, dismissedRaw] = await Promise.all([
+            registrationsApi.myRegistrations(),
+            SecureStore.getItemAsync('dismissed_registrations'),
+          ]);
+          const dismissedIds: number[] = dismissedRaw ? JSON.parse(dismissedRaw) : [];
+          const regs = regRes.data.filter(r => !dismissedIds.includes(r.id));
 
           const uniqueEventIds = [...new Set(regs.map(r => r.event_id))];
           const eventResults = await Promise.all(
@@ -297,7 +385,14 @@ export default function TicketsScreen() {
             <FlatList
               data={filteredRegistrations}
               keyExtractor={r => String(r.id)}
-              renderItem={({ item }) => <RegistrationCard registration={item} />}
+              renderItem={({ item }) => (
+              <RegistrationCard
+                registration={item}
+                onCancel={handleCancelRegistration}
+                onDelete={handleDeleteRegistration}
+                isCancelling={cancellingId === item.id}
+              />
+            )}
               contentContainerStyle={styles.list}
               showsVerticalScrollIndicator={false}
               ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
@@ -364,11 +459,12 @@ const styles = StyleSheet.create({
   ticketBadgeText: { fontSize: 10, fontFamily: FontFamily.bold, color: Colors.bg },
 
   // Filter chips
-  filterChips: { paddingHorizontal: Spacing.base, paddingBottom: 12, gap: 8 },
+  filterChips: { paddingHorizontal: Spacing.base, paddingBottom: 16, paddingTop: 4, gap: 8 },
   chip: {
-    paddingHorizontal: 14, paddingVertical: 7,
+    paddingHorizontal: 14, paddingVertical: 9,
     borderRadius: Radius.full,
     borderWidth: 1, borderColor: Colors.borderMed,
+    minHeight: 36,
   },
   chipActive: { backgroundColor: Colors.text, borderColor: Colors.text },
   chipText: { fontSize: 12, fontFamily: FontFamily.medium, color: Colors.textSub },
@@ -453,4 +549,42 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.borderMed,
   },
   discoverBtnText: { fontSize: 13, fontFamily: FontFamily.medium, color: Colors.text },
+
+  cancelBtn: {
+    marginTop: 12,
+    paddingVertical: 8,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(248,113,113,0.3)',
+    alignItems: 'center',
+  },
+  cancelBtnDisabled: {
+    opacity: 0.6,
+  },
+  cancelBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  cancelBtnText: {
+    fontSize: 12.5,
+    fontFamily: FontFamily.medium,
+    color: Colors.error,
+  },
+  removeBtn: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 7,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  removeBtnText: {
+    fontSize: 12,
+    fontFamily: FontFamily.medium,
+    color: Colors.textMuted,
+  },
 });
