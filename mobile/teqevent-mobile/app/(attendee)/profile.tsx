@@ -50,7 +50,7 @@ export default function ProfileScreen() {
   };
 
   const settingsItems = [
-    { label: 'Edit profile', icon: 'person-outline', onPress: () => {} },
+    { label: 'Edit profile', icon: 'person-outline', onPress: () => router.push('/(attendee)/edit-profile' as any) },
     { label: 'Notifications', icon: 'notifications-outline', onPress: () => {} },
     { label: 'Privacy & security', icon: 'shield-outline', onPress: () => {} },
     { label: 'Help & support', icon: 'help-circle-outline', onPress: () => {} },
