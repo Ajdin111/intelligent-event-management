@@ -351,7 +351,7 @@ export default function EventDetailScreen() {
         <TouchableOpacity
           style={styles.registerBtn}
           activeOpacity={0.85}
-          onPress={() => {}}
+          onPress={() => router.push(`/(attendee)/event/register?id=${eventId}` as any)}
         >
           <Text style={styles.registerBtnText}>Register →</Text>
         </TouchableOpacity>
