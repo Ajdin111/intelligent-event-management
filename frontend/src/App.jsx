@@ -26,6 +26,7 @@ import AdminAnalytics from './pages/admin/AdminAnalytics'
 import AdminUsers, { AdminUserDetail } from './pages/admin/AdminUsers'
 import AdminEvents from './pages/admin/AdminEvents'
 import AdminEventDetail from './pages/admin/AdminEventDetail'
+import AdminProfile from './pages/admin/AdminProfile'
 import NotFound from './pages/NotFound'
 
 function Page404() {
@@ -112,7 +113,7 @@ export default function App() {
               <Route path="users/:userId"   element={<AdminUserDetail />} />
               <Route path="events"          element={<AdminEvents />} />
               <Route path="events/:eventId" element={<AdminEventDetail />} />
-              <Route path="profile"         element={<Preferences />} />
+              <Route path="profile"         element={<AdminProfile />} />
               <Route path="*"               element={<NotFound />} />
             </Route>
 
