@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   FlatList,
   Alert,
+  Image,
 } from 'react-native';
 
 import { router, useFocusEffect } from 'expo-router';
@@ -164,9 +165,11 @@ function TicketCard({ ticket }: { ticket: Ticket & { eventTitle?: string; eventD
 
       {/* QR placeholder */}
       <View style={styles.qrArea}>
-        <View style={styles.qrPlaceholder}>
-          <Ionicons name="qr-code-outline" size={80} color={Colors.textMuted} />
-        </View>
+         <Image
+         source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(ticket.qr_code)}&bgcolor=ffffff&color=000000&margin=4` }}
+         style={styles.qrImage}
+         resizeMode="contain"
+         />
         <Text style={styles.qrCode} numberOfLines={1}>{ticket.qr_code}</Text>
         <Text style={styles.qrHint}>Show this QR code at the event entrance</Text>
       </View>
@@ -587,4 +590,10 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.medium,
     color: Colors.textMuted,
   },
+  qrImage: {
+  width: 180,
+  height: 180,
+  marginBottom: 14,
+  borderRadius: 8,
+},
 });

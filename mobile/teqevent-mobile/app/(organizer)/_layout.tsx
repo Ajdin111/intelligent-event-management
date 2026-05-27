@@ -22,7 +22,7 @@ function TabBarIcon({
 }
 
 // Elevated scan button floats above the tab bar — organizer only feature
-function ScanButton({ onPress }: { onPress: () => void }) {
+function ScanButton({ onPress }: { onPress: (e: any) => void }) {
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -82,7 +82,7 @@ export default function OrganizerLayout() {
           title: '',
           tabBarIcon: () => null,
           tabBarButton: (props) => (
-            <ScanButton onPress={() => props.onPress?.()} />
+            <ScanButton onPress={(e) => props.onPress?.(e)} />
           ),
         }}
       />
@@ -103,6 +103,10 @@ export default function OrganizerLayout() {
             <TabBarIcon name={focused ? 'person' : 'person-outline'} focused={focused} />
           ),
         }}
+      />
+      <Tabs.Screen
+      name="scan-stats"
+      options={{ href: null }}
       />
     </Tabs>
   );

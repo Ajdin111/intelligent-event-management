@@ -17,7 +17,7 @@ export const TOKEN_KEY = 'teqevent_token';
 // ─── Axios instance ──────────────────────────────────────────────────────────
 const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
-  timeout: 20000,
+  timeout: 15000,
   headers: { 'Content-Type': 'application/json' },
 });
 
