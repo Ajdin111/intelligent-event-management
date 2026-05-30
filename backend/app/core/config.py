@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     DEBUG: bool = False
 
+    # File uploads
+    UPLOAD_DIR: str = "uploads"
+    MAX_IMAGE_SIZE_MB: int = 5
+
     # CORS — override with comma-separated origins in .env:
     # CORS_ORIGINS='["https://myapp.com","https://www.myapp.com"]'
     CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]

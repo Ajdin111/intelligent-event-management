@@ -1,7 +1,9 @@
 import axios from 'axios'
 
+export const API_BASE_URL = 'http://localhost:8000'
+
 const api = axios.create({
-  baseURL: 'http://localhost:8000',
+  baseURL: API_BASE_URL,
 })
 
 // When true, 401 errors will NOT trigger a global logout — the caller handles them inline.
@@ -144,6 +146,16 @@ export const collaboratorApi = {
   getMyCollaboratingEvents: () =>
     api.get(`/api/collaborators/my/events`),
 };
+
+export const uploadsApi = {
+  uploadEventCover: (file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post('/api/uploads/event-cover', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+}
 
 export const inviteApi = {
   sendInvite: (eventId, email) =>

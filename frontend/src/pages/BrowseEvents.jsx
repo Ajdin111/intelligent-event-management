@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { eventsApi, categoriesApi, ticketTiersApi } from '../services/api'
+import { eventsApi, categoriesApi, ticketTiersApi, API_BASE_URL } from '../services/api'
 
 const FILTER_DATES = ['Anytime', 'This week', 'This month', 'Next 3 months']
 const MAX_PRICE = 500
@@ -92,6 +92,14 @@ function DiscoverCard({ event, onNavigate }) {
   return (
     <div className="discover-card" onClick={() => onNavigate(event.id)} style={{ cursor: 'pointer' }}>
       <div className="discover-card-cover">
+        {event.cover_image && (
+          <img
+            src={`${API_BASE_URL}${event.cover_image}`}
+            alt={event.title}
+            className="discover-card-cover-img"
+            onError={e => { e.currentTarget.style.display = 'none' }}
+          />
+        )}
         <span className="discover-card-category">{event.category}</span>
         <span className="discover-card-price">{priceLabel}</span>
         <span className="discover-card-code">EVENT · {event.code}</span>

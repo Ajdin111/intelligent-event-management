@@ -28,6 +28,7 @@ function toCardShape(event) {
     locationType,
     ticketTier: event.is_free ? 'Free' : 'Paid',
     spotsLeft: event.capacity ?? '∞',
+    cover_image: event.cover_image || null,
     image: `https://picsum.photos/seed/ev${event.id}/600/340`,
   }
 }

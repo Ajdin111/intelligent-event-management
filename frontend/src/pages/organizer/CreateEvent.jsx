@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import api, { eventsApi, categoriesApi, setCriticalOp } from '../../services/api'
+import api, { eventsApi, categoriesApi, uploadsApi, setCriticalOp } from '../../services/api'
 
 const STEPS = [
   { n: 1, label: 'Basic info' },
@@ -76,6 +76,7 @@ export default function CreateEvent() {
   const [form, setForm] = useState({
     title: '',
     description: '',
+    cover_image: '',
     category_id: '',
     location_type: 'physical',
     physical_address: '',
@@ -111,6 +112,7 @@ export default function CreateEvent() {
     return {
       title: form.title.trim(),
       description: form.description.trim(),
+      cover_image: form.cover_image || null,
       location_type: form.location_type,
       physical_address: form.physical_address.trim() || null,
       online_link: form.online_link.trim() || null,
@@ -306,14 +308,16 @@ export default function CreateEvent() {
       const { data: event } = await eventsApi.create(buildPayload())
       const eventId = event.id
 
+      const toUtcIso = (localDt) => new Date(`${localDt}:00`).toISOString().slice(0, 19)
+
       for (const tier of tiers) {
         await api.post(`/api/events/${eventId}/ticket-tiers`, {
           name: tier.name.trim(),
           description: tier.description.trim() || null,
           price: parseFloat(tier.price) || 0,
           quantity: parseInt(tier.quantity, 10),
-          sale_start: `${tier.sale_start}:00`,
-          sale_end: `${tier.sale_end}:00`,
+          sale_start: toUtcIso(tier.sale_start),
+          sale_end: toUtcIso(tier.sale_end),
         })
       }
 
@@ -323,8 +327,8 @@ export default function CreateEvent() {
           discount_type: code.discount_type,
           discount_value: parseFloat(code.discount_value),
           max_uses: parseInt(code.max_uses, 10),
-          valid_from: `${code.valid_from}:00`,
-          valid_until: `${code.valid_until}:00`,
+          valid_from: toUtcIso(code.valid_from),
+          valid_until: toUtcIso(code.valid_until),
         })
       }
 
@@ -451,10 +455,85 @@ export default function CreateEvent() {
 }
 
 /* ── Step 1 — Basic info ─────────────────────────────────────────────── */
+const MAX_SIZE_MB = 5
+const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp']
+
 function Step1({ form, set, categories }) {
   const today = todayStr()
+  const fileRef = useRef(null)
+  const [previewUrl, setPreviewUrl] = useState(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState(null)
+
+  function handleFileChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!ALLOWED_MIME.includes(file.type)) {
+      setUploadError('Only JPEG, PNG, and WebP images are allowed.')
+      return
+    }
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      setUploadError(`Image must be under ${MAX_SIZE_MB} MB.`)
+      return
+    }
+
+    setUploadError(null)
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl(URL.createObjectURL(file))
+
+    setUploading(true)
+    uploadsApi.uploadEventCover(file)
+      .then(res => set('cover_image', res.data.url))
+      .catch(() => {
+        setUploadError('Upload failed. Please try again.')
+        setPreviewUrl(null)
+        set('cover_image', '')
+      })
+      .finally(() => setUploading(false))
+
+    e.target.value = ''
+  }
+
+  function handleRemove() {
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl(null)
+    setUploadError(null)
+    set('cover_image', '')
+  }
+
   return (
     <div className="ce-fields">
+      <div className="form-group">
+        <label className="field-label">Cover image <span className="field-optional">(optional)</span></label>
+        <div
+          className={`cover-upload-zone${previewUrl ? ' has-image' : ''}`}
+          onClick={() => !uploading && fileRef.current?.click()}
+        >
+          {previewUrl ? (
+            <img src={previewUrl} alt="Cover preview" className="cover-upload-preview" />
+          ) : (
+            <div className="cover-upload-placeholder">
+              <span className="cover-upload-icon">↑</span>
+              <span>Click to upload image</span>
+              <span className="field-hint">JPEG, PNG or WebP · max {MAX_SIZE_MB} MB</span>
+            </div>
+          )}
+          {uploading && <div className="cover-upload-overlay">Uploading…</div>}
+        </div>
+        {uploadError && <span className="field-warn">{uploadError}</span>}
+        {previewUrl && !uploading && (
+          <button className="cover-remove-btn" onClick={handleRemove}>Remove image</button>
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          style={{ display: 'none' }}
+          onChange={handleFileChange}
+        />
+      </div>
+
       <div className="form-group">
         <label className="field-label">Event title</label>
         <input

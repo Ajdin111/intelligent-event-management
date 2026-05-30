@@ -23,11 +23,23 @@ const IconPeople = () => (
   </svg>
 )
 
+import { API_BASE_URL } from '../services/api'
+
 export default function EventCard({ event }) {
+  const imgSrc = event.cover_image
+    ? `${API_BASE_URL}${event.cover_image}`
+    : event.image || null
+
   return (
     <div className="event-card">
       <div className="event-card-img-wrap">
-        <img src={event.image} alt={event.title} />
+        {imgSrc && (
+          <img
+            src={imgSrc}
+            alt={event.title}
+            onError={e => { e.currentTarget.style.display = 'none' }}
+          />
+        )}
         {event.recommended && (
           <span className="recommended-badge">Recommended</span>
         )}
