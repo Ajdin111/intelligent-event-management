@@ -1,10 +1,17 @@
-from datetime import datetime
+from datetime import datetime, timedelta, date
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.models.user import User
 from app.models.event import Event, EventCollaborator, EventCategory, Category
-from app.schemas.event import EventCreateRequest, EventUpdateRequest
+from app.models.registration import Registration
+from app.models.checkin import Checkin
+from app.schemas.event import (
+    EventCreateRequest,
+    EventUpdateRequest,
+    OrganizerStatsResponse,
+    RegistrationTimelinePoint,
+)
 from app.schemas.utils import PaginatedResponse
 from app.core.exceptions import NotFoundError, ForbiddenError, BadRequestError
 from app.core.constants import EVENT_STATUS_DRAFT, EVENT_STATUS_PUBLISHED, EVENT_STATUS_CANCELLED
@@ -176,3 +183,87 @@ def cancel_event(db: Session, event_id: int, current_user: User) -> Event:
     send_feedback_request.delay(event.id)
 
     return event
+
+
+def get_organizer_stats(db: Session, current_user: User) -> OrganizerStatsResponse:
+    event_ids = [
+        row[0] for row in
+        db.query(Event.id)
+        .filter(Event.owner_id == current_user.id, Event.deleted_at.is_(None))
+        .all()
+    ]
+
+    total_events = len(event_ids)
+
+    if not event_ids:
+        return OrganizerStatsResponse(
+            total_events=0,
+            total_registrations=0,
+            total_revenue=0.0,
+            attendance_rate=0.0,
+        )
+
+    total_registrations = db.query(func.count(Registration.id)).filter(
+        Registration.event_id.in_(event_ids),
+        Registration.status == "confirmed",
+    ).scalar() or 0
+
+    total_revenue = float(
+        db.query(func.sum(Registration.total_amount)).filter(
+            Registration.event_id.in_(event_ids),
+            Registration.status == "confirmed",
+        ).scalar() or 0
+    )
+
+    total_checked_in = db.query(func.count(Checkin.id)).filter(
+        Checkin.event_id.in_(event_ids),
+    ).scalar() or 0
+
+    attendance_rate = round(total_checked_in / total_registrations * 100, 1) if total_registrations > 0 else 0.0
+
+    return OrganizerStatsResponse(
+        total_events=total_events,
+        total_registrations=total_registrations,
+        total_revenue=total_revenue,
+        attendance_rate=attendance_rate,
+    )
+
+
+def get_organizer_timeline(
+    db: Session, current_user: User, days: int = 90
+) -> list[RegistrationTimelinePoint]:
+    event_ids = [
+        row[0] for row in
+        db.query(Event.id)
+        .filter(Event.owner_id == current_user.id, Event.deleted_at.is_(None))
+        .all()
+    ]
+
+    since = datetime.utcnow() - timedelta(days=days)
+
+    if not event_ids:
+        today = date.today()
+        return [
+            RegistrationTimelinePoint(date=(today - timedelta(days=days - 1 - i)).isoformat(), count=0)
+            for i in range(days)
+        ]
+
+    rows = db.query(
+        func.date(Registration.registered_at).label("day"),
+        func.count(Registration.id).label("count"),
+    ).filter(
+        Registration.event_id.in_(event_ids),
+        Registration.registered_at >= since,
+        Registration.status == "confirmed",
+    ).group_by(func.date(Registration.registered_at)).order_by("day").all()
+
+    day_map = {row.day: row.count for row in rows}
+    today = date.today()
+
+    return [
+        RegistrationTimelinePoint(
+            date=(today - timedelta(days=days - 1 - i)).isoformat(),
+            count=day_map.get(today - timedelta(days=days - 1 - i), 0),
+        )
+        for i in range(days)
+    ]

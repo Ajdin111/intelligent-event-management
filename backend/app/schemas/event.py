@@ -70,3 +70,15 @@ class EventResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class OrganizerStatsResponse(BaseModel):
+    total_events: int
+    total_registrations: int
+    total_revenue: float
+    attendance_rate: float
+
+
+class RegistrationTimelinePoint(BaseModel):
+    date: str
+    count: int
