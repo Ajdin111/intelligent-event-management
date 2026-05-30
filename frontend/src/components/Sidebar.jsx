@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
@@ -38,18 +39,17 @@ const IconChat = () => (
   </svg>
 )
 
-const IconBell = () => (
-  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <path d="M7.5 1.5A4 4 0 0 0 3.5 5.5V9l-1.5 2h11L11.5 9V5.5A4 4 0 0 0 7.5 1.5Z" strokeLinejoin="round" />
-    <path d="M6 11.5a1.5 1.5 0 0 0 3 0" />
-  </svg>
-)
-
 const IconLogout = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
     <path d="M5 2H2a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3" strokeLinecap="round" />
     <path d="M9 10l3-3-3-3" strokeLinecap="round" strokeLinejoin="round" />
     <line x1="12" y1="7" x2="5" y2="7" strokeLinecap="round" />
+  </svg>
+)
+
+const IconChevronLeft = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <polyline points="9,3 5,7 9,11" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 )
 
@@ -59,12 +59,18 @@ const navItems = [
   { to: '/registrations', label: 'My Registrations', icon: <IconCalendar /> },
   { to: '/tickets', label: 'My Tickets', icon: <IconTicket /> },
   { to: '/feedback', label: 'Feedback', icon: <IconChat /> },
-  { to: '/preferences', label: 'Preferences', icon: <IconBell /> },
 ]
 
-export default function Sidebar() {
-  const { user, logout } = useAuth()
+export default function Sidebar({ mobileOpen = false, onClose }) {
+  const { user, logout, activeRole } = useAuth()
   const navigate = useNavigate()
+  const [collapsed, setCollapsed] = useState(false)
+
+  useEffect(() => {
+    if (!mobileOpen) setCollapsed(false)
+  }, [mobileOpen])
+
+  const handleCollapseBtn = () => mobileOpen ? onClose?.() : setCollapsed(c => !c)
 
   const handleLogout = () => {
     logout()
@@ -72,35 +78,57 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar-logo">
-        Teq<span>Event</span>
-      </div>
-
-      <nav className="sidebar-nav">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-          >
-            {item.icon}
-            {item.label}
-          </NavLink>
-        ))}
-      </nav>
-
-      <div className="sidebar-bottom">
-        <div className="sidebar-user">
-          <span className="sidebar-user-name">
-            {user ? `${user.first_name} ${user.last_name}` : '—'}
-          </span>
-          <span className="sidebar-user-role">Attendee</span>
-        </div>
-        <button className="logout-btn" onClick={handleLogout} title="Sign out">
-          <IconLogout />
+  <aside className={`sidebar${collapsed ? ' sidebar--collapsed' : ''}${mobileOpen ? ' sidebar--mobile-open' : ''}`}>
+    <div className="sidebar-logo">
+      {collapsed ? (
+        <button
+          className="sidebar-collapse-btn"
+          onClick={handleCollapseBtn}
+          title="Expand sidebar"
+        >
+          <span style={{ fontWeight: 700, fontSize: '16px' }}>T</span>
         </button>
+      ) : (
+        <>
+          <span style={{ fontWeight: 700 }}>Teq<span style={{ fontWeight: 300 }}>Event</span></span>
+          <button
+            className="sidebar-collapse-btn"
+            onClick={handleCollapseBtn}
+            title={mobileOpen ? 'Close' : 'Collapse sidebar'}
+          >
+            <IconChevronLeft />
+          </button>
+        </>
+      )}
+    </div>
+
+    <div className="sidebar-role-label">ATTENDEE</div>
+
+    <nav className="sidebar-nav">
+      {navItems.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+          onClick={onClose}
+        >
+          {item.icon}
+          <span className="nav-label">{item.label}</span>
+        </NavLink>
+      ))}
+    </nav>
+
+    <div className="sidebar-bottom">
+      <div className="sidebar-user">
+        <span className="sidebar-user-name">
+          {user ? `${user.first_name} ${user.last_name}` : '—'}
+        </span>
+        <span className="sidebar-user-role" style={{ textTransform: 'capitalize' }}>{activeRole}</span>
       </div>
-    </aside>
-  )
+      <button className="logout-btn" onClick={handleLogout} title="Sign out">
+        <IconLogout />
+      </button>
+    </div>
+  </aside>
+)
 }

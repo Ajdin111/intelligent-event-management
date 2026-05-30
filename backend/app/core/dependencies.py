@@ -1,7 +1,7 @@
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from typing import Generator, Optional
 from app.db.session import SessionLocal
 from app.core.security import decode_access_token
@@ -36,7 +36,7 @@ def get_current_user(
     if user_id is None:
         raise credentials_exception
 
-    user = db.query(User).filter(
+    user = db.query(User).options(selectinload(User.roles)).filter(
         User.id == int(user_id),
         User.deleted_at.is_(None),
         User.is_active.is_(True)
@@ -69,12 +69,12 @@ def require_organizer(
 def require_admin(
     current_user: User = Depends(get_current_user)
 ) -> User:
+    # get_current_user already validates is_active and deleted_at
     if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin role required"
         )
-
     return current_user
 def get_optional_user(
     db: Session = Depends(get_db),

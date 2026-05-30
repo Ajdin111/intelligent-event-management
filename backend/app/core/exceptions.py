@@ -1,30 +1,25 @@
-from fastapi import HTTPException, status
+class AppError(Exception):
+    def __init__(self, message: str, status_code: int = 400):
+        self.message = message
+        self.status_code = status_code
+        super().__init__(message)
 
 
-class NotFoundException(HTTPException):
-    def __init__(self, detail: str = "Resource not found"):
-        super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+class NotFoundError(AppError):
+    def __init__(self, message: str = "Not found"):
+        super().__init__(message, 404)
 
 
-class UnauthorizedException(HTTPException):
-    def __init__(self, detail: str = "Not authorized"):
-        super().__init__(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=detail,
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+class ForbiddenError(AppError):
+    def __init__(self, message: str = "Permission denied"):
+        super().__init__(message, 403)
 
 
-class ForbiddenException(HTTPException):
-    def __init__(self, detail: str = "Access forbidden"):
-        super().__init__(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
+class BadRequestError(AppError):
+    def __init__(self, message: str):
+        super().__init__(message, 400)
 
 
-class BadRequestException(HTTPException):
-    def __init__(self, detail: str = "Bad request"):
-        super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
-
-
-class ConflictException(HTTPException):
-    def __init__(self, detail: str = "Conflict"):
-        super().__init__(status_code=status.HTTP_409_CONFLICT, detail=detail)
+class ConflictError(AppError):
+    def __init__(self, message: str):
+        super().__init__(message, 409)

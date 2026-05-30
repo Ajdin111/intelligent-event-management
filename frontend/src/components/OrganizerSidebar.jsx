@@ -1,0 +1,133 @@
+import { useEffect, useState } from 'react'
+import { NavLink, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+
+const IconDashboard = () => (
+  <svg width="15" height="15" viewBox="0 0 15 15" fill="currentColor">
+    <rect x="0" y="0" width="6.5" height="6.5" rx="1.2" />
+    <rect x="8.5" y="0" width="6.5" height="6.5" rx="1.2" />
+    <rect x="0" y="8.5" width="6.5" height="6.5" rx="1.2" />
+    <rect x="8.5" y="8.5" width="6.5" height="6.5" rx="1.2" />
+  </svg>
+)
+
+const IconPlus = () => (
+  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <line x1="7.5" y1="2" x2="7.5" y2="13" strokeLinecap="round" />
+    <line x1="2" y1="7.5" x2="13" y2="7.5" strokeLinecap="round" />
+  </svg>
+)
+
+const IconFolder = () => (
+  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M1 4a1 1 0 0 1 1-1h3.5l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V4Z" strokeLinejoin="round" />
+  </svg>
+)
+
+const IconChart = () => (
+  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <polyline points="1,11 5,7 8,9 14,3" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+const IconLayers = () => (
+  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <polygon points="7.5,1 14,5 7.5,9 1,5" strokeLinejoin="round" />
+    <polyline points="1,10 7.5,14 14,10" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+const IconLogout = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M5 2H2a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3" strokeLinecap="round" />
+    <path d="M9 10l3-3-3-3" strokeLinecap="round" strokeLinejoin="round" />
+    <line x1="12" y1="7" x2="5" y2="7" strokeLinecap="round" />
+  </svg>
+)
+
+const IconChevronLeft = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <polyline points="9,3 5,7 9,11" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+const navItems = [
+  { to: '/organizer/dashboard', label: 'Dashboard', icon: <IconDashboard /> },
+  { to: '/organizer/create-event', label: 'Create Event', icon: <IconPlus /> },
+  { to: '/organizer/manage-event', label: 'Manage Event', icon: <IconFolder /> },
+  { to: '/organizer/analytics', label: 'Analytics', icon: <IconChart /> },
+  { to: '/organizer/agenda', label: 'Agenda', icon: <IconLayers /> },
+]
+
+export default function OrganizerSidebar({ mobileOpen = false, onClose }) {
+  const { user, logout, activeRole } = useAuth()
+  const navigate = useNavigate()
+  const [collapsed, setCollapsed] = useState(false)
+
+  useEffect(() => {
+    if (!mobileOpen) setCollapsed(false)
+  }, [mobileOpen])
+
+  const handleCollapseBtn = () => mobileOpen ? onClose?.() : setCollapsed(c => !c)
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+  }
+
+  return (
+    <aside className={`sidebar${collapsed ? ' sidebar--collapsed' : ''}${mobileOpen ? ' sidebar--mobile-open' : ''}`}>
+      <div className="sidebar-logo">
+        {collapsed ? (
+          <button
+            className="sidebar-collapse-btn"
+            onClick={handleCollapseBtn}
+            title="Expand sidebar"
+          >
+            <span style={{ fontWeight: 700, fontSize: '16px' }}>T</span>
+          </button>
+        ) : (
+          <>
+            <span style={{ fontWeight: 700 }}>Teq<span style={{ fontWeight: 300 }}>Event</span></span>
+            <button
+              className="sidebar-collapse-btn"
+              onClick={handleCollapseBtn}
+              title={mobileOpen ? 'Close' : 'Collapse sidebar'}
+            >
+              <IconChevronLeft />
+            </button>
+          </>
+        )}
+      </div>
+
+      <div className="sidebar-role-label nav-label">ORGANIZER</div>
+
+      <nav className="sidebar-nav">
+        {navItems.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+            title={item.label}
+            onClick={onClose}
+          >
+            {item.icon}
+            <span className="nav-label">{item.label}</span>
+          </NavLink>
+        ))}
+      </nav>
+
+      <div className="sidebar-bottom">
+        <div className="sidebar-user">
+          <span className="sidebar-user-name">
+            {user ? `${user.first_name} ${user.last_name}` : '—'}
+          </span>
+          <span className="sidebar-user-role" style={{ textTransform: 'capitalize' }}>{activeRole}</span>
+        </div>
+        <button className="logout-btn" onClick={handleLogout} title="Sign out">
+          <IconLogout />
+        </button>
+      </div>
+    </aside>
+  )
+}

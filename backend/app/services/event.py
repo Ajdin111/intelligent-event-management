@@ -1,55 +1,51 @@
-from datetime import datetime
+from datetime import datetime, timedelta, date
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
+from sqlalchemy import func
 
 from app.models.user import User
 from app.models.event import Event, EventCollaborator, EventCategory, Category
-from app.schemas.event import EventCreateRequest, EventUpdateRequest
+from app.models.registration import Registration
+from app.models.checkin import Checkin
+from app.schemas.event import (
+    EventCreateRequest,
+    EventUpdateRequest,
+    OrganizerStatsResponse,
+    RegistrationTimelinePoint,
+    ActivityItem,
+)
+from app.schemas.utils import PaginatedResponse
+from app.core.exceptions import NotFoundError, ForbiddenError, BadRequestError
+from app.core.constants import EVENT_STATUS_DRAFT, EVENT_STATUS_PUBLISHED, EVENT_STATUS_CANCELLED
+from app.services.common import get_event_or_404, check_event_permission
 from app.tasks.analytics import compute_event_analytics
 from app.tasks.email import send_feedback_request
 
 
-def _normalize_dt(dt: datetime) -> datetime:
-    if dt is None:
-        return None
-    return dt.replace(tzinfo=None)
+def _get_category_ids_bulk(db: Session, event_ids: list[int]) -> dict[int, list[int]]:
+    rows = db.query(EventCategory).filter(EventCategory.event_id.in_(event_ids)).all()
+    result: dict[int, list[int]] = {}
+    for row in rows:
+        result.setdefault(row.event_id, []).append(row.category_id)
+    return result
 
-
-def _get_category_ids(db: Session, event_id: int) -> list[int]:
-    categories = db.query(EventCategory).filter(
-        EventCategory.event_id == event_id
-    ).all()
-    return [c.category_id for c in categories]
 
 def create_event(db: Session, data: EventCreateRequest, current_user: User) -> Event:
-    # validate dates
-    if _normalize_dt(data.end_datetime) <= _normalize_dt(data.start_datetime):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="End datetime must be after start datetime"
-        )
+    if data.end_datetime <= data.start_datetime:
+        raise BadRequestError("End datetime must be after start datetime")
 
-    # validate online link for online/hybrid events
     if data.location_type in ["online", "hybrid"] and not data.online_link:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Online link is required for online and hybrid events"
-        )
+        raise BadRequestError("Online link is required for online and hybrid events")
 
-    # validate categories exist
     if data.category_ids:
-        for category_id in data.category_ids:
-            category = db.query(Category).filter(Category.id == category_id).first()
-            if not category:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Category with id {category_id} does not exist"
-                )
+        for cid in data.category_ids:
+            if not db.query(Category).filter(Category.id == cid).first():
+                raise BadRequestError(f"Category with id {cid} does not exist")
 
     event = Event(
         owner_id=current_user.id,
         title=data.title,
         description=data.description,
+        cover_image=data.cover_image,
         location_type=data.location_type,
         physical_address=data.physical_address,
         online_link=data.online_link,
@@ -61,219 +57,128 @@ def create_event(db: Session, data: EventCreateRequest, current_user: User) -> E
         has_ticketing=data.has_ticketing,
         is_free=data.is_free,
         feedback_visibility=data.feedback_visibility,
-        status="draft"
+        status=EVENT_STATUS_DRAFT
     )
     db.add(event)
     db.flush()
 
-    # assign categories
     if data.category_ids:
-        for category_id in data.category_ids:
-            event_category = EventCategory(
-                event_id=event.id,
-                category_id=category_id
-            )
-            db.add(event_category)
+        for cid in data.category_ids:
+            db.add(EventCategory(event_id=event.id, category_id=cid))
 
     db.commit()
     db.refresh(event)
-    
-    event.category_ids = _get_category_ids(db, event.id)
+    event.category_ids = _get_category_ids_bulk(db, [event.id]).get(event.id, [])
     return event
 
-def get_events(db: Session, skip: int = 0, limit: int = 20) -> list[Event]:
-    events = db.query(Event).filter(
-        Event.status == "published",
-        Event.deleted_at.is_(None)
-    ).offset(skip).limit(limit).all()
 
-    for event in events:
-        event.category_ids = _get_category_ids(db, event.id)
-
+def get_my_events(db: Session, current_user: User) -> list:
+    events = (
+        db.query(Event)
+        .filter(Event.owner_id == current_user.id, Event.deleted_at.is_(None))
+        .order_by(Event.created_at.desc())
+        .all()
+    )
+    if events:
+        category_map = _get_category_ids_bulk(db, [e.id for e in events])
+        for event in events:
+            event.category_ids = category_map.get(event.id, [])
     return events
 
 
+def get_events(db: Session, skip: int = 0, limit: int = 20) -> PaginatedResponse:
+    base = db.query(Event).filter(Event.status == EVENT_STATUS_PUBLISHED, Event.deleted_at.is_(None))
+    total = base.count()
+    events = base.offset(skip).limit(limit).all()
+
+    if events:
+        category_map = _get_category_ids_bulk(db, [e.id for e in events])
+        for event in events:
+            event.category_ids = category_map.get(event.id, [])
+
+    return PaginatedResponse(total=total, skip=skip, limit=limit, items=events)
+
+
 def get_event_by_id(db: Session, event_id: int, current_user: User = None) -> Event:
-    event = db.query(Event).filter(
-        Event.id == event_id,
-        Event.deleted_at.is_(None)
-    ).first()
+    event = get_event_or_404(db, event_id)
 
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Event not found"
-        )
-
-    # hide online link from non-registered attendees
     if event.online_link and current_user is None:
         event.online_link = None
 
-    event.category_ids = _get_category_ids(db, event.id)
-
+    event.category_ids = _get_category_ids_bulk(db, [event.id]).get(event.id, [])
     return event
 
 
-def update_event(
-    db: Session,
-    event_id: int,
-    data: EventUpdateRequest,
-    current_user: User
-) -> Event:
-    event = db.query(Event).filter(
-        Event.id == event_id,
-        Event.deleted_at.is_(None)
-    ).first()
+def update_event(db: Session, event_id: int, data: EventUpdateRequest, current_user: User) -> Event:
+    event = get_event_or_404(db, event_id)
+    check_event_permission(db, event, current_user)
 
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Event not found"
-        )
-
-    # check if user is owner or collaborator
-    is_owner = event.owner_id == current_user.id
-    is_collaborator = db.query(EventCollaborator).filter(
-        EventCollaborator.event_id == event_id,
-        EventCollaborator.user_id == current_user.id
-    ).first()
-
-    if not is_owner and not is_collaborator:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to update this event"
-        )
-
-    # validate dates if either is being updated
     final_start = data.start_datetime or event.start_datetime
     final_end = data.end_datetime or event.end_datetime
 
-    if _normalize_dt(final_end) <= _normalize_dt(final_start):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="End datetime must be after start datetime"
-        )
+    if final_end <= final_start:
+        raise BadRequestError("End datetime must be after start datetime")
 
-    # validate online link
     final_location_type = data.location_type or event.location_type
     final_online_link = data.online_link or event.online_link
 
     if final_location_type in ["online", "hybrid"] and not final_online_link:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Online link is required for online and hybrid events"
-        )
-    # update categories if provided
+        raise BadRequestError("Online link is required for online and hybrid events")
+
     if data.category_ids is not None:
-        # validate all categories exist
-        for category_id in data.category_ids:
-            category = db.query(Category).filter(Category.id == category_id).first()
-            if not category:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Category with id {category_id} does not exist"
-                )
+        for cid in data.category_ids:
+            if not db.query(Category).filter(Category.id == cid).first():
+                raise BadRequestError(f"Category with id {cid} does not exist")
 
-        # delete existing categories
-        db.query(EventCategory).filter(
-            EventCategory.event_id == event_id
-        ).delete()
+        db.query(EventCategory).filter(EventCategory.event_id == event_id).delete()
+        for cid in data.category_ids:
+            db.add(EventCategory(event_id=event.id, category_id=cid))
 
-        # add new categories
-        for category_id in data.category_ids:
-            event_category = EventCategory(
-                event_id=event.id,
-                category_id=category_id
-            )
-            db.add(event_category)
-
-    # only update fields that were sent
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(event, field, value)
 
     db.commit()
     db.refresh(event)
-    event.category_ids = _get_category_ids(db, event.id)
+    event.category_ids = _get_category_ids_bulk(db, [event.id]).get(event.id, [])
     return event
 
 
 def delete_event(db: Session, event_id: int, current_user: User) -> None:
-    event = db.query(Event).filter(
-        Event.id == event_id,
-        Event.deleted_at.is_(None)
-    ).first()
+    event = get_event_or_404(db, event_id)
 
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Event not found"
-        )
-
-    # only owner can delete
     if event.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only the event owner can delete this event"
-        )
+        raise ForbiddenError("Only the event owner can delete this event")
 
-    event.deleted_at = datetime.now()
+    event.deleted_at = datetime.utcnow()
     db.commit()
 
 
 def publish_event(db: Session, event_id: int, current_user: User) -> Event:
-    event = db.query(Event).filter(
-        Event.id == event_id,
-        Event.deleted_at.is_(None)
-    ).first()
+    event = get_event_or_404(db, event_id)
 
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Event not found"
-        )
+    if not current_user.is_admin and event.owner_id != current_user.id:
+        raise ForbiddenError("Only the event owner can publish this event")
 
-    # only owner can publish
-    if event.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only the event owner can publish this event"
-        )
+    if event.status != EVENT_STATUS_DRAFT:
+        raise BadRequestError("Only draft events can be published")
 
-    if event.status != "draft":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only draft events can be published"
-        )
-
-    event.status = "published"
+    event.status = EVENT_STATUS_PUBLISHED
+    event.published_at = datetime.utcnow()
     db.commit()
     db.refresh(event)
     return event
-def cancel_event(db: Session, event_id: int, current_user: User) -> Event:
-    event = db.query(Event).filter(
-        Event.id == event_id,
-        Event.deleted_at.is_(None)
-    ).first()
 
-    if not event:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Event not found"
-        )
+
+def cancel_event(db: Session, event_id: int, current_user: User) -> Event:
+    event = get_event_or_404(db, event_id)
 
     if event.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only the event owner can cancel this event"
-        )
+        raise ForbiddenError("Only the event owner can cancel this event")
 
-    if event.status not in ["draft", "published"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Event cannot be cancelled"
-        )
+    if event.status not in [EVENT_STATUS_DRAFT, EVENT_STATUS_PUBLISHED]:
+        raise BadRequestError("Event cannot be cancelled")
 
-    event.status = "cancelled"
+    event.status = EVENT_STATUS_CANCELLED
     db.commit()
     db.refresh(event)
 
@@ -281,3 +186,137 @@ def cancel_event(db: Session, event_id: int, current_user: User) -> Event:
     send_feedback_request.delay(event.id)
 
     return event
+
+
+def get_organizer_stats(db: Session, current_user: User) -> OrganizerStatsResponse:
+    event_ids = [
+        row[0] for row in
+        db.query(Event.id)
+        .filter(Event.owner_id == current_user.id, Event.deleted_at.is_(None))
+        .all()
+    ]
+
+    total_events = len(event_ids)
+
+    if not event_ids:
+        return OrganizerStatsResponse(
+            total_events=0,
+            total_registrations=0,
+            total_revenue=0.0,
+            attendance_rate=0.0,
+        )
+
+    total_registrations = db.query(func.count(Registration.id)).filter(
+        Registration.event_id.in_(event_ids),
+        Registration.status == "confirmed",
+    ).scalar() or 0
+
+    total_revenue = float(
+        db.query(func.sum(Registration.total_amount)).filter(
+            Registration.event_id.in_(event_ids),
+            Registration.status == "confirmed",
+        ).scalar() or 0
+    )
+
+    total_checked_in = db.query(func.count(Checkin.id)).filter(
+        Checkin.event_id.in_(event_ids),
+    ).scalar() or 0
+
+    attendance_rate = round(total_checked_in / total_registrations * 100, 1) if total_registrations > 0 else 0.0
+
+    return OrganizerStatsResponse(
+        total_events=total_events,
+        total_registrations=total_registrations,
+        total_revenue=total_revenue,
+        attendance_rate=attendance_rate,
+    )
+
+
+def get_organizer_activity(db: Session, current_user: User, limit: int = 10) -> list[ActivityItem]:
+    event_ids = [
+        row[0] for row in
+        db.query(Event.id)
+        .filter(Event.owner_id == current_user.id, Event.deleted_at.is_(None))
+        .all()
+    ]
+
+    if not event_ids:
+        return []
+
+    regs = (
+        db.query(Registration)
+        .filter(Registration.event_id.in_(event_ids))
+        .order_by(Registration.registered_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    items = []
+    for reg in regs:
+        user = reg.user
+        first = user.first_name or ""
+        last = user.last_name or ""
+        initials = (first[:1] + last[:1]).upper() or "?"
+        name = f"{first[:1]}. {last}" if first and last else (first or last or "Unknown")
+
+        if reg.status == "pending":
+            action = f"requested approval for {reg.event.title}"
+        elif reg.status == "confirmed":
+            action = f"registered for {reg.event.title}"
+        elif reg.status == "cancelled":
+            action = f"cancelled registration for {reg.event.title}"
+        elif reg.status == "rejected":
+            action = f"was rejected from {reg.event.title}"
+        else:
+            action = f"updated registration for {reg.event.title}"
+
+        items.append(ActivityItem(
+            id=reg.id,
+            actor_initials=initials,
+            actor_name=name,
+            action=action,
+            type="registration",
+            created_at=reg.registered_at,
+        ))
+
+    return items
+
+
+def get_organizer_timeline(
+    db: Session, current_user: User, days: int = 90
+) -> list[RegistrationTimelinePoint]:
+    event_ids = [
+        row[0] for row in
+        db.query(Event.id)
+        .filter(Event.owner_id == current_user.id, Event.deleted_at.is_(None))
+        .all()
+    ]
+
+    since = datetime.utcnow() - timedelta(days=days)
+
+    if not event_ids:
+        today = date.today()
+        return [
+            RegistrationTimelinePoint(date=(today - timedelta(days=days - 1 - i)).isoformat(), count=0)
+            for i in range(days)
+        ]
+
+    rows = db.query(
+        func.date(Registration.registered_at).label("day"),
+        func.count(Registration.id).label("count"),
+    ).filter(
+        Registration.event_id.in_(event_ids),
+        Registration.registered_at >= since,
+        Registration.status == "confirmed",
+    ).group_by(func.date(Registration.registered_at)).order_by("day").all()
+
+    day_map = {row.day: row.count for row in rows}
+    today = date.today()
+
+    return [
+        RegistrationTimelinePoint(
+            date=(today - timedelta(days=days - 1 - i)).isoformat(),
+            count=day_map.get(today - timedelta(days=days - 1 - i), 0),
+        )
+        for i in range(days)
+    ]

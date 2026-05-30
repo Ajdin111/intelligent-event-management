@@ -9,6 +9,7 @@ celery_app = Celery(
         "app.tasks.email",
         "app.tasks.notifications",
         "app.tasks.analytics",
+        "app.tasks.ml",
     ],
 )
 
@@ -21,23 +22,35 @@ celery_app.conf.update(
     task_track_started=True,
     task_acks_late=True,
     worker_prefetch_multiplier=1,
+    broker_connection_retry_on_startup=True,
     beat_schedule={
         "cleanup-expired-notifications": {
             "task": "app.tasks.notifications.cleanup_expired_notifications",
-            "schedule": 86400.0,  # every 24 hours
+            "schedule": 86400.0,
         },
-        "send-event-reminders-24h": {
+        "send-event-reminders": {
             "task": "app.tasks.email.send_upcoming_event_reminders",
-            "schedule": 3600.0,  # every hour, checks internally
+            "schedule": 3600.0,
         },
         "compute-platform-analytics-daily": {
-    "task": "app.tasks.analytics.compute_platform_analytics",
-    "schedule": 86400.0,
-},
+            "task": "app.tasks.analytics.compute_platform_analytics",
+            "schedule": 86400.0,
+        },
+        "ml-regenerate-recommendations": {
+            "task": "app.tasks.ml.regenerate_recommendations",
+            "schedule": 21600.0,
+        },
+        "ml-recompute-demand-forecasts": {
+            "task": "app.tasks.ml.recompute_demand_forecasts",
+            "schedule": 86400.0,
+        },
+        "ml-weekly-retrain": {
+            "task": "app.tasks.ml.run_full_retrain",
+            "schedule": 604800.0,
+        },
+        "ml-check-retrain-trigger": {
+            "task": "app.tasks.ml.check_and_retrain_if_needed",
+            "schedule": 86400.0,
+        },
     },
-)
-celery_app.conf.update(
-    broker_connection_retry_on_startup=True,  # add this
-    task_serializer="json",
-    # ... rest of your config
 )

@@ -1,33 +1,43 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from datetime import datetime
 from typing import Optional, Literal, List
+from app.schemas.utils import NaiveDatetime
 
 
 class EventCreateRequest(BaseModel):
     title: str
     description: str
+    cover_image: Optional[str] = None
     location_type: Literal["physical", "online", "hybrid"]
     physical_address: Optional[str] = None
     online_link: Optional[str] = None
-    start_datetime: datetime
-    end_datetime: datetime
+    start_datetime: NaiveDatetime
+    end_datetime: NaiveDatetime
     capacity: Optional[int] = None
     registration_type: Literal["automatic", "manual", "invite_only"] = "automatic"
     requires_registration: bool = True
     has_ticketing: bool = True
     is_free: bool = False
     feedback_visibility: Literal["public", "organizer_only"] = "organizer_only"
-    category_ids: Optional[List[int]] = None
+    category_ids: List[int]
+
+    @field_validator("category_ids")
+    @classmethod
+    def category_ids_not_empty(cls, v: List[int]) -> List[int]:
+        if not v:
+            raise ValueError("At least one category is required.")
+        return v
 
 
 class EventUpdateRequest(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
+    cover_image: Optional[str] = None
     location_type: Optional[Literal["physical", "online", "hybrid"]] = None
     physical_address: Optional[str] = None
     online_link: Optional[str] = None
-    start_datetime: Optional[datetime] = None
-    end_datetime: Optional[datetime] = None
+    start_datetime: Optional[NaiveDatetime] = None
+    end_datetime: Optional[NaiveDatetime] = None
     capacity: Optional[int] = None
     registration_type: Optional[Literal["automatic", "manual", "invite_only"]] = None
     requires_registration: Optional[bool] = None
@@ -51,6 +61,7 @@ class EventResponse(BaseModel):
     owner_id: int
     title: str
     description: str
+    cover_image: Optional[str] = None
     location_type: str
     physical_address: Optional[str] = None
     online_link: Optional[str] = None
@@ -69,3 +80,24 @@ class EventResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class OrganizerStatsResponse(BaseModel):
+    total_events: int
+    total_registrations: int
+    total_revenue: float
+    attendance_rate: float
+
+
+class RegistrationTimelinePoint(BaseModel):
+    date: str
+    count: int
+
+
+class ActivityItem(BaseModel):
+    id: int
+    actor_initials: str
+    actor_name: str
+    action: str
+    type: str
+    created_at: datetime

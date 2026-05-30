@@ -1,27 +1,27 @@
 from pydantic import BaseModel
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional, Literal
+from app.schemas.utils import NaiveDatetime
 
-
-#ticket tiers
 
 class TicketTierCreateRequest(BaseModel):
     name: str
     description: Optional[str] = None
-    price: float = 0.00
+    price: Decimal = Decimal("0.00")
     quantity: int
-    sale_start: datetime
-    sale_end: datetime
+    sale_start: NaiveDatetime
+    sale_end: NaiveDatetime
     is_active: bool = True
 
 
 class TicketTierUpdateRequest(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
-    price: Optional[float] = None
+    price: Optional[Decimal] = None
     quantity: Optional[int] = None
-    sale_start: Optional[datetime] = None
-    sale_end: Optional[datetime] = None
+    sale_start: Optional[NaiveDatetime] = None
+    sale_end: Optional[NaiveDatetime] = None
     is_active: Optional[bool] = None
 
 
@@ -30,7 +30,7 @@ class TicketTierResponse(BaseModel):
     event_id: int
     name: str
     description: Optional[str] = None
-    price: float
+    price: Decimal
     quantity: int
     quantity_sold: int
     quantity_available: int
@@ -49,19 +49,19 @@ class TicketTierResponse(BaseModel):
 class PromoCodeCreateRequest(BaseModel):
     code: str
     discount_type: Literal["percentage", "fixed"]
-    discount_value: float
+    discount_value: Decimal
     max_uses: int
-    valid_from: datetime
-    valid_until: datetime
+    valid_from: NaiveDatetime
+    valid_until: NaiveDatetime
     is_active: bool = True
 
 
 class PromoCodeUpdateRequest(BaseModel):
     discount_type: Optional[Literal["percentage", "fixed"]] = None
-    discount_value: Optional[float] = None
+    discount_value: Optional[Decimal] = None
     max_uses: Optional[int] = None
-    valid_from: Optional[datetime] = None
-    valid_until: Optional[datetime] = None
+    valid_from: Optional[NaiveDatetime] = None
+    valid_until: Optional[NaiveDatetime] = None
     is_active: Optional[bool] = None
 
 
@@ -70,7 +70,7 @@ class PromoCodeResponse(BaseModel):
     event_id: int
     code: str
     discount_type: str
-    discount_value: float
+    discount_value: Decimal
     max_uses: int
     uses_count: int
     valid_from: datetime
@@ -91,6 +91,6 @@ class PromoCodeValidateRequest(BaseModel):
 class PromoCodeValidateResponse(BaseModel):
     is_valid: bool
     discount_type: Optional[str] = None
-    discount_value: Optional[float] = None
-    final_price: Optional[float] = None
+    discount_value: Optional[Decimal] = None
+    final_price: Optional[Decimal] = None
     message: str

@@ -1,13 +1,34 @@
-from fastapi import FastAPI
+import os
+import time
+import logging
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+
 from app.core.config import settings
+from app.core.exceptions import AppError
+from app.core.limiter import limiter
+from app.core.celery_app import celery_app  # noqa: F401 — initializes Celery app for shared_task binding
 from app.api.auth import router as auth_router
 from app.api.event import router as events_router
 from app.api.categories import router as categories_router
 from app.api.agenda import router as agenda_router
 from app.api.ticket import router as ticket_router
 from app.api.registration import router as registration_router
+from app.api.checkin import router as checkin_router
+from app.api.review import router as review_router
+from app.api.notification import router as notification_router
+from app.api.admin import router as admin_router
+from app.api.ml import router as ml_router
+from app.api.collaborator import router as collaborator_router
+from app.api.invite import router as invite_router
+from app.api.uploads import router as uploads_router
+
+logger = logging.getLogger("api")
 
 app = FastAPI(
     title="Intelligent Event Management System",
@@ -16,12 +37,30 @@ app = FastAPI(
     redoc_url="/redoc" if settings.DEBUG else None,
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.exception_handler(AppError)
+async def app_error_handler(request: Request, exc: AppError):
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.message})
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.perf_counter()
+    response = await call_next(request)
+    duration_ms = round((time.perf_counter() - start) * 1000)
+    logger.info("%s %s → %s (%dms)", request.method, request.url.path, response.status_code, duration_ms)
+    return response
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 # routers
@@ -31,6 +70,17 @@ app.include_router(categories_router)
 app.include_router(agenda_router)
 app.include_router(ticket_router)
 app.include_router(registration_router)
+app.include_router(checkin_router)
+app.include_router(review_router)
+app.include_router(notification_router)
+app.include_router(admin_router)
+app.include_router(ml_router)
+app.include_router(collaborator_router)
+app.include_router(invite_router)
+app.include_router(uploads_router)
+
+os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
 
 def custom_openapi():
@@ -58,11 +108,3 @@ def custom_openapi():
 app.openapi = custom_openapi
 
 
-@app.get("/")
-def root():
-    return {"message": "IEM API is running"}
-
-
-@app.get("/health")
-def health():
-    return {"status": "ok", "env": settings.APP_ENV}
