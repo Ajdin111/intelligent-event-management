@@ -8,53 +8,7 @@ import { registrationsApi, eventsApi } from '../services/api'
 // after running: npm install qrcode.react
 
 function QRCode({ value }) {
-  const [failed, setFailed] = useState(false)
-  const src = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(value)}&bgcolor=ffffff&color=000000&margin=4`
-
-  if (failed) {
-    // Offline fallback: decorative SVG that looks like a QR
-    return (
-      <div className="ticket-qr-inner">
-        <svg width="124" height="124" viewBox="0 0 124 124" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect width="124" height="124" fill="white"/>
-          {/* top-left finder */}
-          <rect x="8" y="8" width="36" height="36" fill="black"/>
-          <rect x="13" y="13" width="26" height="26" fill="white"/>
-          <rect x="18" y="18" width="16" height="16" fill="black"/>
-          {/* top-right finder */}
-          <rect x="80" y="8" width="36" height="36" fill="black"/>
-          <rect x="85" y="13" width="26" height="26" fill="white"/>
-          <rect x="90" y="18" width="16" height="16" fill="black"/>
-          {/* bottom-left finder */}
-          <rect x="8" y="80" width="36" height="36" fill="black"/>
-          <rect x="13" y="85" width="26" height="26" fill="white"/>
-          <rect x="18" y="90" width="16" height="16" fill="black"/>
-          {/* timing + data dots */}
-          <rect x="52" y="8" width="6" height="6" fill="black"/>
-          <rect x="52" y="20" width="6" height="6" fill="black"/>
-          <rect x="52" y="32" width="6" height="6" fill="black"/>
-          <rect x="8" y="52" width="6" height="6" fill="black"/>
-          <rect x="20" y="52" width="6" height="6" fill="black"/>
-          <rect x="32" y="52" width="6" height="6" fill="black"/>
-          <rect x="52" y="52" width="6" height="6" fill="black"/>
-          <rect x="64" y="52" width="6" height="6" fill="black"/>
-          <rect x="76" y="52" width="6" height="6" fill="black"/>
-          <rect x="88" y="52" width="6" height="6" fill="black"/>
-          <rect x="100" y="52" width="6" height="6" fill="black"/>
-          <rect x="64" y="64" width="6" height="6" fill="black"/>
-          <rect x="76" y="76" width="6" height="6" fill="black"/>
-          <rect x="88" y="64" width="6" height="6" fill="black"/>
-          <rect x="100" y="76" width="6" height="6" fill="black"/>
-          <rect x="64" y="88" width="6" height="6" fill="black"/>
-          <rect x="88" y="88" width="6" height="6" fill="black"/>
-          <rect x="100" y="64" width="6" height="6" fill="black"/>
-          <rect x="76" y="100" width="6" height="6" fill="black"/>
-          <rect x="64" y="100" width="6" height="6" fill="black"/>
-        </svg>
-      </div>
-    )
-  }
-
+  const src = `http://localhost:8000/api/tickets/qr/${encodeURIComponent(value)}?size=140`
   return (
     <div className="ticket-qr-inner">
       <img
@@ -63,7 +17,6 @@ function QRCode({ value }) {
         width={124}
         height={124}
         style={{ display: 'block', imageRendering: 'pixelated' }}
-        onError={() => setFailed(true)}
       />
     </div>
   )
@@ -146,22 +99,21 @@ function TicketCard({ ticket, registration, event, index }) {
   const timeStr  = formatTimeRange(event?.start_datetime, event?.end_datetime)
   const title    = event?.title ?? `Event #${ticket.event_id}`
 
- const handleDownload = async () => {
-  try {
-    const url = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(ticket.qr_code)}&bgcolor=ffffff&color=000000&margin=10`
-    const response = await fetch(url)
-    const blob = await response.blob()
-    const objectUrl = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = objectUrl
-    a.download = `ticket-${ticket.id}.png`
-    a.click()
-    URL.revokeObjectURL(objectUrl)
-  } catch {
-    // fallback if fetch fails
-    window.open(`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(ticket.qr_code)}`, '_blank')
+  const handleDownload = async () => {
+    const url = `http://localhost:8000/api/tickets/qr/${encodeURIComponent(ticket.qr_code)}?size=400`
+    try {
+      const response = await fetch(url)
+      const blob = await response.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = objectUrl
+      a.download = `ticket-${ticket.id}.png`
+      a.click()
+      URL.revokeObjectURL(objectUrl)
+    } catch {
+      window.open(url, '_blank')
+    }
   }
-}
 
   return (
     <div className={`ticket-card${!ticket.is_valid ? ' ticket-card--invalid' : ''}`}>

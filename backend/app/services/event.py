@@ -163,6 +163,7 @@ def publish_event(db: Session, event_id: int, current_user: User) -> Event:
         raise BadRequestError("Only draft events can be published")
 
     event.status = EVENT_STATUS_PUBLISHED
+    event.published_at = datetime.utcnow()
     db.commit()
     db.refresh(event)
     return event

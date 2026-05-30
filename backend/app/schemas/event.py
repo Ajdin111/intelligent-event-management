@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from datetime import datetime
 from typing import Optional, Literal, List
 from app.schemas.utils import NaiveDatetime
@@ -19,7 +19,14 @@ class EventCreateRequest(BaseModel):
     has_ticketing: bool = True
     is_free: bool = False
     feedback_visibility: Literal["public", "organizer_only"] = "organizer_only"
-    category_ids: Optional[List[int]] = None
+    category_ids: List[int]
+
+    @field_validator("category_ids")
+    @classmethod
+    def category_ids_not_empty(cls, v: List[int]) -> List[int]:
+        if not v:
+            raise ValueError("At least one category is required.")
+        return v
 
 
 class EventUpdateRequest(BaseModel):

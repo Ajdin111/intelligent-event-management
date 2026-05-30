@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { eventsApi, organizerApi, categoriesApi, collaboratorApi, inviteApi, API_BASE_URL } from '../../services/api'
+import { eventsApi, organizerApi, categoriesApi, mlApi, collaboratorApi, inviteApi, API_BASE_URL } from '../../services/api'
 import api from '../../services/api'
 
 // ── Icons ────────────────────────────────────────────────────────────────────
@@ -185,6 +185,15 @@ function OverviewTab({ event, registrations, onActionDone }) {
   const [publishing, setPublishing] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [flash, setFlash] = useState(null)
+  const [demandForecast, setDemandForecast] = useState(null)
+  const [sentiment, setSentiment] = useState(null)
+
+  useEffect(() => {
+    setDemandForecast(null)
+    setSentiment(null)
+    mlApi.demand(event.id).then(r => setDemandForecast(r.data)).catch(() => {})
+    mlApi.sentiment(event.id).then(r => setSentiment(r.data)).catch(() => {})
+  }, [event.id])
 
   const confirmed  = registrations.filter(r => r.status === 'confirmed').length
   const pending    = registrations.filter(r => r.status === 'pending').length
@@ -253,6 +262,58 @@ function OverviewTab({ event, registrations, onActionDone }) {
           <span className="me-stat-sub">Cancelled or rejected</span>
         </div>
       </div>
+
+      {/* AI insights */}
+      {(demandForecast || sentiment) && (
+        <div className="me-details-card">
+          <div className="me-details-head">
+            <h3 className="me-details-title">
+              AI insights
+              <span className="oa-ai-badge" style={{ marginLeft: 8 }}>AI</span>
+            </h3>
+          </div>
+          <div className="me-details-grid">
+            {demandForecast && (
+              <>
+                <div className="me-detail-row">
+                  <span className="me-detail-label">Predicted demand</span>
+                  <span className="me-detail-val">{Math.round(demandForecast.predicted_demand)} registrations</span>
+                </div>
+                <div className="me-detail-row">
+                  <span className="me-detail-label">Confidence</span>
+                  <span className="me-detail-val">{Number(demandForecast.confidence_score ?? 0).toFixed(1)}%</span>
+                </div>
+                {demandForecast.price_action && demandForecast.price_action !== 'none' && (
+                  <div className="me-detail-row">
+                    <span className="me-detail-label">Price recommendation</span>
+                    <span className="me-detail-val" style={{ textTransform: 'capitalize' }}>
+                      {demandForecast.price_action.replace('_', ' ')}
+                      {demandForecast.price_suggestion != null ? ` → $${demandForecast.price_suggestion}` : ''}
+                    </span>
+                  </div>
+                )}
+                {demandForecast.predicted_sellout_date && (
+                  <div className="me-detail-row">
+                    <span className="me-detail-label">Predicted sellout</span>
+                    <span className="me-detail-val">{formatDate(demandForecast.predicted_sellout_date)}</span>
+                  </div>
+                )}
+              </>
+            )}
+            {sentiment && sentiment.total_reviews > 0 && (
+              <div className="me-detail-row me-detail-row--full">
+                <span className="me-detail-label">Review sentiment</span>
+                <span className="me-detail-val" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span style={{ color: '#4ade80' }}>▲ {Math.round(sentiment.positive_pct * 100)}% positive</span>
+                  <span style={{ color: 'rgba(255,255,255,0.4)' }}>● {Math.round(sentiment.neutral_pct * 100)}% neutral</span>
+                  <span style={{ color: '#f87171' }}>▼ {Math.round(sentiment.negative_pct * 100)}% negative</span>
+                  <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>({sentiment.total_reviews} reviews)</span>
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* event details */}
       <div className="me-details-card">
@@ -357,6 +418,7 @@ function EditTab({ event, categories, onSaved }) {
 
   const handleSave = async () => {
     if (!form.title.trim()) { showFlash('Title is required.', 'error'); return }
+    if (form.category_ids.length === 0) { showFlash('Category is required.', 'error'); return }
     if (!form.date || !form.start_time) { showFlash('Start date and time are required.', 'error'); return }
     if (!form.end_date || !form.end_time) { showFlash('End date and time are required.', 'error'); return }
 
@@ -412,7 +474,7 @@ function EditTab({ event, categories, onSaved }) {
               value={form.category_ids[0] || ''}
               onChange={e => set('category_ids', e.target.value ? [parseInt(e.target.value)] : [])}
             >
-              <option value="">No category</option>
+              <option value="">Select category…</option>
               {categories.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}

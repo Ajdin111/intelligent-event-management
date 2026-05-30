@@ -23,10 +23,10 @@ from app.api.checkin import router as checkin_router
 from app.api.review import router as review_router
 from app.api.notification import router as notification_router
 from app.api.admin import router as admin_router
+from app.api.ml import router as ml_router
 from app.api.collaborator import router as collaborator_router
 from app.api.invite import router as invite_router
 from app.api.uploads import router as uploads_router
-
 
 logger = logging.getLogger("api")
 
@@ -74,6 +74,7 @@ app.include_router(checkin_router)
 app.include_router(review_router)
 app.include_router(notification_router)
 app.include_router(admin_router)
+app.include_router(ml_router)
 app.include_router(collaborator_router)
 app.include_router(invite_router)
 app.include_router(uploads_router)

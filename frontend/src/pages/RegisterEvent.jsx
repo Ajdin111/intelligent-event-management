@@ -249,7 +249,7 @@ export default function RegisterEvent() {
 
   return (
     <div className="reg-wrap">
-      <button className="ed-back" onClick={() => navigate(`/events/${id}`)}>
+      <button className="ed-back" onClick={() => navigate(`/events/${id}`, { state: { from: state?.from } })}>
         <IcoBack /> Back to event
       </button>
 
