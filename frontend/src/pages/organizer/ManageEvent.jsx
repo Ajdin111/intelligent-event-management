@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { eventsApi, organizerApi, categoriesApi, mlApi, collaboratorApi, inviteApi } from '../../services/api'
+import { eventsApi, organizerApi, categoriesApi, mlApi, collaboratorApi, inviteApi, API_BASE_URL } from '../../services/api'
 import api from '../../services/api'
 
 // ── Icons ────────────────────────────────────────────────────────────────────
@@ -159,7 +159,10 @@ function EventListItem({ event, selected, onClick }) {
     >
       <div className="me-event-list-item-left">
         <div className="me-event-list-thumb">
-          <span>{(event.title || 'E').slice(0, 3).toUpperCase()}</span>
+          {event.cover_image
+            ? <img src={`${API_BASE_URL}${event.cover_image}`} alt="" onError={e => { e.currentTarget.style.display = 'none' }} />
+            : <span>{(event.title || 'E').slice(0, 3).toUpperCase()}</span>
+          }
         </div>
         <div className="me-event-list-info">
           <p className="me-event-list-title">{event.title}</p>
@@ -1188,7 +1191,10 @@ const handleActionDone = () => {
             <div className="me-event-header">
               <div className="me-event-header-left">
                 <div className="me-event-header-thumb">
-                  <span>{(selectedEvent.title || 'E').slice(0, 3).toUpperCase()}</span>
+                  {selectedEvent.cover_image
+                    ? <img src={`${API_BASE_URL}${selectedEvent.cover_image}`} alt="" onError={e => { e.currentTarget.style.display = 'none' }} />
+                    : <span>{(selectedEvent.title || 'E').slice(0, 3).toUpperCase()}</span>
+                  }
                 </div>
                 <div>
                   <div className="me-event-header-top">

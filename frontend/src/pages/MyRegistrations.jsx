@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { registrationsApi, eventsApi, ticketTiersApi, categoriesApi } from '../services/api'
+import { registrationsApi, eventsApi, ticketTiersApi, categoriesApi, API_BASE_URL } from '../services/api'
 
 // ── icons ──────────────────────────────────────────────────────────────────
 
@@ -322,7 +322,10 @@ export default function MyRegistrations() {
                       <td className="myreg-td-event">
                         <div className="myreg-event-cell">
                           <div className="myreg-cat-thumb" aria-hidden="true">
-                            <span>{getCategoryLabel(event, categoryMap)}</span>
+                            {event?.cover_image
+                              ? <img src={`${API_BASE_URL}${event.cover_image}`} alt="" onError={e => { e.currentTarget.style.display = 'none' }} />
+                              : <span>{getCategoryLabel(event, categoryMap)}</span>
+                            }
                           </div>
                           <div className="myreg-event-info">
                             <p className="myreg-event-name">{event?.title ?? `Event #${reg.event_id}`}</p>

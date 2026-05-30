@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { eventsApi, ticketTiersApi, reviewsApi, agendaApi, categoriesApi } from '../services/api'
+import { eventsApi, ticketTiersApi, reviewsApi, agendaApi, categoriesApi, API_BASE_URL } from '../services/api'
 import NotFound from './NotFound'
 
 // Per-event cover images — themed to each event's spirit
@@ -193,6 +193,7 @@ export default function EventDetail() {
             : 'TBD',
           time: t0 && t1 ? `${t0} – ${t1}` : t0 || 'TBD',
           tiers: fake?.tiers || [],
+          cover_image: real.cover_image || null,
         })
 
         setRealTiers(tiersRes.data)
@@ -231,7 +232,9 @@ export default function EventDetail() {
   if (loading) return <div className="ed-state">Loading…</div>
   if (!event)  return <NotFound />
 
-  const cover = COVERS[Number(id)] || DEFAULT_COVER
+  const cover = event.cover_image
+    ? `${API_BASE_URL}${event.cover_image}`
+    : COVERS[Number(id)] || DEFAULT_COVER
 
   // Prefer real tiers from API; only fall back to FAKE tiers for paid events without real tiers
   const isFreeEvent = realEventData?.is_free ?? false

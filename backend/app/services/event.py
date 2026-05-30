@@ -45,6 +45,7 @@ def create_event(db: Session, data: EventCreateRequest, current_user: User) -> E
         owner_id=current_user.id,
         title=data.title,
         description=data.description,
+        cover_image=data.cover_image,
         location_type=data.location_type,
         physical_address=data.physical_address,
         online_link=data.online_link,

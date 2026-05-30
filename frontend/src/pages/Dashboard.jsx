@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import EventCard from '../components/EventCard'
 import { useAuth } from '../context/AuthContext'
-import { mlApi, eventsApi, registrationsApi, categoriesApi } from '../services/api'
+import { mlApi, eventsApi, registrationsApi, categoriesApi, API_BASE_URL } from '../services/api'
 
 function getGreeting() {
   const hour = new Date().getHours()
@@ -31,7 +31,9 @@ function toCardShape(event, opts = {}) {
     ticketTier:   event.is_free ? 'Free' : 'Paid',
     spotsLeft:    event.capacity ?? '—',
     category:     opts.categoryMap?.get(event.category_ids?.[0]) ?? null,
-    image:        event.cover_image || `https://picsum.photos/seed/${event.id}/600/340`,
+    image:        event.cover_image
+                    ? `${API_BASE_URL}${event.cover_image}`
+                    : `https://picsum.photos/seed/${event.id}/600/340`,
   }
 }
 

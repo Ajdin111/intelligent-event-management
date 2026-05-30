@@ -7,6 +7,7 @@ from app.schemas.utils import NaiveDatetime
 class EventCreateRequest(BaseModel):
     title: str
     description: str
+    cover_image: Optional[str] = None
     location_type: Literal["physical", "online", "hybrid"]
     physical_address: Optional[str] = None
     online_link: Optional[str] = None
@@ -31,6 +32,7 @@ class EventCreateRequest(BaseModel):
 class EventUpdateRequest(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
+    cover_image: Optional[str] = None
     location_type: Optional[Literal["physical", "online", "hybrid"]] = None
     physical_address: Optional[str] = None
     online_link: Optional[str] = None
@@ -59,6 +61,7 @@ class EventResponse(BaseModel):
     owner_id: int
     title: str
     description: str
+    cover_image: Optional[str] = None
     location_type: str
     physical_address: Optional[str] = None
     online_link: Optional[str] = None

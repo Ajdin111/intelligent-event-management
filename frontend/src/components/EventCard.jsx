@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 const IconCalendar = () => (
   <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.4">
     <rect x="0.5" y="2" width="12" height="10.5" rx="1.3" />
@@ -23,13 +25,17 @@ const IconPeople = () => (
   </svg>
 )
 
-import { Link } from 'react-router-dom'
-
 export default function EventCard({ event, from }) {
   return (
     <Link to={`/events/${event.id}`} state={from ? { from } : undefined} className="event-card" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
       <div className="event-card-img-wrap">
-        <img src={event.image} alt={event.title} />
+        {event.image && (
+          <img
+            src={event.image}
+            alt={event.title}
+            onError={e => { e.currentTarget.style.display = 'none' }}
+          />
+        )}
         {event.category && (
           <span className="recommended-badge">{event.category}</span>
         )}

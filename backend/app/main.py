@@ -1,9 +1,11 @@
+import os
 import time
 import logging
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -24,6 +26,7 @@ from app.api.admin import router as admin_router
 from app.api.ml import router as ml_router
 from app.api.collaborator import router as collaborator_router
 from app.api.invite import router as invite_router
+from app.api.uploads import router as uploads_router
 
 logger = logging.getLogger("api")
 
@@ -74,6 +77,10 @@ app.include_router(admin_router)
 app.include_router(ml_router)
 app.include_router(collaborator_router)
 app.include_router(invite_router)
+app.include_router(uploads_router)
+
+os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
 
 def custom_openapi():

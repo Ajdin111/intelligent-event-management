@@ -1503,6 +1503,14 @@ body {
   justify-content: center;
 }
 
+.discover-card-cover-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .discover-card-category {
   position: absolute;
   top: 10px;
@@ -1510,9 +1518,11 @@ body {
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.3px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  color: var(--text);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
   border-radius: var(--radius-sm);
   padding: 3px 9px;
 }
@@ -1523,7 +1533,13 @@ body {
   right: 10px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-sub);
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  padding: 3px 9px;
 }
 
 .discover-card-code {
@@ -4201,6 +4217,15 @@ select.form-input option {
   justify-content: center;
   flex-shrink: 0;
   overflow: hidden;
+  position: relative;
+}
+
+.myreg-cat-thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .myreg-cat-thumb span {
@@ -5642,6 +5667,85 @@ select.form-input {
   color: var(--text-muted);
 }
 
+/* ── Cover image upload zone ─────────────────────────────────────────── */
+.cover-upload-zone {
+  position: relative;
+  width: 100%;
+  height: 180px;
+  border: 1.5px dashed var(--border-med);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.03);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.cover-upload-zone:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.cover-upload-zone.has-image {
+  border-style: solid;
+  border-color: var(--border);
+  cursor: default;
+}
+
+.cover-upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-sub);
+  font-size: 13px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.cover-upload-icon {
+  font-size: 22px;
+  line-height: 1;
+  color: var(--text-muted);
+}
+
+.cover-upload-preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cover-upload-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(26, 31, 34, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--text-sub);
+  pointer-events: none;
+}
+
+.cover-remove-btn {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+}
+
+.cover-remove-btn:hover {
+  color: var(--text-sub);
+}
+
 /* ── Warning banner (above tier list) ───────────────────────────────── */
 .ce-warn-banner {
   padding: 10px 14px;
@@ -5850,6 +5954,16 @@ select.form-input {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.me-event-list-thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .me-event-list-thumb span {
@@ -5920,6 +6034,16 @@ select.form-input {
   justify-content: center;
   flex-shrink: 0;
   margin-top: 2px;
+  position: relative;
+  overflow: hidden;
+}
+
+.me-event-header-thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .me-event-header-thumb span {
