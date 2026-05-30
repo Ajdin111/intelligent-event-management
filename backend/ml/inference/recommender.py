@@ -224,7 +224,7 @@ def recommend(
     ranked_indices = np.argsort(final_scores)[::-1]
 
     results    = []
-    expires_at = datetime.now() + timedelta(hours=RECOMMENDATION_TTL_HOURS)
+    expires_at = datetime.utcnow() + timedelta(hours=RECOMMENDATION_TTL_HOURS)
 
     for idx in ranked_indices:
         if len(results) >= top_n:
@@ -272,7 +272,7 @@ def recommend_for_new_user(
     popularity_scores  = _popularity_scores()
     category_event_map = _artifacts["category_event_map"]
     idx_to_event_id    = _artifacts["idx_to_event_id"]
-    expires_at         = datetime.now() + timedelta(hours=RECOMMENDATION_TTL_HOURS)
+    expires_at         = datetime.utcnow() + timedelta(hours=RECOMMENDATION_TTL_HOURS)
 
     if preferred_categories:
         candidate_indices = []

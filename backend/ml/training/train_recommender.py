@@ -267,7 +267,7 @@ def train() -> dict:
     logger.info(f"  Coverage: {coverage:.2%}")
 
     # ── Save artifacts ──
-    version = datetime.now().strftime("%Y%m%d_%H%M%S")
+    version = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
 
     artifacts = {
         "content_similarity":    content_similarity,
@@ -285,7 +285,7 @@ def train() -> dict:
 
     metadata = {
         "version":           version,
-        "trained_at":        datetime.now().isoformat(),
+        "trained_at":        datetime.utcnow().isoformat(),
         "n_events":          len(events),
         "n_users":           len(users),
         "n_registrations":   len(registrations),

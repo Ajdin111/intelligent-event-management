@@ -2,7 +2,7 @@ import pytest
 import json as json_lib
 from tests.conftest import (
     make_user, make_organizer, make_admin,
-    make_event, make_ticket_tier, make_registration, auth_headers
+    make_event, make_ticket_tier, make_registration, make_category, auth_headers
 )
 from app.models.notification import Notification
 
@@ -142,6 +142,9 @@ def test_organizer_full_flow(client, db):
     resp = client.post("/api/auth/upgrade-to-organizer", headers=org_headers)
     assert resp.status_code == 200
 
+    # 3b. Create a category to attach
+    cat = make_category(db, name="Technology")
+
     # 4. Create event as draft
     resp = client.post("/api/events", json={
         "title": "Integration Summit",
@@ -155,6 +158,7 @@ def test_organizer_full_flow(client, db):
         "has_ticketing": True,
         "is_free": False,
         "feedback_visibility": "organizer_only",
+        "category_ids": [cat.id],
     }, headers=org_headers)
     assert resp.status_code == 201
     event_id = resp.json()["id"]

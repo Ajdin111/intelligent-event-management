@@ -15,7 +15,7 @@ class MLDemandForecastResponse(BaseModel):
     predicted_demand: int
     predicted_sellout_date: Optional[datetime] = None
     confidence_score: Optional[Decimal] = None
-    price_action: Optional[Literal["increase", "decrease", "optimal"]] = None
+    price_action: Optional[Literal["increase", "optimal"]] = None
     price_suggestion: Optional[Decimal] = None
     model_version: Optional[str] = None
     generated_at: datetime
@@ -26,7 +26,7 @@ class PriceSuggestionResponse(BaseModel):
 
     event_id: int
     current_price: Optional[Decimal] = None
-    price_action: Optional[Literal["increase", "decrease", "optimal"]] = None
+    price_action: Optional[Literal["increase", "optimal"]] = None
     price_suggestion: Optional[Decimal] = None
     fill_rate_prediction: Optional[float] = None
     generated_at: Optional[datetime] = None

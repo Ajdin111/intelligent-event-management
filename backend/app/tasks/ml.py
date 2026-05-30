@@ -47,7 +47,8 @@ def regenerate_recommendations():
             ).all()
 
             now = datetime.utcnow()
-            expires_at = now + timedelta(hours=6)
+            expires_at = now + timedelta(hours=rec_inf.RECOMMENDATION_TTL_HOURS)
+            model_version = rec_inf.get_model_version()
 
             for user in users:
                 try:
@@ -56,7 +57,7 @@ def regenerate_recommendations():
                     logger.warning(
                         "Recommender model missing — skipping recommendations"
                     )
-                    return
+                    continue
                 except Exception as exc:
                     logger.error(
                         "Recommendation error for user %d: %s", user.id, exc
@@ -72,6 +73,7 @@ def regenerate_recommendations():
                     if existing:
                         existing.score = rec["score"]
                         existing.reason = rec.get("reason")
+                        existing.model_version = model_version
                         existing.generated_at = now
                         existing.expires_at = expires_at
                     else:
@@ -80,6 +82,7 @@ def regenerate_recommendations():
                             event_id=rec["event_id"],
                             score=rec["score"],
                             reason=rec.get("reason"),
+                            model_version=model_version,
                             generated_at=now,
                             expires_at=expires_at,
                         ))
@@ -147,9 +150,11 @@ def recompute_demand_forecasts():
                         registration_type=event.registration_type,
                         has_ticketing=event.has_ticketing,
                         current_registrations=current_regs,
-                        published_at=event.created_at,
+                        published_at=event.published_at or event.created_at,
                         current_price=base_price,
                     )
+
+                    model_version = demand_inf.get_model_version()
 
                     existing = db.query(MLDemandForecast).filter(
                         MLDemandForecast.event_id == event.id
@@ -161,6 +166,7 @@ def recompute_demand_forecasts():
                         existing.predicted_sellout_date = result["predicted_sellout_date"]
                         existing.price_action = result["price_action"]
                         existing.price_suggestion = result["price_suggestion"]
+                        existing.model_version = model_version
                         existing.generated_at = now
                     else:
                         db.add(MLDemandForecast(
@@ -170,20 +176,21 @@ def recompute_demand_forecasts():
                             predicted_sellout_date=result["predicted_sellout_date"],
                             price_action=result["price_action"],
                             price_suggestion=result["price_suggestion"],
+                            model_version=model_version,
                             generated_at=now,
                         ))
-
-                    db.commit()
 
                 except FileNotFoundError:
                     logger.warning(
                         "Demand model missing — skipping forecast for event %d", event.id
                     )
-                    return
+                    continue
                 except Exception as exc:
                     logger.error(
                         "Demand forecast error for event %d: %s", event.id, exc
                     )
+
+            db.commit()
 
     except Exception as exc:
         logger.error("recompute_demand_forecasts error: %s", exc)

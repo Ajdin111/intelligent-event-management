@@ -9,6 +9,7 @@ from tests.conftest import (
 
 def test_create_event_as_organizer(client, db):
     org = make_organizer(db)
+    cat = make_category(db)
     resp = client.post("/api/events", json={
         "title": "My Conference",
         "description": "A great event",
@@ -20,6 +21,7 @@ def test_create_event_as_organizer(client, db):
         "requires_registration": True,
         "has_ticketing": True,
         "is_free": True,
+        "category_ids": [cat.id],
     }, headers=auth_headers(org))
     assert resp.status_code == 201
     data = resp.json()
@@ -43,6 +45,7 @@ def test_create_event_as_attendee(client, db):
 
 def test_create_event_end_before_start(client, db):
     org = make_organizer(db)
+    cat = make_category(db)
     resp = client.post("/api/events", json={
         "title": "Bad Dates",
         "description": "desc",
@@ -50,24 +53,28 @@ def test_create_event_end_before_start(client, db):
         "physical_address": "Addr",
         "start_datetime": "2025-12-01T17:00:00",
         "end_datetime": "2025-12-01T09:00:00",  # before start
+        "category_ids": [cat.id],
     }, headers=auth_headers(org))
     assert resp.status_code == 400
 
 
 def test_create_online_event_without_link(client, db):
     org = make_organizer(db)
+    cat = make_category(db)
     resp = client.post("/api/events", json={
         "title": "Online Event",
         "description": "desc",
         "location_type": "online",
         "start_datetime": "2025-12-01T09:00:00",
         "end_datetime": "2025-12-01T17:00:00",
+        "category_ids": [cat.id],
     }, headers=auth_headers(org))
     assert resp.status_code == 400
 
 
 def test_create_online_event_with_link(client, db):
     org = make_organizer(db)
+    cat = make_category(db)
     resp = client.post("/api/events", json={
         "title": "Online Event",
         "description": "desc",
@@ -75,6 +82,7 @@ def test_create_online_event_with_link(client, db):
         "online_link": "https://zoom.us/j/123",
         "start_datetime": "2025-12-01T09:00:00",
         "end_datetime": "2025-12-01T17:00:00",
+        "category_ids": [cat.id],
     }, headers=auth_headers(org))
     assert resp.status_code == 201
 

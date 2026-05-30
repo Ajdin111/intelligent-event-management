@@ -245,10 +245,10 @@ def train() -> dict:
         logger.warning("\nSome sanity checks failed — review training data quality.")
 
     # ── Save ──
-    version  = datetime.now().strftime("%Y%m%d_%H%M%S")
+    version  = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     metadata = {
         "version":            version,
-        "trained_at":         datetime.now().isoformat(),
+        "trained_at":         datetime.utcnow().isoformat(),
         "n_samples":          len(texts),
         "class_distribution": dict(dist),
         "cv_accuracy_mean":   float(cv_accuracy.mean()),
