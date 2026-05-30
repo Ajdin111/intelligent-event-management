@@ -77,7 +77,7 @@ def extract_features(
     loc_encoder: LabelEncoder,
     reg_encoder: LabelEncoder,
 ) -> list:
-    now = datetime.now()
+    now = datetime.utcnow()
 
     days_until_event = max(0, (event.start_datetime - now).days)
     day_of_week      = event.start_datetime.weekday()
@@ -139,7 +139,7 @@ def load_training_data(
     """
     db = SessionLocal()
     try:
-        now = datetime.now()
+        now = datetime.utcnow()
 
         # Only use past events with known outcomes
         past_events = (
@@ -302,10 +302,10 @@ def train() -> dict:
         logger.info(f"  {FEATURE_NAMES[i]:30s}: {importances[i]:.4f}")
 
     # ── Save ──
-    version  = datetime.now().strftime("%Y%m%d_%H%M%S")
+    version  = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     metadata = {
         "version":        version,
-        "trained_at":     datetime.now().isoformat(),
+        "trained_at":     datetime.utcnow().isoformat(),
         "n_samples":      len(X),
         "target_mean":    float(y.mean()),
         "target_median":  float(np.median(y)),

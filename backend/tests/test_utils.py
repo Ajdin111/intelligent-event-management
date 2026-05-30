@@ -107,10 +107,11 @@ def test_paginated_response_serialization():
 
 def test_event_datetime_stored_without_timezone(client, db):
     """Sending a tz-aware datetime in the API request stores a naive datetime."""
-    from tests.conftest import make_organizer, auth_headers
+    from tests.conftest import make_organizer, make_category, auth_headers
     from app.models.event import Event
 
     org = make_organizer(db)
+    cat = make_category(db)
     resp = client.post("/api/events", json={
         "title": "TZ Test",
         "description": "Testing tz stripping",
@@ -118,6 +119,7 @@ def test_event_datetime_stored_without_timezone(client, db):
         "physical_address": "123 St",
         "start_datetime": "2025-12-01T09:00:00+02:00",  # +2 hours offset
         "end_datetime": "2025-12-01T17:00:00+02:00",
+        "category_ids": [cat.id],
     }, headers=auth_headers(org))
     assert resp.status_code == 201
     event_id = resp.json()["id"]

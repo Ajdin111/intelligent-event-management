@@ -9,6 +9,7 @@ celery_app = Celery(
         "app.tasks.email",
         "app.tasks.notifications",
         "app.tasks.analytics",
+        "app.tasks.ml",
     ],
 )
 
@@ -33,6 +34,22 @@ celery_app.conf.update(
         },
         "compute-platform-analytics-daily": {
             "task": "app.tasks.analytics.compute_platform_analytics",
+            "schedule": 86400.0,
+        },
+        "ml-regenerate-recommendations": {
+            "task": "app.tasks.ml.regenerate_recommendations",
+            "schedule": 21600.0,
+        },
+        "ml-recompute-demand-forecasts": {
+            "task": "app.tasks.ml.recompute_demand_forecasts",
+            "schedule": 86400.0,
+        },
+        "ml-weekly-retrain": {
+            "task": "app.tasks.ml.run_full_retrain",
+            "schedule": 604800.0,
+        },
+        "ml-check-retrain-trigger": {
+            "task": "app.tasks.ml.check_and_retrain_if_needed",
             "schedule": 86400.0,
         },
     },

@@ -41,6 +41,11 @@ def create_or_update_review(
         existing.updated_at = datetime.utcnow()
         db.commit()
         db.refresh(existing)
+        try:
+            from app.tasks.ml import run_sentiment_analysis
+            run_sentiment_analysis.delay(existing.id)
+        except Exception:
+            pass  # never block a review submission because ML is unavailable
         if existing.is_anonymous:
             existing.user_id = None
         return existing
@@ -56,6 +61,11 @@ def create_or_update_review(
     db.add(review)
     db.commit()
     db.refresh(review)
+    try:
+        from app.tasks.ml import run_sentiment_analysis
+        run_sentiment_analysis.delay(review.id)
+    except Exception:
+        pass  # never block a review submission because ML is unavailable
 
     if review.is_anonymous:
         review.user_id = None

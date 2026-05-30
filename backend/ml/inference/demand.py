@@ -29,9 +29,7 @@ DEMAND_METADATA_PATH = MODELS_DIR / "demand_metadata.pkl"
 # ─── Price recommendation thresholds ─────────────────────────────────────────
 
 HIGH_DEMAND_THRESHOLD = 0.90   # fill rate above this → suggest price increase
-LOW_DEMAND_THRESHOLD  = 0.40   # fill rate below this → suggest price decrease
 PRICE_INCREASE_FACTOR = 1.15   # +15%
-PRICE_DECREASE_FACTOR = 0.85   # -15%
 
 # ─── Model Cache ──────────────────────────────────────────────────────────────
 
@@ -79,7 +77,7 @@ def _build_feature_vector(
     """Build and scale the feature vector for inference."""
     _load_artifacts()
 
-    now              = datetime.now()
+    now              = datetime.utcnow()
     days_until_event = max(0, (start_datetime - now).days)
     day_of_week      = start_datetime.weekday()
     month            = start_datetime.month
@@ -131,7 +129,7 @@ def _compute_price_recommendation(
 
     Returns:
         (price_action, price_suggestion)
-        price_action: 'increase' | 'decrease' | 'optimal'
+        price_action: 'increase' | 'optimal'
         price_suggestion: suggested price as Decimal
     """
     if capacity <= 0 or current_price <= 0:
@@ -142,14 +140,11 @@ def _compute_price_recommendation(
     fill_rate = predicted_demand / capacity
 
     if fill_rate >= HIGH_DEMAND_THRESHOLD:
-        action     = "increase"
-        new_price  = current_price * PRICE_INCREASE_FACTOR
-    elif fill_rate <= LOW_DEMAND_THRESHOLD:
-        action     = "decrease"
-        new_price  = current_price * PRICE_DECREASE_FACTOR
+        action    = "increase"
+        new_price = current_price * PRICE_INCREASE_FACTOR
     else:
-        action     = "optimal"
-        new_price  = current_price
+        action    = "optimal"
+        new_price = current_price
 
     suggestion = Decimal(str(round(new_price, 2))).quantize(
         Decimal("0.01"), rounding=ROUND_HALF_UP
@@ -174,7 +169,7 @@ def _compute_sellout_date(
     if predicted_demand < capacity:
         return None
 
-    now              = datetime.now()
+    now              = datetime.utcnow()
     days_since_open  = max(1, (now - published_at).days)
     velocity         = current_registrations / days_since_open  # regs per day
 
@@ -239,11 +234,10 @@ def predict(
 
     fill_rate = predicted_demand / capacity if capacity > 0 else 0.0
 
-    # Confidence: based on how close fill rate is to boundaries
-    # Higher confidence when prediction is clearly high or low
-    confidence = min(100.0, round(
-        50.0 + abs(fill_rate - 0.5) * 100.0, 1
-    ))
+    # Confidence: based on how extreme the fill rate is (clamped to 1.0 so
+    # over-capacity predictions don't falsely read as 100% confident)
+    clamped_fill_rate = min(fill_rate, 1.0)
+    confidence = round(50.0 + abs(clamped_fill_rate - 0.5) * 90.0, 1)
 
     # Price recommendation
     effective_price = current_price if current_price is not None else base_price

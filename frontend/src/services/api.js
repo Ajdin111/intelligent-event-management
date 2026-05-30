@@ -99,6 +99,12 @@ export const organizerApi = {
     api.get('/api/events/my-activity', { params: { limit } }),
 }
 
+export const mlApi = {
+  recommendations: () => api.get('/api/ml/recommendations'),
+  demand:          (eventId) => api.get(`/api/ml/demand/${eventId}`),
+  sentiment:       (eventId) => api.get(`/api/ml/sentiment/${eventId}`),
+}
+
 export const adminApi = {
   analytics: ()                  => api.get('/api/admin/analytics'),
   listUsers: (params = {})       => api.get('/api/admin/users', { params }),
