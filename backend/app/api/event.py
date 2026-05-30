@@ -4,7 +4,13 @@ from typing import Optional
 
 from app.core.dependencies import get_db, get_current_user, require_organizer, get_optional_user
 from app.models.user import User
-from app.schemas.event import EventCreateRequest, EventUpdateRequest, EventResponse
+from app.schemas.event import (
+    EventCreateRequest,
+    EventUpdateRequest,
+    EventResponse,
+    OrganizerStatsResponse,
+    RegistrationTimelinePoint,
+)
 from app.schemas.utils import PaginatedResponse
 from app.services.event import (
     create_event,
@@ -15,6 +21,8 @@ from app.services.event import (
     delete_event,
     publish_event,
     cancel_event,
+    get_organizer_stats,
+    get_organizer_timeline,
 )
 
 router = APIRouter(prefix="/api/events", tags=["events"])
@@ -44,6 +52,23 @@ def my_events(
     db: Session = Depends(get_db),
 ):
     return get_my_events(db, current_user)
+
+
+@router.get("/my-stats", response_model=OrganizerStatsResponse)
+def my_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return get_organizer_stats(db, current_user)
+
+
+@router.get("/my-registrations-timeline", response_model=list[RegistrationTimelinePoint])
+def my_registrations_timeline(
+    days: int = Query(90, ge=7, le=365),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return get_organizer_timeline(db, current_user, days)
 
 
 @router.get("/{event_id}", response_model=EventResponse)
