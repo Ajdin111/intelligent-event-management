@@ -82,3 +82,12 @@ class OrganizerStatsResponse(BaseModel):
 class RegistrationTimelinePoint(BaseModel):
     date: str
     count: int
+
+
+class ActivityItem(BaseModel):
+    id: int
+    actor_initials: str
+    actor_name: str
+    action: str
+    type: str
+    created_at: datetime

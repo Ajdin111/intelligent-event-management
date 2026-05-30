@@ -91,6 +91,12 @@ export const agendaApi = {
 export const organizerApi = {
   listEventRegistrations: (eventId, params = {}) =>
     api.get(`/api/events/${eventId}/registrations`, { params }),
+  getStats: () =>
+    api.get('/api/events/my-stats'),
+  getTimeline: (days) =>
+    api.get('/api/events/my-registrations-timeline', { params: { days } }),
+  getActivity: (limit = 10) =>
+    api.get('/api/events/my-activity', { params: { limit } }),
 }
 
 export const adminApi = {
