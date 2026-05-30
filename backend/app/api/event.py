@@ -9,6 +9,7 @@ from app.schemas.utils import PaginatedResponse
 from app.services.event import (
     create_event,
     get_events,
+    get_my_events,
     get_event_by_id,
     update_event,
     delete_event,
@@ -35,6 +36,14 @@ def list_events(
     db: Session = Depends(get_db),
 ):
     return get_events(db, skip=skip, limit=limit)
+
+
+@router.get("/my-events", response_model=list[EventResponse])
+def my_events(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return get_my_events(db, current_user)
 
 
 @router.get("/{event_id}", response_model=EventResponse)

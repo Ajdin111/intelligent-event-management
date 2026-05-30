@@ -63,6 +63,20 @@ def create_event(db: Session, data: EventCreateRequest, current_user: User) -> E
     return event
 
 
+def get_my_events(db: Session, current_user: User) -> list:
+    events = (
+        db.query(Event)
+        .filter(Event.owner_id == current_user.id, Event.deleted_at.is_(None))
+        .order_by(Event.created_at.desc())
+        .all()
+    )
+    if events:
+        category_map = _get_category_ids_bulk(db, [e.id for e in events])
+        for event in events:
+            event.category_ids = category_map.get(event.id, [])
+    return events
+
+
 def get_events(db: Session, skip: int = 0, limit: int = 20) -> PaginatedResponse:
     base = db.query(Event).filter(Event.status == EVENT_STATUS_PUBLISHED, Event.deleted_at.is_(None))
     total = base.count()
