@@ -11,6 +11,7 @@ from app.schemas.event import (
     EventUpdateRequest,
     OrganizerStatsResponse,
     RegistrationTimelinePoint,
+    ActivityItem,
 )
 from app.schemas.utils import PaginatedResponse
 from app.core.exceptions import NotFoundError, ForbiddenError, BadRequestError
@@ -227,6 +228,56 @@ def get_organizer_stats(db: Session, current_user: User) -> OrganizerStatsRespon
         total_revenue=total_revenue,
         attendance_rate=attendance_rate,
     )
+
+
+def get_organizer_activity(db: Session, current_user: User, limit: int = 10) -> list[ActivityItem]:
+    event_ids = [
+        row[0] for row in
+        db.query(Event.id)
+        .filter(Event.owner_id == current_user.id, Event.deleted_at.is_(None))
+        .all()
+    ]
+
+    if not event_ids:
+        return []
+
+    regs = (
+        db.query(Registration)
+        .filter(Registration.event_id.in_(event_ids))
+        .order_by(Registration.registered_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    items = []
+    for reg in regs:
+        user = reg.user
+        first = user.first_name or ""
+        last = user.last_name or ""
+        initials = (first[:1] + last[:1]).upper() or "?"
+        name = f"{first[:1]}. {last}" if first and last else (first or last or "Unknown")
+
+        if reg.status == "pending":
+            action = f"requested approval for {reg.event.title}"
+        elif reg.status == "confirmed":
+            action = f"registered for {reg.event.title}"
+        elif reg.status == "cancelled":
+            action = f"cancelled registration for {reg.event.title}"
+        elif reg.status == "rejected":
+            action = f"was rejected from {reg.event.title}"
+        else:
+            action = f"updated registration for {reg.event.title}"
+
+        items.append(ActivityItem(
+            id=reg.id,
+            actor_initials=initials,
+            actor_name=name,
+            action=action,
+            type="registration",
+            created_at=reg.registered_at,
+        ))
+
+    return items
 
 
 def get_organizer_timeline(

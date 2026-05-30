@@ -10,6 +10,7 @@ from app.schemas.event import (
     EventResponse,
     OrganizerStatsResponse,
     RegistrationTimelinePoint,
+    ActivityItem,
 )
 from app.schemas.utils import PaginatedResponse
 from app.services.event import (
@@ -23,6 +24,7 @@ from app.services.event import (
     cancel_event,
     get_organizer_stats,
     get_organizer_timeline,
+    get_organizer_activity,
 )
 
 router = APIRouter(prefix="/api/events", tags=["events"])
@@ -69,6 +71,15 @@ def my_registrations_timeline(
     db: Session = Depends(get_db),
 ):
     return get_organizer_timeline(db, current_user, days)
+
+
+@router.get("/my-activity", response_model=list[ActivityItem])
+def my_activity(
+    limit: int = Query(10, ge=1, le=50),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return get_organizer_activity(db, current_user, limit)
 
 
 @router.get("/{event_id}", response_model=EventResponse)

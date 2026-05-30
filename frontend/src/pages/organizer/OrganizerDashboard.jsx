@@ -1,57 +1,64 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { eventsApi, categoriesApi } from '../../services/api'
+import { eventsApi, categoriesApi, organizerApi } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
 
-const stats = [
-  { label: 'TOTAL EVENTS', value: '18', change: '+2 this quarter' },
-  { label: 'REGISTRATIONS', value: '4,218', change: '+412 this month' },
-  { label: 'REVENUE', value: '$284.5k', change: '+18% QoQ' },
-  { label: 'ATTENDANCE RATE', value: '91.4%', change: 'Above avg' },
-]
-
-
-const recentActivity = [
-  { id: 1, initials: 'AR', name: 'A. Rahimi', action: 'registered for Vector Summit 2026', time: '2m ago' },
-  { id: 2, initials: 'JA', name: 'J. Alvarez', action: 'requested approval for EdgeCloud Conf', time: '18m ago' },
-  { id: 3, initials: 'S', name: 'System', action: 'published ReactNext: Motion agenda', time: '1h ago', system: true },
-  { id: 4, initials: 'KN', name: 'K. Nagata', action: 'left a 5-star review on Vector Summit', time: '3h ago' },
-  { id: 5, initials: 'LO', name: 'L. Okafor', action: 'purchased VIP ticket for Vector Summit', time: '4h ago' },
-  { id: 6, initials: 'S', name: 'System', action: 'sent 1,284 reminder emails', time: '6h ago', system: true },
-]
-
-const chartPoints = {
-  '7D':  [0.05, 0.12, 0.22, 0.30, 0.45, 0.60, 0.75],
-  '30D': [0.02, 0.08, 0.14, 0.22, 0.30, 0.42, 0.54, 0.65, 0.74, 0.82, 0.90, 1.0],
-  '90D': [0.02, 0.07, 0.15, 0.22, 0.33, 0.44, 0.55, 0.65, 0.75, 0.84, 0.91, 1.0],
+function timeAgo(isoStr) {
+  const diff = Date.now() - new Date(isoStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return `${Math.floor(hrs / 24)}d ago`
 }
 
-const yLabels = { '7D': ['75', '56', '37', '18', '0'], '30D': ['359', '269', '179', '90', '0'], '90D': ['359', '269', '179', '90', '0'] }
+const PERIOD_DAYS = { '7D': 7, '30D': 30, '90D': 90 }
 
-function RegistrationsChart({ period }) {
-  const data = chartPoints[period]
+function fmtRevenue(val) {
+  if (val >= 1000) return `$${(val / 1000).toFixed(1)}k`
+  return `$${val}`
+}
+
+function RegistrationsChart({ points }) {
   const W = 520; const H = 160; const padX = 8; const padY = 12
   const iW = W - padX * 2; const iH = H - padY * 2
 
-  const pts = data.map((v, i) => {
-    const x = padX + (i / (data.length - 1)) * iW
-    const y = padY + iH - v * iH
+  if (!points || points.length < 2) {
+    return (
+      <div className="chart-wrap" style={{ alignItems: 'center', justifyContent: 'center', height: H }}>
+        <span style={{ opacity: 0.4, fontSize: 12 }}>No data</span>
+      </div>
+    )
+  }
+
+  const maxCount = Math.max(...points.map(p => p.count), 1)
+
+  const pts = points.map((p, i) => {
+    const x = padX + (i / (points.length - 1)) * iW
+    const y = padY + iH - (p.count / maxCount) * iH
     return [x, y]
   })
 
   const polyline = pts.map(([x, y]) => `${x},${y}`).join(' ')
   const fill = `${padX},${padY + iH} ${polyline} ${padX + iW},${padY + iH}`
 
-  const weeks = data.map((_, i) => {
-    const label = period === '7D' ? `D${i + 1}` : `W${i * 2 + 1}`
-    const x = padX + (i / (data.length - 1)) * iW
-    return { label: i % 2 === 0 ? label : '', x }
-  })
+  const yStep = maxCount / 4
+  const yLabelsArr = [maxCount, Math.round(yStep * 3), Math.round(yStep * 2), Math.round(yStep), 0]
+
+  const step = Math.max(1, Math.floor(points.length / 6))
+  const xLabels = points
+    .map((p, i) => {
+      if (i % step !== 0) return null
+      const d = new Date(p.date)
+      return { label: `${d.getMonth() + 1}/${d.getDate()}`, x: padX + (i / (points.length - 1)) * iW }
+    })
+    .filter(Boolean)
 
   return (
     <div className="chart-wrap">
       <div className="chart-ylabels">
-        {(yLabels[period] || yLabels['90D']).map((l) => (
+        {yLabelsArr.map((l) => (
           <span key={l}>{l}</span>
         ))}
       </div>
@@ -70,7 +77,7 @@ function RegistrationsChart({ period }) {
           ))}
         </svg>
         <div className="chart-xlabels">
-          {weeks.filter(w => w.label).map(({ label, x }, i) => (
+          {xLabels.map(({ label }, i) => (
             <span key={i}>{label}</span>
           ))}
         </div>
@@ -121,6 +128,9 @@ export default function OrganizerDashboard() {
   const [period, setPeriod] = useState('90D')
   const { user } = useAuth()
   const [activeEvents, setActiveEvents] = useState([])
+  const [statsData, setStatsData] = useState(null)
+  const [timelinePoints, setTimelinePoints] = useState([])
+  const [activity, setActivity] = useState([])
 
   useEffect(() => {
     if (!user) return
@@ -141,7 +151,24 @@ export default function OrganizerDashboard() {
         }))
       setActiveEvents(mine)
     }).catch(() => {})
+
+    organizerApi.getStats().then(res => setStatsData(res.data)).catch(() => {})
+    organizerApi.getActivity().then(res => setActivity(res.data)).catch(() => {})
   }, [user])
+
+  useEffect(() => {
+    if (!user) return
+    organizerApi.getTimeline(PERIOD_DAYS[period])
+      .then(res => setTimelinePoints(res.data))
+      .catch(() => {})
+  }, [user, period])
+
+  const statsCards = [
+    { label: 'TOTAL EVENTS', value: statsData ? String(statsData.total_events) : '—' },
+    { label: 'REGISTRATIONS', value: statsData ? String(statsData.total_registrations) : '—' },
+    { label: 'REVENUE', value: statsData ? fmtRevenue(statsData.total_revenue) : '—' },
+    { label: 'ATTENDANCE RATE', value: statsData ? `${statsData.attendance_rate.toFixed(1)}%` : '—' },
+  ]
 
   return (
     <div>
@@ -161,11 +188,10 @@ export default function OrganizerDashboard() {
       </div>
 
       <div className="org-stats">
-        {stats.map((s) => (
+        {statsCards.map((s) => (
           <div key={s.label} className="stat-card">
             <div className="stat-label">{s.label}</div>
             <div className="stat-value">{s.value}</div>
-            <div className="stat-change">↗ {s.change}</div>
           </div>
         ))}
       </div>
@@ -190,7 +216,7 @@ export default function OrganizerDashboard() {
                 ))}
               </div>
             </div>
-            <RegistrationsChart period={period} />
+            <RegistrationsChart points={timelinePoints} />
           </div>
 
           <div className="org-events-section">
@@ -261,15 +287,17 @@ export default function OrganizerDashboard() {
           <div className="panel-card">
             <h3 className="panel-title">Recent activity</h3>
             <div className="activity-feed">
-              {recentActivity.map((a) => (
+              {activity.length === 0 ? (
+                <div style={{ opacity: 0.4, fontSize: 12, padding: '8px 0' }}>No activity yet</div>
+              ) : activity.map((a) => (
                 <div key={a.id} className="activity-item">
-                  <div className={`activity-avatar${a.system ? ' system' : ''}`}>
-                    {a.initials}
+                  <div className="activity-avatar">
+                    {a.actor_initials}
                   </div>
                   <div className="activity-body">
-                    <span className="activity-name">{a.name}</span>{' '}
+                    <span className="activity-name">{a.actor_name}</span>{' '}
                     <span className="activity-action">{a.action}</span>
-                    <div className="activity-time">{a.time}</div>
+                    <div className="activity-time">{timeAgo(a.created_at)}</div>
                   </div>
                 </div>
               ))}
