@@ -8,6 +8,7 @@ from app.models.event import Event, EventCollaborator
 from app.models.user import User
 from app.schemas.checkin import QRCheckinRequest, ManualCheckinRequest, OfflineSyncRequest
 from app.core.exceptions import NotFoundError, ForbiddenError, BadRequestError
+from app.core.constants import REG_STATUS_CONFIRMED
 from app.services.common import get_event_or_404
 
 
@@ -43,7 +44,7 @@ def qr_checkin(db: Session, data: QRCheckinRequest, current_user: User) -> Check
         raise BadRequestError("Attendee is already checked in")
 
     registration = db.query(Registration).filter(Registration.id == ticket.registration_id).first()
-    if not registration or registration.status != "confirmed":
+    if not registration or registration.status != REG_STATUS_CONFIRMED:
         raise BadRequestError("Registration is not confirmed")
 
     checkin = Checkin(
@@ -52,7 +53,7 @@ def qr_checkin(db: Session, data: QRCheckinRequest, current_user: User) -> Check
         event_id=data.event_id,
         user_id=ticket.user_id,
         checked_in_by=current_user.id,
-        checked_in_at=datetime.now(),
+        checked_in_at=datetime.utcnow(),
         is_manual=False,
     )
     db.add(checkin)
@@ -71,7 +72,7 @@ def manual_checkin(db: Session, data: ManualCheckinRequest, current_user: User) 
 
     if not registration:
         raise NotFoundError("Registration not found")
-    if registration.status != "confirmed":
+    if registration.status != REG_STATUS_CONFIRMED:
         raise BadRequestError("Registration is not confirmed")
 
     if db.query(Checkin).filter(
@@ -94,7 +95,7 @@ def manual_checkin(db: Session, data: ManualCheckinRequest, current_user: User) 
         event_id=data.event_id,
         user_id=registration.user_id,
         checked_in_by=current_user.id,
-        checked_in_at=datetime.now(),
+        checked_in_at=datetime.utcnow(),
         is_manual=True,
     )
     db.add(checkin)
@@ -124,7 +125,7 @@ def get_checkin_stats(db: Session, event_id: int, current_user: User) -> dict:
 
     total_registered = db.query(Registration).filter(
         Registration.event_id == event_id,
-        Registration.status == "confirmed",
+        Registration.status == REG_STATUS_CONFIRMED,
     ).count()
 
     total_checked_in = db.query(Checkin).filter(Checkin.event_id == event_id).count()
@@ -180,7 +181,7 @@ def sync_offline_checkins(db: Session, data: OfflineSyncRequest, current_user: U
                     Registration.id == ticket.registration_id
                 ).first()
 
-                if not registration or registration.status != "confirmed":
+                if not registration or registration.status != REG_STATUS_CONFIRMED:
                     conflict_reason = "Registration not confirmed"
                 else:
                     db.add(Checkin(
@@ -193,7 +194,7 @@ def sync_offline_checkins(db: Session, data: OfflineSyncRequest, current_user: U
                         is_manual=False,
                     ))
                     queue_entry.status = "synced"
-                    queue_entry.synced_at = datetime.now()
+                    queue_entry.synced_at = datetime.utcnow()
                     synced += 1
 
         if conflict_reason:

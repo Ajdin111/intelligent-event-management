@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { TransitionProvider } from './context/TransitionContext'
 import AppLayout from './layouts/AppLayout'
 import OrganizerLayout from './layouts/OrganizerLayout'
+import AdminLayout from './layouts/AdminLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import Dashboard from './pages/Dashboard'
 import BrowseEvents from './pages/BrowseEvents'
@@ -19,6 +21,12 @@ import ManageEvent from './pages/organizer/ManageEvent'
 import OrganizerAnalytics from './pages/organizer/OrganizerAnalytics'
 import OrganizerAgenda from './pages/organizer/OrganizerAgenda'
 import OrganizerNotifications from './pages/organizer/OrganizerNotifications'
+import AdminOverview from './pages/admin/AdminOverview'
+import AdminAnalytics from './pages/admin/AdminAnalytics'
+import AdminUsers, { AdminUserDetail } from './pages/admin/AdminUsers'
+import AdminEvents from './pages/admin/AdminEvents'
+import AdminEventDetail from './pages/admin/AdminEventDetail'
+import AdminProfile from './pages/admin/AdminProfile'
 import NotFound from './pages/NotFound'
 
 function Page404() {
@@ -42,54 +50,76 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+        <TransitionProvider>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
 
-          {/* Attendee routes */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <AppLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="events" element={<BrowseEvents />} />
-            <Route path="events/:id" element={<EventDetail />} />
-            <Route path="events/:id/register" element={<RegisterEvent />} />
-            <Route path="registrations" element={<MyRegistrations />} />
-            <Route path="tickets" element={<MyTickets />} />
-            <Route path="feedback" element={<Feedback />} />
-            <Route path="profile" element={<Preferences />} />
-            <Route path="*" element={<NotFound />} />
-          </Route>
+            {/* Attendee routes */}
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <AppLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="events" element={<BrowseEvents />} />
+              <Route path="events/:id" element={<EventDetail />} />
+              <Route path="events/:id/register" element={<RegisterEvent />} />
+              <Route path="registrations" element={<MyRegistrations />} />
+              <Route path="tickets" element={<MyTickets />} />
+              <Route path="feedback" element={<Feedback />} />
+              <Route path="profile" element={<Preferences />} />
+              <Route path="*" element={<NotFound />} />
+            </Route>
 
-          {/* Organizer routes */}
-          <Route
-            path="/organizer"
-            element={
-              <ProtectedRoute requiredRole="organizer">
-                <OrganizerLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Navigate to="/organizer/dashboard" replace />} />
-            <Route path="dashboard" element={<OrganizerDashboard />} />
-            <Route path="create-event" element={<CreateEvent />} />
-            <Route path="manage-event" element={<ManageEvent />} />
-            <Route path="analytics" element={<OrganizerAnalytics />} />
-            <Route path="analytics/:eventId" element={<OrganizerAnalytics />} />
-            <Route path="agenda" element={<OrganizerAgenda />} />
-            <Route path="notifications" element={<OrganizerNotifications />} />
-            <Route path="profile" element={<Preferences />} />
-            <Route path="*" element={<NotFound />} />
-          </Route>
+            {/* Organizer routes */}
+            <Route
+              path="/organizer"
+              element={
+                <ProtectedRoute requiredRole="organizer">
+                  <OrganizerLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Navigate to="/organizer/dashboard" replace />} />
+              <Route path="dashboard" element={<OrganizerDashboard />} />
+              <Route path="create-event" element={<CreateEvent />} />
+              <Route path="manage-event" element={<ManageEvent />} />
+              <Route path="analytics" element={<OrganizerAnalytics />} />
+              <Route path="analytics/:eventId" element={<OrganizerAnalytics />} />
+              <Route path="agenda" element={<OrganizerAgenda />} />
+              <Route path="notifications" element={<OrganizerNotifications />} />
+              <Route path="profile" element={<Preferences />} />
+              <Route path="*" element={<NotFound />} />
+            </Route>
 
-          <Route path="*" element={<Page404 />} />
-        </Routes>
+            {/* Admin routes */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Navigate to="/admin/overview" replace />} />
+              <Route path="overview"        element={<AdminOverview />} />
+              <Route path="analytics"       element={<AdminAnalytics />} />
+              <Route path="users"           element={<AdminUsers />} />
+              <Route path="users/:userId"   element={<AdminUserDetail />} />
+              <Route path="events"          element={<AdminEvents />} />
+              <Route path="events/:eventId" element={<AdminEventDetail />} />
+              <Route path="profile"         element={<AdminProfile />} />
+              <Route path="*"               element={<NotFound />} />
+            </Route>
+
+            <Route path="*" element={<Page404 />} />
+          </Routes>
+        </TransitionProvider>
       </AuthProvider>
     </BrowserRouter>
   )

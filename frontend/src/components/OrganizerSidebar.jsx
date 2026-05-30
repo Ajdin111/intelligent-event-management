@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
@@ -59,10 +59,16 @@ const navItems = [
   { to: '/organizer/agenda', label: 'Agenda', icon: <IconLayers /> },
 ]
 
-export default function OrganizerSidebar() {
+export default function OrganizerSidebar({ mobileOpen = false, onClose }) {
   const { user, logout, activeRole } = useAuth()
   const navigate = useNavigate()
   const [collapsed, setCollapsed] = useState(false)
+
+  useEffect(() => {
+    if (!mobileOpen) setCollapsed(false)
+  }, [mobileOpen])
+
+  const handleCollapseBtn = () => mobileOpen ? onClose?.() : setCollapsed(c => !c)
 
   const handleLogout = () => {
     logout()
@@ -70,12 +76,12 @@ export default function OrganizerSidebar() {
   }
 
   return (
-    <aside className={`sidebar${collapsed ? ' sidebar--collapsed' : ''}`}>
+    <aside className={`sidebar${collapsed ? ' sidebar--collapsed' : ''}${mobileOpen ? ' sidebar--mobile-open' : ''}`}>
       <div className="sidebar-logo">
         {collapsed ? (
           <button
             className="sidebar-collapse-btn"
-            onClick={() => setCollapsed(c => !c)}
+            onClick={handleCollapseBtn}
             title="Expand sidebar"
           >
             <span style={{ fontWeight: 700, fontSize: '16px' }}>T</span>
@@ -85,8 +91,8 @@ export default function OrganizerSidebar() {
             <span style={{ fontWeight: 700 }}>Teq<span style={{ fontWeight: 300 }}>Event</span></span>
             <button
               className="sidebar-collapse-btn"
-              onClick={() => setCollapsed(c => !c)}
-              title="Collapse sidebar"
+              onClick={handleCollapseBtn}
+              title={mobileOpen ? 'Close' : 'Collapse sidebar'}
             >
               <IconChevronLeft />
             </button>
@@ -103,6 +109,7 @@ export default function OrganizerSidebar() {
             to={item.to}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
             title={item.label}
+            onClick={onClose}
           >
             {item.icon}
             <span className="nav-label">{item.label}</span>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import EventCard from '../components/EventCard'
-import { currentUser } from '../data/fakeData'
+import { useAuth } from '../context/AuthContext'
 import { mlApi, eventsApi, registrationsApi, categoriesApi } from '../services/api'
 
 function getGreeting() {
@@ -47,6 +48,7 @@ function CardSkeleton() {
 }
 
 export default function Dashboard() {
+  const { user } = useAuth()
   const [upcomingEvents, setUpcomingEvents]       = useState([])
   const [loadingUpcoming, setLoadingUpcoming]     = useState(true)
   const [recommendedEvents, setRecommendedEvents] = useState([])
@@ -114,10 +116,12 @@ export default function Dashboard() {
     return () => { cancelled = true }
   }, [])
 
+  const firstName = user?.first_name ?? 'there'
+
   return (
     <div>
       <h1 className="page-greeting">
-        {getGreeting()}, {currentUser.name}
+        {getGreeting()}, {firstName}
       </h1>
 
       <section className="section">
@@ -127,9 +131,10 @@ export default function Dashboard() {
             {[1, 2, 3].map(i => <CardSkeleton key={i} />)}
           </div>
         ) : upcomingEvents.length === 0 ? (
-          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14, marginTop: 8 }}>
-            No upcoming events. Register for an event to see it here.
-          </p>
+          <div className="dashboard-empty-state">
+            <p className="dashboard-empty-msg">You have no upcoming events.</p>
+            <Link to="/events" className="btn-outline-sm">Browse events</Link>
+          </div>
         ) : (
           <div className="events-grid">
             {upcomingEvents.map(event => (

@@ -6,8 +6,9 @@ export default function ProtectedRoute({ children, requiredRole }) {
 
   if (loading) return null
   if (!token) return <Navigate to="/login" replace />
+  if (requiredRole === 'admin' && !user?.is_admin) return <Navigate to="/dashboard" replace />
   if (requiredRole === 'organizer' && !user?.is_organizer) return <Navigate to="/dashboard" replace />
-  if (requiredRole && activeRole !== requiredRole) return <Navigate to="/dashboard" replace />
+  if (requiredRole === 'organizer' && activeRole !== 'organizer') return <Navigate to="/dashboard" replace />
 
   return children
 }

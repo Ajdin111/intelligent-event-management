@@ -16,6 +16,8 @@ def get_event_or_404(db: Session, event_id: int) -> Event:
 
 
 def check_event_permission(db: Session, event: Event, current_user: User) -> None:
+    if current_user.is_admin:
+        return
     is_owner = event.owner_id == current_user.id
     is_collaborator = db.query(EventCollaborator).filter(
         EventCollaborator.event_id == event.id,

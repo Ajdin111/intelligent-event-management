@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db, get_current_user
+from app.core.limiter import limiter
 from app.models.user import User
 from app.schemas.checkin import (
     QRCheckinRequest,
@@ -24,7 +25,9 @@ router = APIRouter(prefix="/api/checkin", tags=["Check-in"])
 
 
 @router.post("/qr", response_model=CheckinResponse)
+@limiter.limit("60/minute")
 def checkin_by_qr(
+    request: Request,
     data: QRCheckinRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -33,7 +36,9 @@ def checkin_by_qr(
 
 
 @router.post("/manual", response_model=CheckinResponse)
+@limiter.limit("60/minute")
 def checkin_manually(
+    request: Request,
     data: ManualCheckinRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -62,7 +67,9 @@ def checkin_stats(
 
 
 @router.post("/offline/sync", response_model=OfflineSyncResult)
+@limiter.limit("10/minute")
 def sync_offline(
+    request: Request,
     data: OfflineSyncRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

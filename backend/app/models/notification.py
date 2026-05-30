@@ -18,6 +18,7 @@ class Notification(Base):
     read_at = mapped_column(DateTime, nullable=True)
     expires_at = mapped_column(DateTime, nullable=True)
     # set to created_at + 90 days, cleaned up by Celery
+    event_id = mapped_column(Integer, ForeignKey("events.id"), nullable=True)
 
     # relationships
     user = relationship("User")

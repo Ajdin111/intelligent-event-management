@@ -11,6 +11,7 @@ from app.schemas.agenda import (
     SessionUpdateRequest,
 )
 from app.core.exceptions import NotFoundError, BadRequestError
+from app.core.constants import REG_STATUS_CONFIRMED, REG_STATUS_CANCELLED
 from app.services.common import get_event_or_404, check_event_permission
 
 
@@ -113,7 +114,7 @@ def delete_track(db: Session, track_id: int, current_user: User) -> None:
     event = get_event_or_404(db, track.event_id)
     check_event_permission(db, event, current_user)
 
-    track.deleted_at = datetime.now()
+    track.deleted_at = datetime.utcnow()
     db.commit()
 
 
@@ -229,7 +230,7 @@ def delete_session(db: Session, session_id: int, current_user: User) -> None:
     event = get_event_or_404(db, session.event_id)
     check_event_permission(db, event, current_user)
 
-    session.deleted_at = datetime.now()
+    session.deleted_at = datetime.utcnow()
     db.commit()
 
 
@@ -246,7 +247,7 @@ def register_for_session(db: Session, session_id: int, current_user: User) -> Se
     event_registration = db.query(Registration).filter(
         Registration.event_id == session.event_id,
         Registration.user_id == current_user.id,
-        Registration.status == "confirmed",
+        Registration.status == REG_STATUS_CONFIRMED,
     ).first()
 
     if not event_registration:
@@ -261,7 +262,7 @@ def register_for_session(db: Session, session_id: int, current_user: User) -> Se
     if session.capacity:
         count = db.query(SessionRegistration).filter(
             SessionRegistration.session_id == session_id,
-            SessionRegistration.status == "confirmed",
+            SessionRegistration.status == REG_STATUS_CONFIRMED,
         ).count()
         if count >= session.capacity:
             raise BadRequestError("Session is at full capacity")
@@ -271,7 +272,7 @@ def register_for_session(db: Session, session_id: int, current_user: User) -> Se
         user_id=current_user.id,
         event_id=session.event_id,
         registration_id=event_registration.id,
-        status="confirmed",
+        status=REG_STATUS_CONFIRMED,
     )
     db.add(reg)
     db.commit()
@@ -288,7 +289,7 @@ def cancel_session_registration(db: Session, session_id: int, current_user: User
     if not reg:
         raise NotFoundError("Session registration not found")
 
-    reg.status = "cancelled"
+    reg.status = REG_STATUS_CANCELLED
     db.commit()
 
 

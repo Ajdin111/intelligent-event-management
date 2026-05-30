@@ -21,7 +21,7 @@ def test_register_success(client):
 def test_register_duplicate_email(client):
     payload = {
         "email": "dup@example.com",
-        "password": "pass123",
+        "password": "password1",
         "first_name": "Bob",
         "last_name": "Jones",
     }
@@ -33,7 +33,7 @@ def test_register_duplicate_email(client):
 def test_register_invalid_email(client):
     resp = client.post("/api/auth/register", json={
         "email": "not-an-email",
-        "password": "pass123",
+        "password": "password1",
         "first_name": "Carl",
         "last_name": "Doe",
     })
@@ -42,6 +42,26 @@ def test_register_invalid_email(client):
 
 def test_register_missing_fields(client):
     resp = client.post("/api/auth/register", json={"email": "x@x.com"})
+    assert resp.status_code == 422
+
+
+def test_register_weak_password_too_short(client):
+    resp = client.post("/api/auth/register", json={
+        "email": "weak@example.com",
+        "password": "short1",
+        "first_name": "Dan",
+        "last_name": "Doe",
+    })
+    assert resp.status_code == 422
+
+
+def test_register_weak_password_no_digit(client):
+    resp = client.post("/api/auth/register", json={
+        "email": "weak2@example.com",
+        "password": "alllowercase",
+        "first_name": "Dan",
+        "last_name": "Doe",
+    })
     assert resp.status_code == 422
 
 

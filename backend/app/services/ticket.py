@@ -140,8 +140,14 @@ def get_promo_codes(db: Session, event_id: int, current_user: User) -> list[Prom
     return promos
 
 
+def calculate_discounted_price(base_price: Decimal, promo: PromoCode) -> Decimal:
+    if promo.discount_type == "percentage":
+        return max(Decimal("0"), base_price - base_price * (promo.discount_value / Decimal("100")))
+    return max(Decimal("0"), base_price - promo.discount_value)
+
+
 def _check_promo_validity(promo: PromoCode) -> bool:
-    now = datetime.now()
+    now = datetime.utcnow()
     return (
         promo.is_active
         and promo.uses_count < promo.max_uses
@@ -164,10 +170,7 @@ def validate_promo_code(db: Session, event_id: int, code: str, ticket_tier_id: i
     if not tier:
         return {"is_valid": False, "message": "Ticket tier not found"}
 
-    if promo.discount_type == "percentage":
-        final_price = max(Decimal("0"), tier.price - tier.price * (promo.discount_value / Decimal("100")))
-    else:
-        final_price = max(Decimal("0"), tier.price - promo.discount_value)
+    final_price = calculate_discounted_price(tier.price, promo)
 
     return {
         "is_valid": True,

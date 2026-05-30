@@ -7,6 +7,7 @@ from app.models.event import Event, EventCollaborator, EventCategory, Category
 from app.schemas.event import EventCreateRequest, EventUpdateRequest
 from app.schemas.utils import PaginatedResponse
 from app.core.exceptions import NotFoundError, ForbiddenError, BadRequestError
+from app.core.constants import EVENT_STATUS_DRAFT, EVENT_STATUS_PUBLISHED, EVENT_STATUS_CANCELLED
 from app.services.common import get_event_or_404, check_event_permission
 from app.tasks.analytics import compute_event_analytics
 from app.tasks.email import send_feedback_request
@@ -47,7 +48,7 @@ def create_event(db: Session, data: EventCreateRequest, current_user: User) -> E
         has_ticketing=data.has_ticketing,
         is_free=data.is_free,
         feedback_visibility=data.feedback_visibility,
-        status="draft"
+        status=EVENT_STATUS_DRAFT
     )
     db.add(event)
     db.flush()
@@ -62,8 +63,22 @@ def create_event(db: Session, data: EventCreateRequest, current_user: User) -> E
     return event
 
 
+def get_my_events(db: Session, current_user: User) -> list:
+    events = (
+        db.query(Event)
+        .filter(Event.owner_id == current_user.id, Event.deleted_at.is_(None))
+        .order_by(Event.created_at.desc())
+        .all()
+    )
+    if events:
+        category_map = _get_category_ids_bulk(db, [e.id for e in events])
+        for event in events:
+            event.category_ids = category_map.get(event.id, [])
+    return events
+
+
 def get_events(db: Session, skip: int = 0, limit: int = 20) -> PaginatedResponse:
-    base = db.query(Event).filter(Event.status == "published", Event.deleted_at.is_(None))
+    base = db.query(Event).filter(Event.status == EVENT_STATUS_PUBLISHED, Event.deleted_at.is_(None))
     total = base.count()
     events = base.offset(skip).limit(limit).all()
 
@@ -125,20 +140,20 @@ def delete_event(db: Session, event_id: int, current_user: User) -> None:
     if event.owner_id != current_user.id:
         raise ForbiddenError("Only the event owner can delete this event")
 
-    event.deleted_at = datetime.now()
+    event.deleted_at = datetime.utcnow()
     db.commit()
 
 
 def publish_event(db: Session, event_id: int, current_user: User) -> Event:
     event = get_event_or_404(db, event_id)
 
-    if event.owner_id != current_user.id:
+    if not current_user.is_admin and event.owner_id != current_user.id:
         raise ForbiddenError("Only the event owner can publish this event")
 
-    if event.status != "draft":
+    if event.status != EVENT_STATUS_DRAFT:
         raise BadRequestError("Only draft events can be published")
 
-    event.status = "published"
+    event.status = EVENT_STATUS_PUBLISHED
     db.commit()
     db.refresh(event)
     return event
@@ -150,10 +165,10 @@ def cancel_event(db: Session, event_id: int, current_user: User) -> Event:
     if event.owner_id != current_user.id:
         raise ForbiddenError("Only the event owner can cancel this event")
 
-    if event.status not in ["draft", "published"]:
+    if event.status not in [EVENT_STATUS_DRAFT, EVENT_STATUS_PUBLISHED]:
         raise BadRequestError("Event cannot be cancelled")
 
-    event.status = "cancelled"
+    event.status = EVENT_STATUS_CANCELLED
     db.commit()
     db.refresh(event)
 

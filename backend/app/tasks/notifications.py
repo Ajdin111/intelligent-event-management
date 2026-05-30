@@ -9,13 +9,21 @@ from app.core.constants import NOTIFICATION_RETENTION_DAYS, WAITLIST_CONFIRMATIO
 logger = logging.getLogger(__name__)
 
 
+def _is_in_app_allowed(db, user_id: int) -> bool:
+    from app.models.notification import NotificationPreferences
+    prefs = db.query(NotificationPreferences).filter(
+        NotificationPreferences.user_id == user_id
+    ).first()
+    return not (prefs and not prefs.in_app_enabled)
+
+
 @celery_app.task
 def cleanup_expired_notifications():
     """Periodic task — runs every 24h. Hard-deletes notifications older than 90 days."""
     with get_db_context() as db:
         from app.models.notification import Notification
 
-        cutoff = datetime.now() - timedelta(days=NOTIFICATION_RETENTION_DAYS)
+        cutoff = datetime.utcnow() - timedelta(days=NOTIFICATION_RETENTION_DAYS)
         deleted = db.query(Notification).filter(
             Notification.created_at < cutoff
         ).delete(synchronize_session=False)
@@ -36,13 +44,9 @@ def create_in_app_notification(
 ):
     try:
         with get_db_context() as db:
-            from app.models.notification import Notification, NotificationPreferences
+            from app.models.notification import Notification
 
-            prefs = db.query(NotificationPreferences).filter(
-                NotificationPreferences.user_id == user_id
-            ).first()
-
-            if prefs and not prefs.in_app_enabled:
+            if not _is_in_app_allowed(db, user_id):
                 return
 
             db.add(Notification(
@@ -50,7 +54,8 @@ def create_in_app_notification(
                 title=title,
                 message=message,
                 type=notification_type,
-                expires_at=datetime.now() + timedelta(days=NOTIFICATION_RETENTION_DAYS),
+                event_id=event_id,
+                expires_at=datetime.utcnow() + timedelta(days=NOTIFICATION_RETENTION_DAYS),
             ))
             db.commit()
 

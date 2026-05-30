@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { eventsApi, ticketTiersApi, reviewsApi } from '../services/api'
+import { eventsApi, ticketTiersApi, reviewsApi, agendaApi, categoriesApi } from '../services/api'
 import NotFound from './NotFound'
 
 // Per-event cover images — themed to each event's spirit
@@ -17,278 +17,46 @@ const COVERS = {
 }
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1600&q=80'
 
-// Full fake detail for each event — title, tiers, agenda, reviews
+// Static metadata not available in the event API response (category name, organizer name).
+// Tiers are kept as fallback only for events where the API returns no real tiers.
 const FAKE = {
-  1: {
-    title: 'Vector Summit 2026',
-    category: 'AI & ML', organizer: 'Northwind Labs',
-    date: 'May 14, 2026', time: '09:00 – 18:00', location: 'San Francisco, CA',
-    rating: 4.7, reviewCount: 234,
-    description: 'Two days of hands-on sessions on embeddings, retrieval, and agentic workflows from teams shipping in production. Expect technical keynotes from practitioners shipping at scale, five workshop tracks with live labs, and a curated networking reception on the evening of day one.\n\nAll ticket tiers include access to the main stage, workshop tracks, lunch on both days, and a post-event video library.',
-    tiers: [
-      { name: 'Community',  price: 0,   total: 150, sold: 128 },
-      { name: 'Standard',   price: 199, total: 300, sold: 210 },
-      { name: 'Early Bird', price: 149, total: 200, sold: 200 },
-      { name: 'VIP',        price: 599, total: 50,  sold: 14  },
-    ],
-    tracks: [
-      { name: 'Main Stage', sessions: [
-        { time: '09:00', title: 'Opening Keynote: Retrieval in 2026', speaker: 'D. Park',     room: 'Hall A', duration: '45min' },
-        { time: '10:00', title: "Evals that don't lie",               speaker: 'M. Osei',    room: 'Hall A', duration: '45min' },
-        { time: '11:00', title: 'Panel: Agent architectures',         speaker: '4 speakers', room: 'Hall A', duration: '60min' },
-        { time: '14:00', title: 'Fireside: Post-transformer?',        speaker: 'R. Lim',     room: 'Hall A', duration: '45min' },
-      ]},
-      { name: 'Workshop Track', sessions: [
-        { time: '10:00', title: 'Hands-on: RAG pipelines',      speaker: 'S. Novak',    room: 'Lab 1', duration: '90min' },
-        { time: '13:00', title: 'Hands-on: Evaluation harness', speaker: 'J. Tran',     room: 'Lab 1', duration: '90min' },
-        { time: '15:00', title: 'Building tool-using agents',   speaker: 'A. Ferreira', room: 'Lab 2', duration: '60min' },
-      ]},
-      { name: 'Community', sessions: [
-        { time: '11:30', title: 'Lightning talks (block 1)', speaker: '6 speakers', room: 'Hall B',  duration: '30min' },
-        { time: '15:30', title: 'Lightning talks (block 2)', speaker: '6 speakers', room: 'Hall B',  duration: '30min' },
-        { time: '17:00', title: 'Networking reception',      speaker: 'Open',       room: 'Atrium', duration: '60min' },
-      ]},
-    ],
-    breakdown: [
-      { stars: 5, pct: 72 }, { stars: 4, pct: 20 },
-      { stars: 3, pct: 5  }, { stars: 2, pct: 2  }, { stars: 1, pct: 1 },
-    ],
-    reviews: [
-      { id: 1, rating: 5, text: "Strongest line-up I've seen this year. Workshops actually went deep.", date: '3 days ago' },
-      { id: 2, rating: 4, text: 'Great sessions; registration queue was long on day one.',              date: '4 days ago' },
-      { id: 3, rating: 5, text: 'The eval workshop alone was worth the ticket.',                        date: '6 days ago' },
-      { id: 4, rating: 2, text: 'Content solid, catering was mid. Please more tea.',                   date: '1 week ago' },
-    ],
-  },
-  2: {
-    title: 'ReactNext: Motion',
-    category: 'Frontend', organizer: 'Parallel',
-    date: 'Jun 18, 2026', time: '09:30 – 16:30', location: 'Berlin, DE',
-    rating: 4.5, reviewCount: 89,
-    description: 'A full day of React-focused sessions covering animation, state management, and the latest patterns emerging from the ecosystem. Hands-on workshops with real project reviews and live Q&A with open-source maintainers.',
-    tiers: [
-      { name: 'Community', price: 0,  total: 250, sold: 228 },
-      { name: 'Workshop',  price: 79, total: 80,  sold: 60  },
-    ],
-    tracks: [
-      { name: 'Main Track', sessions: [
-        { time: '09:30', title: 'The Motion API in 2026',         speaker: 'K. Laurent', room: 'Stage A', duration: '45min' },
-        { time: '10:30', title: 'Server Components in production', speaker: 'J. Chen',   room: 'Stage A', duration: '45min' },
-        { time: '14:00', title: 'Panel: State management in 2026', speaker: '3 speakers', room: 'Stage A', duration: '60min' },
-      ]},
-    ],
-    breakdown: [
-      { stars: 5, pct: 60 }, { stars: 4, pct: 25 },
-      { stars: 3, pct: 10 }, { stars: 2, pct: 3  }, { stars: 1, pct: 2 },
-    ],
-    reviews: [
-      { id: 1, rating: 5, text: 'Best frontend conf I have attended. Every talk was directly applicable.', date: '2 days ago' },
-      { id: 2, rating: 4, text: 'Great vibe, loved the live coding sessions.',                             date: '5 days ago' },
-    ],
-  },
-  3: {
-    title: 'Product Craft Summit',
-    category: 'Product', organizer: 'Orbit',
-    date: 'Aug 22, 2026', time: '10:00 – 16:00', location: 'Toronto, CA',
-    rating: 4.3, reviewCount: 64,
-    description: 'A community-driven summit for product managers, designers, and founders focused on building products that matter. Sessions cover discovery, prioritization, metrics, and shipping with conviction.',
-    tiers: [
-      { name: 'Community', price: 0,   total: 400, sold: 340 },
-      { name: 'Pro',        price: 149, total: 100, sold: 42  },
-    ],
-    tracks: [
-      { name: 'Discovery Track', sessions: [
-        { time: '10:00', title: 'Jobs-to-be-done in practice', speaker: 'A. Park',    room: 'Room 1', duration: '45min' },
-        { time: '11:00', title: 'Continuous discovery habits', speaker: 'T. Torres',  room: 'Room 1', duration: '45min' },
-        { time: '14:00', title: 'Metrics that matter',         speaker: 'L. Gupta',   room: 'Room 1', duration: '60min' },
-      ]},
-    ],
-    breakdown: [
-      { stars: 5, pct: 55 }, { stars: 4, pct: 28 },
-      { stars: 3, pct: 12 }, { stars: 2, pct: 3  }, { stars: 1, pct: 2 },
-    ],
-    reviews: [
-      { id: 1, rating: 5, text: 'Finally a product conf that skips the fluff and goes deep.',       date: '1 day ago'  },
-      { id: 2, rating: 4, text: 'Great talks. Would love more workshops next time.',                date: '3 days ago' },
-      { id: 3, rating: 4, text: 'Good energy, solid speakers. Toronto venue was excellent.',       date: '5 days ago' },
-    ],
-  },
-  4: {
-    title: 'EdgeCloud Conf',
-    category: 'Cloud', organizer: 'Helix Platform',
-    date: 'Jun 03, 2026', time: '09:00 – 17:00', location: 'Austin, TX',
-    rating: 4.4, reviewCount: 118,
-    description: 'Two days at the frontier of distributed cloud architecture — edge computing, multi-region deployments, and cost-optimisation strategies used by teams running global infrastructure. Deep technical content, no marketing fluff.',
-    tiers: [
-      { name: 'Standard', price: 249, total: 400, sold: 312 },
-      { name: 'VIP',      price: 499, total: 60,  sold: 28  },
-    ],
-    tracks: [
-      { name: 'Infrastructure', sessions: [
-        { time: '09:00', title: 'Multi-region without the pain',   speaker: 'D. Watts',  room: 'Hall A', duration: '45min' },
-        { time: '10:00', title: 'Edge caching at scale',           speaker: 'M. Singh',  room: 'Hall A', duration: '45min' },
-        { time: '14:00', title: 'Cost-optimisation war stories',   speaker: '3 speakers', room: 'Hall A', duration: '60min' },
-      ]},
-    ],
-    breakdown: [
-      { stars: 5, pct: 58 }, { stars: 4, pct: 26 },
-      { stars: 3, pct: 10 }, { stars: 2, pct: 4  }, { stars: 1, pct: 2 },
-    ],
-    reviews: [
-      { id: 1, rating: 5, text: 'The best cloud architecture event I have been to — genuinely technical.', date: '2 days ago' },
-      { id: 2, rating: 4, text: 'Day 2 sessions were outstanding. Austin was a great venue.',              date: '4 days ago' },
-    ],
-  },
-  5: {
-    title: 'Warehouse & Lakehouse Days',
-    category: 'Data', organizer: 'Stratus Data',
-    date: 'Jul 15, 2026', time: '09:00 – 17:00', location: 'New York, NY',
-    rating: 4.6, reviewCount: 97,
-    description: 'The practitioner conference for data engineers and analytics engineers building modern data platforms. Sessions cover DuckDB, Iceberg, dbt, and real-world lakehouse architectures from teams at scale.',
-    tiers: [
-      { name: 'Standard', price: 349, total: 500, sold: 290 },
-      { name: 'Workshop', price: 499, total: 80,  sold: 55  },
-    ],
-    tracks: [
-      { name: 'Architecture', sessions: [
-        { time: '09:00', title: 'Lakehouse vs Warehouse in 2026',    speaker: 'K. Novak',  room: 'Hall B', duration: '45min' },
-        { time: '10:00', title: 'dbt best practices at scale',       speaker: 'A. Chen',   room: 'Hall B', duration: '45min' },
-        { time: '14:00', title: 'Apache Iceberg in production',      speaker: 'R. Yamada', room: 'Hall B', duration: '60min' },
-      ]},
-    ],
-    breakdown: [
-      { stars: 5, pct: 65 }, { stars: 4, pct: 22 },
-      { stars: 3, pct: 8  }, { stars: 2, pct: 3  }, { stars: 1, pct: 2 },
-    ],
-    reviews: [
-      { id: 1, rating: 5, text: 'Every session was worth attending. Finally a conference without vendor pitches.', date: '1 day ago'  },
-      { id: 2, rating: 5, text: 'The Iceberg talk alone justified the ticket price.',                              date: '3 days ago' },
-      { id: 3, rating: 4, text: 'Great hallway track too. Met some fantastic engineers.',                         date: '5 days ago' },
-    ],
-  },
-  6: {
-    title: 'PlatformCon',
-    category: 'DevOps', organizer: 'Runbook',
-    date: 'Aug 05, 2026', time: '09:00 – 17:00', location: 'Remote',
-    rating: 4.3, reviewCount: 73,
-    description: 'The conference for platform engineers, SREs, and DevOps teams. Sessions on golden paths, developer experience, Kubernetes, and platform as a product from teams building internal developer platforms at scale.',
-    tiers: [
-      { name: 'Community', price: 0,   total: 1000, sold: 844 },
-      { name: 'Pro',        price: 249, total: 150,  sold: 94  },
-    ],
-    tracks: [
-      { name: 'Platform Engineering', sessions: [
-        { time: '09:00', title: 'Platform as a product',            speaker: 'N. Patel',  room: 'Virtual A', duration: '45min' },
-        { time: '10:00', title: 'Golden paths that developers love', speaker: 'C. Kim',   room: 'Virtual A', duration: '45min' },
-        { time: '14:00', title: 'Kubernetes operator patterns',     speaker: 'F. Garcia', room: 'Virtual A', duration: '60min' },
-      ]},
-    ],
-    breakdown: [
-      { stars: 5, pct: 52 }, { stars: 4, pct: 30 },
-      { stars: 3, pct: 13 }, { stars: 2, pct: 3  }, { stars: 1, pct: 2 },
-    ],
-    reviews: [
-      { id: 1, rating: 5, text: 'Best remote conference experience I have had — production quality was top notch.', date: '2 days ago' },
-      { id: 2, rating: 4, text: 'Really appreciated the platform-as-product focus. Very applicable.',               date: '4 days ago' },
-    ],
-  },
-  7: {
-    title: 'ZeroTrust World',
-    category: 'Security', organizer: 'Aegis Security',
-    date: 'Jul 02, 2026', time: '09:00 – 17:00', location: 'Remote',
-    rating: 4.5, reviewCount: 152,
-    description: 'The global security conference for engineers and security teams implementing zero-trust architectures. Hands-on labs, red team vs blue team exercises, and deep dives into identity, access, and threat modelling.',
-    tiers: [
-      { name: 'Standard', price: 149, total: 2000, sold: 760 },
-      { name: 'VIP',      price: 349, total: 200,  sold: 88  },
-    ],
-    tracks: [
-      { name: 'Zero Trust', sessions: [
-        { time: '09:00', title: 'Zero trust: beyond the buzzword',  speaker: 'S. Lee',    room: 'Virtual Main', duration: '45min' },
-        { time: '10:00', title: 'Identity-first security in 2026',  speaker: 'M. Brown',  room: 'Virtual Main', duration: '45min' },
-        { time: '14:00', title: 'Red team: live zero-trust bypass', speaker: '2 speakers', room: 'Virtual Lab',  duration: '90min' },
-      ]},
-    ],
-    breakdown: [
-      { stars: 5, pct: 62 }, { stars: 4, pct: 24 },
-      { stars: 3, pct: 9  }, { stars: 2, pct: 3  }, { stars: 1, pct: 2 },
-    ],
-    reviews: [
-      { id: 1, rating: 5, text: 'The red team lab was the highlight of my year. Incredibly educational.',          date: '2 days ago' },
-      { id: 2, rating: 5, text: 'Dense, technical, and practical. Exactly what security conferences should be.',  date: '5 days ago' },
-      { id: 3, rating: 4, text: 'Strong speaker lineup. Wish there were more networking opportunities online.',   date: '1 week ago' },
-    ],
-  },
-  8: {
-    title: 'Interface 2026',
-    category: 'Design', organizer: 'Studio Kilo',
-    date: 'Sep 09, 2026', time: '10:00 – 18:00', location: 'Amsterdam, NL',
-    rating: 4.8, reviewCount: 203,
-    description: 'Europe\'s premier design conference. Two days of talks on interaction design, design systems, and the intersection of design and engineering. Expect sharp critique, beautiful work, and the people behind it.',
-    tiers: [
-      { name: 'Standard', price: 399, total: 300, sold: 226 },
-      { name: 'VIP',      price: 699, total: 50,  sold: 32  },
-    ],
-    tracks: [
-      { name: 'Design Systems', sessions: [
-        { time: '10:00', title: 'Tokens at scale: a year later',   speaker: 'A. Müller', room: 'Main Hall', duration: '45min' },
-        { time: '11:00', title: 'Motion design in production',     speaker: 'L. Sato',   room: 'Main Hall', duration: '45min' },
-        { time: '15:00', title: 'Design eng: the role of 2026',   speaker: '3 speakers', room: 'Main Hall', duration: '60min' },
-      ]},
-    ],
-    breakdown: [
-      { stars: 5, pct: 78 }, { stars: 4, pct: 16 },
-      { stars: 3, pct: 4  }, { stars: 2, pct: 1  }, { stars: 1, pct: 1 },
-    ],
-    reviews: [
-      { id: 1, rating: 5, text: 'Flawlessly produced. The Amsterdam venue was a perfect choice.',             date: '1 day ago'  },
-      { id: 2, rating: 5, text: 'Every talk was a masterclass. One of the best events I have ever attended.', date: '3 days ago' },
-      { id: 3, rating: 5, text: 'The design systems track alone was worth the trip from London.',             date: '5 days ago' },
-    ],
-  },
-  9: {
-    title: 'Model Eval Workshop',
-    category: 'AI & ML', organizer: 'Northwind Labs',
-    date: 'Oct 01, 2026', time: '09:00 – 16:00', location: 'Remote',
-    rating: 4.4, reviewCount: 41,
-    description: 'A focused half-day workshop on building reliable evaluation harnesses for language models. Covers automated evals, human preference data, red-teaming, and measuring regression across model versions.',
-    tiers: [
-      { name: 'Standard', price: 99,  total: 800, sold: 280 },
-      { name: 'Pro',       price: 199, total: 100, sold: 34  },
-    ],
-    tracks: [
-      { name: 'Evaluations', sessions: [
-        { time: '09:00', title: 'Why evals fail and how to fix them',   speaker: 'D. Kim',   room: 'Virtual', duration: '45min' },
-        { time: '10:00', title: 'Building automated eval pipelines',    speaker: 'P. Nair',  room: 'Virtual', duration: '60min' },
-        { time: '14:00', title: 'Human preference data at scale',       speaker: 'S. Costa', room: 'Virtual', duration: '45min' },
-      ]},
-    ],
-    breakdown: [
-      { stars: 5, pct: 58 }, { stars: 4, pct: 28 },
-      { stars: 3, pct: 10 }, { stars: 2, pct: 3  }, { stars: 1, pct: 1 },
-    ],
-    reviews: [
-      { id: 1, rating: 5, text: 'Best practical ML evaluation content anywhere. Dense and immediately useful.', date: '2 days ago' },
-      { id: 2, rating: 4, text: 'Well-structured workshop. The pipeline session saved me days of work.',       date: '4 days ago' },
-    ],
-  },
+  1: { category: 'AI & ML',  organizer: 'Northwind Labs',
+       tiers: [{ name: 'Community', price: 0, total: 150, sold: 128 }, { name: 'Standard', price: 199, total: 300, sold: 210 }, { name: 'VIP', price: 599, total: 50, sold: 14 }] },
+  2: { category: 'Frontend', organizer: 'Parallel',
+       tiers: [{ name: 'Community', price: 0, total: 250, sold: 228 }, { name: 'Workshop', price: 79, total: 80, sold: 60 }] },
+  3: { category: 'Product',  organizer: 'Orbit',
+       tiers: [{ name: 'Community', price: 0, total: 400, sold: 340 }, { name: 'Pro', price: 149, total: 100, sold: 42 }] },
+  4: { category: 'Cloud',    organizer: 'Helix Platform',
+       tiers: [{ name: 'Standard', price: 249, total: 400, sold: 312 }, { name: 'VIP', price: 499, total: 60, sold: 28 }] },
+  5: { category: 'Data',     organizer: 'Stratus Data',
+       tiers: [{ name: 'Standard', price: 349, total: 500, sold: 290 }, { name: 'Workshop', price: 499, total: 80, sold: 55 }] },
+  6: { category: 'DevOps',   organizer: 'Runbook',
+       tiers: [{ name: 'Community', price: 0, total: 1000, sold: 844 }, { name: 'Pro', price: 249, total: 150, sold: 94 }] },
+  7: { category: 'Security', organizer: 'Aegis Security',
+       tiers: [{ name: 'Standard', price: 149, total: 2000, sold: 760 }, { name: 'VIP', price: 349, total: 200, sold: 88 }] },
+  8: { category: 'Design',   organizer: 'Studio Kilo',
+       tiers: [{ name: 'Standard', price: 399, total: 300, sold: 226 }, { name: 'VIP', price: 699, total: 50, sold: 32 }] },
+  9: { category: 'AI & ML',  organizer: 'Northwind Labs',
+       tiers: [{ name: 'Standard', price: 99, total: 800, sold: 280 }, { name: 'Pro', price: 199, total: 100, sold: 34 }] },
 }
 
-function getFake(id) {
-  return FAKE[id] ?? {
-    title: 'TeqEvent',
-    category: 'Tech', organizer: 'TeqEvent',
-    date: 'TBD', time: 'TBD', location: 'TBD',
-    rating: 0, reviewCount: 0,
-    description: 'Full event details will be published soon.',
-    tiers: [{ name: 'Standard', price: 99, total: 200, sold: 0 }],
-    tracks: [],
-    breakdown: [
-      { stars: 5, pct: 0 }, { stars: 4, pct: 0 },
-      { stars: 3, pct: 0 }, { stars: 2, pct: 0 }, { stars: 1, pct: 0 },
-    ],
-    reviews: [],
-  }
+function fmtSessionTime(iso) {
+  // Slice HH:MM directly from the ISO string — avoids cross-browser timezone parsing
+  if (!iso || !iso.includes('T')) return '—'
+  return iso.split('T')[1].slice(0, 5)
+}
+
+function fmtDuration(start, end) {
+  // Parse HH:MM manually so timezone interpretation never affects the result
+  if (!start || !end) return '—'
+  const timePart = (iso) => iso.split('T')[1] ?? '00:00'
+  const toMins   = (iso) => { const [h, m] = timePart(iso).split(':'); return parseInt(h, 10) * 60 + parseInt(m, 10) }
+  const mins = toMins(end) - toMins(start)
+  if (mins <= 0) return '—'
+  if (mins < 60) return `${mins}min`
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  return m ? `${h}h ${m}min` : `${h}h`
 }
 
 function formatRelativeDate(iso) {
@@ -375,6 +143,7 @@ export default function EventDetail() {
   const [event, setEvent] = useState(null)
   const [realTiers, setRealTiers] = useState([])
   const [reviews, setReviews] = useState([])
+  const [agendaTracks, setAgendaTracks] = useState([])
   const [loading, setLoading] = useState(true)
   const [realEventData, setRealEventData] = useState(null)
   const [selectedTier, setSelectedTier] = useState(0)
@@ -393,46 +162,65 @@ export default function EventDetail() {
       eventsApi.getById(id),
       ticketTiersApi.listByEvent(id),
       reviewsApi.listByEvent(id).then(r => r.data).catch(() => []),
+      agendaApi.listTracks(id).then(r => r.data).catch(() => []),
+      agendaApi.listSessions(id).then(r => r.data).catch(() => []),
+      categoriesApi.list().then(r => r.data).catch(() => []),
     ])
-      .then(([evRes, tiersRes, realReviews]) => {
+      .then(([evRes, tiersRes, realReviews, rawTracks, rawSessions, allCategories]) => {
         const real = evRes.data
         setRealEventData(real)
+
+        const fmtTime = dt =>
+          (dt && dt.includes('T')) ? dt.split('T')[1].slice(0, 5) : null
+        const t0 = fmtTime(real.start_datetime)
+        const t1 = fmtTime(real.end_datetime)
+
         const fake = FAKE[numId] ?? null
-        if (!fake) {
-          const fmtTime = dt => dt
-            ? new Date(dt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
-            : null
-          const t0 = fmtTime(real.start_datetime)
-          const t1 = fmtTime(real.end_datetime)
-          setEvent({
-            title: real.title,
-            category: 'Tech', organizer: 'TeqEvent',
-            date: real.start_datetime
-              ? new Date(real.start_datetime).toLocaleDateString('en-US',
-                  { month: 'long', day: 'numeric', year: 'numeric' })
-              : 'TBD',
-            time: t0 && t1 ? `${t0} – ${t1}` : t0 || 'TBD',
-            location: real.physical_address
-              || (real.location_type === 'online' ? 'Remote' : 'TBD'),
-            rating: 0, reviewCount: 0,
-            description: real.description || 'No description available.',
-            tiers: [], tracks: [], breakdown: [], reviews: [],
-          })
-        } else {
-          setEvent({
-            ...fake,
-            title: real.title || fake.title,
-            description: real.description || fake.description,
-            location: real.physical_address
-              || (real.location_type === 'online' ? 'Remote' : fake.location),
-            date: real.start_datetime
-              ? new Date(real.start_datetime).toLocaleDateString('en-US',
-                  { month: 'long', day: 'numeric', year: 'numeric' })
-              : fake.date,
-          })
-        }
+        const categoryName = (() => {
+          if (!real.category_ids?.length) return fake?.category || 'Tech'
+          const catMap = Object.fromEntries(allCategories.map(c => [c.id, c.name]))
+          return real.category_ids.map(id => catMap[id]).filter(Boolean).join(', ') || fake?.category || 'Tech'
+        })()
+        setEvent({
+          title:       real.title || 'TeqEvent',
+          category:    categoryName,
+          organizer:   fake?.organizer  || 'TeqEvent',
+          description: real.description || 'No description available.',
+          location:    real.physical_address || (real.location_type === 'online' ? 'Remote' : 'TBD'),
+          date:        real.start_datetime
+            ? new Date(real.start_datetime).toLocaleDateString('en-US',
+                { month: 'long', day: 'numeric', year: 'numeric' })
+            : 'TBD',
+          time: t0 && t1 ? `${t0} – ${t1}` : t0 || 'TBD',
+          tiers: fake?.tiers || [],
+        })
+
         setRealTiers(tiersRes.data)
         setReviews(Array.isArray(realReviews) ? realReviews : [])
+
+        // Build agenda: group sessions under their track
+        const sessionsByTrack = {}
+        rawSessions.forEach(s => {
+          if (!sessionsByTrack[s.track_id]) sessionsByTrack[s.track_id] = []
+          sessionsByTrack[s.track_id].push(s)
+        })
+        const built = [...rawTracks]
+          .sort((a, b) => a.order_index - b.order_index)
+          .map(track => ({
+            id:       track.id,
+            name:     track.name,
+            color:    track.color,
+            sessions: (sessionsByTrack[track.id] || [])
+              .sort((a, b) => a.order_index - b.order_index)
+              .map(s => ({
+                time:     fmtSessionTime(s.start_datetime),
+                title:    s.title,
+                speaker:  s.speaker_name || '—',
+                room:     s.location     || '—',
+                duration: fmtDuration(s.start_datetime, s.end_datetime),
+              })),
+          }))
+        setAgendaTracks(built)
       })
       .catch(() => {
         setEvent(null)
@@ -572,14 +360,14 @@ export default function EventDetail() {
             ))}
           </section>
 
-          {event.tracks.length > 0 && (
+          {agendaTracks.length > 0 && (
             <section className="ed-section">
               <h2 className="ed-section-h">Agenda</h2>
               <div className="ed-tracks">
-                {event.tracks.map(track => (
-                  <div key={track.name} className="ed-track">
+                {agendaTracks.map(track => (
+                  <div key={track.id} className="ed-track">
                     <div className="ed-track-head">
-                      <span className="ed-track-bar" />
+                      <span className="ed-track-bar" style={track.color ? { background: track.color } : undefined} />
                       <span className="ed-track-name">{track.name}</span>
                       <span className="ed-track-count">· {track.sessions.length} sessions</span>
                     </div>

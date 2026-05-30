@@ -51,6 +51,7 @@ export const eventsApi = {
   list:    (params = {}) => api.get('/api/events', { params }),
   getById: (id)          => api.get(`/api/events/${id}`),
   create:  (data)        => api.post('/api/events', data),
+  update:  (id, data)    => api.patch(`/api/events/${id}`, data),
   publish: (id)          => api.patch(`/api/events/${id}/publish`),
 }
 
@@ -82,6 +83,11 @@ export const registrationsApi = {
   getTickets: (id)          => api.get(`/api/registrations/${id}/tickets`),
 }
 
+export const agendaApi = {
+  listTracks:   (eventId) => api.get(`/api/events/${eventId}/tracks`),
+  listSessions: (eventId) => api.get(`/api/events/${eventId}/sessions`),
+}
+
 export const organizerApi = {
   listEventRegistrations: (eventId, params = {}) =>
     api.get(`/api/events/${eventId}/registrations`, { params }),
@@ -93,11 +99,63 @@ export const mlApi = {
   sentiment:       (eventId) => api.get(`/api/ml/sentiment/${eventId}`),
 }
 
+export const adminApi = {
+  analytics: ()                  => api.get('/api/admin/analytics'),
+  listUsers: (params = {})       => api.get('/api/admin/users', { params }),
+  getUser:   (id)                => api.get(`/api/admin/users/${id}`),
+  listEvents: (params = {})      => api.get('/api/admin/events', { params }),
+  deactivateUser: (id)           => api.patch(`/api/admin/users/${id}/deactivate`),
+  activateUser:   (id)           => api.patch(`/api/admin/users/${id}/activate`),
+  deleteUser:     (id)           => api.delete(`/api/admin/users/${id}`),
+  getEventDetail:    (id)         => api.get(`/api/admin/events/${id}`),
+  getEventAnalytics: (id)         => api.get(`/api/admin/events/${id}/analytics`),
+  unpublishEvent: (id)            => api.patch(`/api/admin/events/${id}/unpublish`),
+  deleteEvent:    (id)            => api.delete(`/api/admin/events/${id}`),
+}
+
 export const notificationsApi = {
-  list: () => api.get('/api/notifications/'),
-  getUnreadCount: () => api.get('/api/notifications/unread-count'),
-  getPreferences: () => api.get('/api/notifications/preferences'),
-  updatePreferences: (data) => api.patch('/api/notifications/preferences', data),
+  list:              ()    => api.get('/api/notifications/'),
+  getUnreadCount:    ()    => api.get('/api/notifications/unread-count'),
+  markRead:          (id)  => api.patch(`/api/notifications/${id}/read`),
+  markAllRead:       ()    => api.patch('/api/notifications/read-all'),
+  getPreferences:    ()    => api.get('/api/notifications/preferences'),
+  updatePreferences: (data)=> api.patch('/api/notifications/preferences', data),
+}
+
+export const collaboratorApi = {
+  inviteCollaborator: (eventId, email) =>
+    api.post(`/api/collaborators/events/${eventId}/invite`, { email }),
+
+  listCollaborators: (eventId) =>
+    api.get(`/api/collaborators/events/${eventId}`),
+
+  removeCollaborator: (eventId, userId) =>
+    api.delete(`/api/collaborators/events/${eventId}/remove/${userId}`),
+
+  acceptInvite: (eventId) =>
+    api.post(`/api/collaborators/events/${eventId}/accept`),
+
+  declineInvite: (eventId) =>
+    api.post(`/api/collaborators/events/${eventId}/decline`),
+
+  getMyInvites: () =>
+    api.get(`/api/collaborators/my/invites`),
+
+  getMyCollaboratingEvents: () =>
+    api.get(`/api/collaborators/my/events`),
+};
+
+export const inviteApi = {
+  sendInvite: (eventId, email) =>
+    api.post(`/api/events/${eventId}/invites`, { email }),
+  listEventInvites: (eventId) =>
+    api.get(`/api/events/${eventId}/invites`),
+  getMyInvites: () =>
+    api.get(`/api/invites/my`),
+  acceptInvite: (eventId) =>
+    api.post(`/api/invites/${eventId}/accept`),
+  declineInvite: (eventId) =>
+    api.post(`/api/invites/${eventId}/decline`),
 }
 
 export default api

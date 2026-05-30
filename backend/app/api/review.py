@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.core.dependencies import get_db, get_current_user, get_optional_user
+from app.core.limiter import limiter
 from app.models.user import User
 from app.schemas.review import ReviewCreateRequest, ReviewResponse
 from app.services.review import (
@@ -16,7 +17,9 @@ router = APIRouter(tags=["reviews"])
 
 
 @router.post("/api/reviews", response_model=ReviewResponse, status_code=201)
+@limiter.limit("10/minute")
 def create_or_update(
+    request: Request,
     data: ReviewCreateRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -43,7 +46,9 @@ def my_review(
 
 
 @router.delete("/api/reviews/{review_id}", status_code=204)
+@limiter.limit("10/minute")
 def remove_review(
+    request: Request,
     review_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
