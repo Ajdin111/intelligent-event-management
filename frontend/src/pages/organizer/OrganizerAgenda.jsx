@@ -580,13 +580,12 @@ export default function OrganizerAgenda() {
   useEffect(() => {
     let cancelled = false
     Promise.all([
-      eventsApi.list({ limit: 100 }),
+      eventsApi.myEvents(),
       collaboratorApi.getMyCollaboratingEvents(),
     ])
-      .then(([evRes, collabRes]) => {
+      .then(([ownedRes, collabRes]) => {
         if (cancelled) return
-        const items = evRes.data?.items ?? []
-        const owned = items.filter(e => e.owner_id !== undefined)
+        const owned = ownedRes.data ?? []
         const collab = collabRes.data ?? []
         const ownedIds = new Set(owned.map(e => e.id))
         const merged = [...owned, ...collab.filter(e => !ownedIds.has(e.id))]

@@ -50,11 +50,12 @@ export const authApi = {
 }
 
 export const eventsApi = {
-  list:    (params = {}) => api.get('/api/events', { params }),
-  getById: (id)          => api.get(`/api/events/${id}`),
-  create:  (data)        => api.post('/api/events', data),
-  update:  (id, data)    => api.patch(`/api/events/${id}`, data),
-  publish: (id)          => api.patch(`/api/events/${id}/publish`),
+  list:     (params = {}) => api.get('/api/events', { params }),
+  myEvents: ()            => api.get('/api/events/my-events'),
+  getById:  (id)          => api.get(`/api/events/${id}`),
+  create:   (data)        => api.post('/api/events', data),
+  update:   (id, data)    => api.patch(`/api/events/${id}`, data),
+  publish:  (id)          => api.patch(`/api/events/${id}/publish`),
 }
 
 export const ticketTiersApi = {
