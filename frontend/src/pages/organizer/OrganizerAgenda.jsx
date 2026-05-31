@@ -456,7 +456,7 @@ function AgendaGrid({ tracks, sessions, eventDate, conflicts, onEditSession, onD
       <div className="ag-grid-body" style={{ height: GRID_H }}>
         {/* Time gutter */}
         <div className="ag-time-gutter ag-time-gutter--body">
-          {hours.map(m => (
+          {hours.map(m => m === GRID_START ? null : (
             <div key={m} className="ag-time-label" style={{ top: (m - GRID_START) * PX_PER_MIN }}>
               {minutesToHHMM(m)}
             </div>
