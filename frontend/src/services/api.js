@@ -86,8 +86,14 @@ export const registrationsApi = {
 }
 
 export const agendaApi = {
-  listTracks:   (eventId) => api.get(`/api/events/${eventId}/tracks`),
-  listSessions: (eventId) => api.get(`/api/events/${eventId}/sessions`),
+  listTracks:      (eventId)            => api.get(`/api/events/${eventId}/tracks`),
+  createTrack:     (eventId, data)      => api.post(`/api/events/${eventId}/tracks`, data),
+  updateTrack:     (trackId, data)      => api.patch(`/api/tracks/${trackId}`, data),
+  deleteTrack:     (trackId)            => api.delete(`/api/tracks/${trackId}`),
+  listSessions:    (eventId)            => api.get(`/api/events/${eventId}/sessions`),
+  createSession:   (trackId, data)      => api.post(`/api/tracks/${trackId}/sessions`, data),
+  updateSession:   (sessionId, data)    => api.patch(`/api/sessions/${sessionId}`, data),
+  deleteSession:   (sessionId)          => api.delete(`/api/sessions/${sessionId}`),
 }
 
 export const organizerApi = {
