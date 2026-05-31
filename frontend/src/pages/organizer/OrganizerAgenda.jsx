@@ -370,20 +370,6 @@ function AgendaGrid({ tracks, sessions, eventDate, conflicts, onEditSession, onD
     return map
   }, [tracks, sessions])
 
-  const orphanSessions = useMemo(() => {
-    const result = []
-    tracks.forEach(track => {
-      (sessionsByTrack[track.id] || []).forEach(s => {
-        const startMin = toMinutes(s.start_datetime)
-        const endMin   = toMinutes(s.end_datetime)
-        if (startMin >= GRID_END || endMin <= GRID_START || endMin <= startMin) {
-          result.push({ ...s, _trackName: track.name, _trackColor: track.color || '#5B8AF5' })
-        }
-      })
-    })
-    return result
-  }, [tracks, sessionsByTrack])
-
   const handleDragStart = useCallback((e, session) => {
     const rect = e.currentTarget.getBoundingClientRect()
     const grabOffsetY = e.clientY - rect.top
@@ -463,34 +449,6 @@ function AgendaGrid({ tracks, sessions, eventDate, conflicts, onEditSession, onD
   }
 
   return (
-    <>
-      {/* Orphan sessions — invalid times, cannot be rendered in grid */}
-      {orphanSessions.length > 0 && (
-        <div className="ag-orphan-banner">
-          <IcoWarn />
-          <div style={{ flex: 1 }}>
-            <strong style={{ fontSize: 13 }}>
-              {orphanSessions.length} session{orphanSessions.length > 1 ? 's' : ''} with invalid times
-            </strong>
-            <ul className="ag-conflict-list">
-              {orphanSessions.map(s => (
-                <li key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ borderLeft: `3px solid ${s._trackColor}`, paddingLeft: 6 }}>
-                    &ldquo;{s.title}&rdquo; in {s._trackName} — {formatDisplayTime(s.start_datetime)}–{formatDisplayTime(s.end_datetime)}
-                  </span>
-                  <button
-                    className="ag-session-action-btn ag-session-action-btn--danger"
-                    onClick={() => onDeleteSession(s)}
-                    title="Delete session"
-                    style={{ flexShrink: 0 }}
-                  ><IcoTrash /></button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      )}
-
     <div className="ag-grid-wrap">
       {/* Column headers */}
       <div className="ag-grid-header">
@@ -610,7 +568,6 @@ function AgendaGrid({ tracks, sessions, eventDate, conflicts, onEditSession, onD
         })}
       </div>
     </div>
-    </>
   )
 }
 
@@ -786,6 +743,20 @@ export default function OrganizerAgenda() {
 
   // ── Computed ─────────────────────────────────────────────────────────────────
   const conflicts     = useMemo(() => detectConflicts(sessions), [sessions])
+
+  const orphanSessions = useMemo(() => {
+    const trackMap = new Map(tracks.map(t => [t.id, t]))
+    return sessions
+      .filter(s => {
+        const startMin = toMinutes(s.start_datetime)
+        const endMin   = toMinutes(s.end_datetime)
+        return startMin >= GRID_END || endMin <= GRID_START || endMin <= startMin
+      })
+      .map(s => {
+        const t = trackMap.get(s.track_id)
+        return { ...s, _trackName: t?.name ?? 'Unknown track', _trackColor: t?.color || '#5B8AF5' }
+      })
+  }, [tracks, sessions])
   const conflictList  = useMemo(() => {
     const pairs = []
     const seen  = new Set()
@@ -888,6 +859,33 @@ export default function OrganizerAgenda() {
                     {conflictList.map(({ a, b }, i) => (
                       <li key={i}>
                         &ldquo;{a.title}&rdquo; overlaps with &ldquo;{b.title}&rdquo; at {formatDisplayTime(b.start_datetime > a.start_datetime ? b.start_datetime : a.start_datetime)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {/* Orphan sessions — invalid times, not renderable in grid */}
+            {orphanSessions.length > 0 && (
+              <div className="ag-orphan-banner">
+                <IcoWarn />
+                <div style={{ flex: 1 }}>
+                  <strong style={{ fontSize: 13 }}>
+                    {orphanSessions.length} session{orphanSessions.length > 1 ? 's' : ''} with invalid times
+                  </strong>
+                  <ul className="ag-conflict-list">
+                    {orphanSessions.map(s => (
+                      <li key={s.id}>
+                        <span style={{ borderLeft: `3px solid ${s._trackColor}`, paddingLeft: 6 }}>
+                          &ldquo;{s.title}&rdquo; in {s._trackName} — {formatDisplayTime(s.start_datetime)}–{formatDisplayTime(s.end_datetime)}
+                        </span>
+                        <button
+                          className="ag-session-action-btn ag-session-action-btn--danger"
+                          onClick={() => handleDeleteSession(s)}
+                          title="Delete session"
+                          style={{ flexShrink: 0 }}
+                        ><IcoTrash /></button>
                       </li>
                     ))}
                   </ul>
