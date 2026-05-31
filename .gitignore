@@ -50,6 +50,7 @@ npm-debug.*
 *.orig.*
 .claude
 uploads/
+.env.docker
 
 
 
