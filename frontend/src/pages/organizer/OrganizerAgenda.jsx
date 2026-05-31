@@ -381,10 +381,6 @@ function AgendaGrid({ tracks, sessions, eventDate, conflicts, onEditSession, onD
   const handleDragOver = useCallback((e, trackId) => {
     e.preventDefault()
     if (!dragRef.current) return
-    if (dragRef.current.session.track_id !== trackId) {
-      e.dataTransfer.dropEffect = 'none'
-      return
-    }
     e.dataTransfer.dropEffect = 'move'
     const rect = e.currentTarget.getBoundingClientRect()
     const rawY  = e.clientY - rect.top - dragRef.current.grabOffsetY
@@ -403,7 +399,6 @@ function AgendaGrid({ tracks, sessions, eventDate, conflicts, onEditSession, onD
     e.preventDefault()
     if (!dragRef.current || !dragPreview) { setDragPreview(null); return }
     const { session } = dragRef.current
-    if (session.track_id !== trackId) { setDragPreview(null); dragRef.current = null; return }
     const duration = toMinutes(session.end_datetime) - toMinutes(session.start_datetime)
     if (duration <= 0) { setDragPreview(null); dragRef.current = null; return }
     const newStart = dragPreview.startMinutes
@@ -413,7 +408,7 @@ function AgendaGrid({ tracks, sessions, eventDate, conflicts, onEditSession, onD
     const newEndDt   = buildNaiveDatetime(getISODate(session.end_datetime),   newEnd)
     setDragPreview(null)
     dragRef.current = null
-    await onDrop(session, newStartDt, newEndDt)
+    await onDrop(session, newStartDt, newEndDt, trackId)
   }, [dragPreview, onDrop])
 
   const handleDragEnd = useCallback(() => {
@@ -615,6 +610,7 @@ export default function OrganizerAgenda() {
         const collab = collabRes.data ?? []
         const ownedIds = new Set(owned.map(e => e.id))
         const merged = [...owned, ...collab.filter(e => !ownedIds.has(e.id))]
+          .filter(e => e.status !== 'cancelled')
         setMyEvents(merged)
         if (merged.length > 0) loadAgenda(merged[0])
       })
@@ -732,9 +728,26 @@ export default function OrganizerAgenda() {
   }, [refreshAgenda, showFlash])
 
   // ── Drag drop ───────────────────────────────────────────────────────────────
-  const handleDrop = useCallback(async (session, newStart, newEnd) => {
+  const handleDrop = useCallback(async (session, newStart, newEnd, newTrackId) => {
     try {
-      await agendaApi.updateSession(session.id, { start_datetime: newStart, end_datetime: newEnd })
+      if (newTrackId && newTrackId !== session.track_id) {
+        // Cross-track: backend has no track_id on update, so recreate in new track then delete original
+        await agendaApi.createSession(newTrackId, {
+          title:                 session.title,
+          description:           session.description || null,
+          speaker_name:          session.speaker_name || null,
+          speaker_bio:           session.speaker_bio || null,
+          start_datetime:        newStart,
+          end_datetime:          newEnd,
+          capacity:              session.capacity || null,
+          requires_registration: session.requires_registration,
+          location:              session.location || null,
+          order_index:           0,
+        })
+        await agendaApi.deleteSession(session.id)
+      } else {
+        await agendaApi.updateSession(session.id, { start_datetime: newStart, end_datetime: newEnd })
+      }
       await refreshAgenda()
     } catch (e) {
       showFlash(e.response?.data?.detail ?? 'Could not reschedule session.', 'error')

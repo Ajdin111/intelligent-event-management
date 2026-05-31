@@ -8876,11 +8876,11 @@ select.form-input {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px; height: 20px;
+  width: 22px; height: 22px;
   border-radius: 4px;
   border: none;
   background: transparent;
-  color: var(--text-muted);
+  color: rgba(255,255,255,0.45);
   cursor: pointer;
   transition: background .12s, color .12s;
   padding: 0;
@@ -8972,16 +8972,18 @@ select.form-input {
 .ag-time-label {
   position: absolute;
   right: 10px;
-  font-size: 10.5px;
-  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.5);
   transform: translateY(-50%);
   white-space: nowrap;
   pointer-events: none;
   user-select: none;
 }
 .ag-time-label--half {
-  font-size: 9px;
-  color: rgba(255,255,255,0.2);
+  font-size: 9.5px;
+  font-weight: 400;
+  color: rgba(255,255,255,0.22);
 }
 
 /* ── Track column ──────────────────────────────────────────────────────────── */
@@ -9095,13 +9097,13 @@ select.form-input {
 .ag-session-card:hover .ag-session-actions { display: flex; }
 
 .ag-session-action-btn {
-  width: 20px; height: 20px;
+  width: 24px; height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 3px;
-  background: rgba(255,255,255,.06);
-  color: var(--text-muted);
+  border-radius: 4px;
+  background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,0.55);
   border: none;
   cursor: pointer;
   transition: background .12s, color .12s;
