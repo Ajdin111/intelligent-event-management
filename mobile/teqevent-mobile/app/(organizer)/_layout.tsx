@@ -108,6 +108,10 @@ export default function OrganizerLayout() {
       name="scan-stats"
       options={{ href: null }}
       />
+      <Tabs.Screen
+      name="create-event"
+      options={{ href: null }}
+      />
     </Tabs>
   );
 }

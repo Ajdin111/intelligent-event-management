@@ -161,7 +161,7 @@ export default function OrganizerHomeScreen() {
           </View>
           <TouchableOpacity
             style={styles.createBtn}
-            onPress={() => {}}
+            onPress={() => router.push('/(organizer)/create-event' as any)}
             activeOpacity={0.85}
           >
             <Ionicons name="add" size={16} color={Colors.bg} />
