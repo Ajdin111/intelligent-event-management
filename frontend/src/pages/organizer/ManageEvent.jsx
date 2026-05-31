@@ -144,7 +144,7 @@ const STATUS_DOT = {
 
 // ── Event List Item ───────────────────────────────────────────────────────────
 
-function EventListItem({ event, selected, onClick }) {
+function EventListItem({ event, selected, onClick, onDismiss }) {
   const statusColor = {
     published: '#4ade80',
     draft:     'rgba(255,255,255,0.35)',
@@ -174,7 +174,16 @@ function EventListItem({ event, selected, onClick }) {
           </div>
         </div>
       </div>
-      <IcoChevronRight />
+      {event.status === 'cancelled' && onDismiss ? (
+        <span
+          className="me-event-list-dismiss"
+          role="button"
+          title="Remove from list"
+          onClick={e => { e.stopPropagation(); onDismiss(event.id) }}
+        ><IcoX /></span>
+      ) : (
+        <IcoChevronRight />
+      )}
     </button>
   )
 }
@@ -1028,15 +1037,20 @@ function CollaboratorsTab({ eventId }) {
 export default function ManageEvent() {
   const navigate = useNavigate()
 
-  const [myEvents, setMyEvents]         = useState([])
-  const [selectedEvent, setSelectedEvent] = useState(null)
-  const [registrations, setRegistrations] = useState([])
-  const [categories, setCategories]     = useState([])
-  const [currentUserId, setCurrentUserId] = useState(null)
-  const [activeTab, setActiveTab]       = useState('overview')
-  const [loadingList, setLoadingList]   = useState(true)
-  const [loadingEvent, setLoadingEvent] = useState(false)
-  const [fetchError, setFetchError]     = useState('')
+  const [myEvents, setMyEvents]             = useState([])
+  const [selectedEvent, setSelectedEvent]   = useState(null)
+  const [registrations, setRegistrations]   = useState([])
+  const [categories, setCategories]         = useState([])
+  const [currentUserId, setCurrentUserId]   = useState(null)
+  const [activeTab, setActiveTab]           = useState('overview')
+  const [loadingList, setLoadingList]       = useState(true)
+  const [loadingEvent, setLoadingEvent]     = useState(false)
+  const [fetchError, setFetchError]         = useState('')
+  const [dismissedIds, setDismissedIds]     = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('agenda-dismissed-events') ?? '[]')) }
+    catch { return new Set() }
+  })
+  const [pendingDismissId, setPendingDismissId] = useState(null)
 
   const isOwner = selectedEvent && currentUserId && selectedEvent.owner_id === currentUserId
 
@@ -1075,9 +1089,10 @@ export default function ManageEvent() {
             ...collaborating.filter(e => !ownedIds.has(e.id)),
           ]
           setMyEvents(merged)
-          if (merged.length > 0) {
-            loadEvent(merged[0].id)
-          }
+          let dismissed
+          try { dismissed = new Set(JSON.parse(localStorage.getItem('agenda-dismissed-events') ?? '[]')) } catch { dismissed = new Set() }
+          const first = merged.find(e => !dismissed.has(e.id))
+          if (first) loadEvent(first.id)
         })
       })
       .catch(() => setFetchError('Failed to load events.'))
@@ -1127,6 +1142,19 @@ const handleActionDone = () => {
   }).catch(() => {})
 }
 
+  const handleDismiss = (id) => { setPendingDismissId(id) }
+
+  const confirmDismiss = () => {
+    if (!pendingDismissId) return
+    setDismissedIds(prev => {
+      const next = new Set(prev)
+      next.add(pendingDismissId)
+      try { localStorage.setItem('agenda-dismissed-events', JSON.stringify([...next])) } catch {}
+      return next
+    })
+    setPendingDismissId(null)
+  }
+
   if (loadingList) return <div className="ed-state">Loading…</div>
 
   if (fetchError) return (
@@ -1148,30 +1176,34 @@ const handleActionDone = () => {
           </button>
         </div>
 
-        {myEvents.length === 0 ? (
-          <div className="me-list-empty">
-            <p style={{ fontSize: 13, color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center', lineHeight: 1.5 }}>
-              No events yet.{' '}
-              <button
-                style={{ color: 'var(--text)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', font: 'inherit', fontSize: 13 }}
-                onClick={() => navigate('/organizer/create-event')}
-              >
-                Create one
-              </button>
-            </p>
-          </div>
-        ) : (
-          <div className="me-event-list-items">
-            {myEvents.map(ev => (
-              <EventListItem
-                key={ev.id}
-                event={ev}
-                selected={selectedEvent?.id === ev.id}
-                onClick={() => handleSelectEvent(ev)}
-              />
-            ))}
-          </div>
-        )}
+        {(() => {
+          const visibleEvents = myEvents.filter(ev => !dismissedIds.has(ev.id))
+          return visibleEvents.length === 0 ? (
+            <div className="me-list-empty">
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center', lineHeight: 1.5 }}>
+                No events yet.{' '}
+                <button
+                  style={{ color: 'var(--text)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', font: 'inherit', fontSize: 13 }}
+                  onClick={() => navigate('/organizer/create-event')}
+                >
+                  Create one
+                </button>
+              </p>
+            </div>
+          ) : (
+            <div className="me-event-list-items">
+              {visibleEvents.map(ev => (
+                <EventListItem
+                  key={ev.id}
+                  event={ev}
+                  selected={selectedEvent?.id === ev.id}
+                  onClick={() => handleSelectEvent(ev)}
+                  onDismiss={handleDismiss}
+                />
+              ))}
+            </div>
+          )
+        })()}
       </aside>
 
       {/* ── right: event detail ── */}
@@ -1259,6 +1291,27 @@ const handleActionDone = () => {
           </>
         )}
       </div>
+
+      {/* ── Dismiss confirm ── */}
+      {pendingDismissId && (
+        <div className="ag-modal-backdrop" onClick={e => e.target === e.currentTarget && setPendingDismissId(null)}>
+          <div className="ag-modal" style={{ maxWidth: 380 }}>
+            <div className="ag-modal-head">
+              <h2 className="ag-modal-title">Remove from list?</h2>
+              <button className="ag-modal-close" onClick={() => setPendingDismissId(null)}><IcoX /></button>
+            </div>
+            <div className="ag-modal-body">
+              <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                This cancelled event will be hidden from your sidebar. It won't be deleted — you can still restore it by clearing your browser storage.
+              </p>
+            </div>
+            <div className="ag-modal-foot">
+              <button className="ag-btn ag-btn--ghost" onClick={() => setPendingDismissId(null)}>Cancel</button>
+              <button className="ag-btn" style={{ background: '#f87171', color: '#fff', borderColor: '#f87171' }} onClick={confirmDismiss}>Remove</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -122,7 +122,7 @@ function detectConflicts(sessions) {
 }
 
 // ─── Event List Item ──────────────────────────────────────────────────────────
-function EventListItem({ event, selected, onClick }) {
+function EventListItem({ event, selected, onClick, onDismiss }) {
   const color = { published: '#4ade80', draft: 'rgba(255,255,255,0.35)', cancelled: '#f87171', closed: 'rgba(255,255,255,0.35)' }[event.status] ?? 'rgba(255,255,255,0.35)'
   return (
     <button className={`me-event-list-item${selected ? ' me-event-list-item--active' : ''}`} onClick={onClick}>
@@ -143,7 +143,16 @@ function EventListItem({ event, selected, onClick }) {
           </div>
         </div>
       </div>
-      <IcoChevRight />
+      {event.status === 'cancelled' && onDismiss ? (
+        <span
+          className="me-event-list-dismiss"
+          role="button"
+          title="Remove from list"
+          onClick={e => { e.stopPropagation(); onDismiss(event.id) }}
+        ><IcoX /></span>
+      ) : (
+        <IcoChevRight />
+      )}
     </button>
   )
 }
@@ -575,6 +584,10 @@ export default function OrganizerAgenda() {
   const [selectedEvent,  setSelectedEvent]  = useState(null)
   const [loadingList,    setLoadingList]     = useState(true)
   const [listError,      setListError]      = useState('')
+  const [dismissedIds,   setDismissedIds]   = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('agenda-dismissed-events') ?? '[]')) }
+    catch { return new Set() }
+  })
 
   // agenda state
   const [tracks,         setTracks]         = useState([])
@@ -582,8 +595,9 @@ export default function OrganizerAgenda() {
   const [loadingAgenda,  setLoadingAgenda]  = useState(false)
 
   // modals
-  const [trackModal,     setTrackModal]     = useState(null)  // null | { track: Track|null }
-  const [sessionModal,   setSessionModal]   = useState(null)  // null | { session, trackId, time }
+  const [trackModal,       setTrackModal]       = useState(null)  // null | { track: Track|null }
+  const [sessionModal,     setSessionModal]     = useState(null)  // null | { session, trackId, time }
+  const [pendingDismissId, setPendingDismissId] = useState(null)
 
   // flash
   const [flash, setFlash] = useState(null)
@@ -596,6 +610,19 @@ export default function OrganizerAgenda() {
   }, [])
 
   useEffect(() => () => clearTimeout(flashTimer.current), [])
+
+  const handleDismiss = useCallback((id) => { setPendingDismissId(id) }, [])
+
+  const confirmDismiss = useCallback(() => {
+    if (!pendingDismissId) return
+    setDismissedIds(prev => {
+      const next = new Set(prev)
+      next.add(pendingDismissId)
+      try { localStorage.setItem('agenda-dismissed-events', JSON.stringify([...next])) } catch {}
+      return next
+    })
+    setPendingDismissId(null)
+  }, [pendingDismissId])
 
   // load organizer's events
   useEffect(() => {
@@ -610,9 +637,11 @@ export default function OrganizerAgenda() {
         const collab = collabRes.data ?? []
         const ownedIds = new Set(owned.map(e => e.id))
         const merged = [...owned, ...collab.filter(e => !ownedIds.has(e.id))]
-          .filter(e => e.status !== 'cancelled')
         setMyEvents(merged)
-        if (merged.length > 0) loadAgenda(merged[0])
+        let dismissed
+        try { dismissed = new Set(JSON.parse(localStorage.getItem('agenda-dismissed-events') ?? '[]')) } catch { dismissed = new Set() }
+        const first = merged.find(e => !dismissed.has(e.id))
+        if (first) loadAgenda(first)
       })
       .catch(() => setListError('Failed to load events.'))
       .finally(() => { if (!cancelled) setLoadingList(false) })
@@ -809,19 +838,22 @@ export default function OrganizerAgenda() {
             <IcoPlus />
           </button>
         </div>
-        {myEvents.length === 0 ? (
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center', lineHeight: 1.5 }}>
-            No events yet.{' '}
-            <button style={{ color: 'var(--text)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', font: 'inherit', fontSize: 13 }}
-              onClick={() => navigate('/organizer/create-event')}>Create one</button>
-          </p>
-        ) : (
-          <div className="me-event-list-items">
-            {myEvents.map(ev => (
-              <EventListItem key={ev.id} event={ev} selected={selectedEvent?.id === ev.id} onClick={() => loadAgenda(ev)} />
-            ))}
-          </div>
-        )}
+        {(() => {
+          const visibleEvents = myEvents.filter(ev => !dismissedIds.has(ev.id))
+          return visibleEvents.length === 0 ? (
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center', lineHeight: 1.5 }}>
+              No events yet.{' '}
+              <button style={{ color: 'var(--text)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', font: 'inherit', fontSize: 13 }}
+                onClick={() => navigate('/organizer/create-event')}>Create one</button>
+            </p>
+          ) : (
+            <div className="me-event-list-items">
+              {visibleEvents.map(ev => (
+                <EventListItem key={ev.id} event={ev} selected={selectedEvent?.id === ev.id} onClick={() => loadAgenda(ev)} onDismiss={handleDismiss} />
+              ))}
+            </div>
+          )
+        })()}
       </aside>
 
       {/* ── Right panel ── */}
@@ -952,6 +984,27 @@ export default function OrganizerAgenda() {
           onSave={handleSaveSession}
           onClose={() => setSessionModal(null)}
         />
+      )}
+
+      {/* ── Dismiss confirm ── */}
+      {pendingDismissId && (
+        <div className="ag-modal-backdrop" onClick={e => e.target === e.currentTarget && setPendingDismissId(null)}>
+          <div className="ag-modal" style={{ maxWidth: 380 }}>
+            <div className="ag-modal-head">
+              <h2 className="ag-modal-title">Remove from list?</h2>
+              <button className="ag-modal-close" onClick={() => setPendingDismissId(null)}><IcoX /></button>
+            </div>
+            <div className="ag-modal-body">
+              <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                This cancelled event will be hidden from your sidebar. It won't be deleted — you can still find it in Manage Events.
+              </p>
+            </div>
+            <div className="ag-modal-foot">
+              <button className="ag-btn ag-btn--ghost" onClick={() => setPendingDismissId(null)}>Cancel</button>
+              <button className="ag-btn" style={{ background: '#f87171', color: '#fff', borderColor: '#f87171' }} onClick={confirmDismiss}>Remove</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

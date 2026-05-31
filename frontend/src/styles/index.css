@@ -6002,6 +6002,26 @@ select.form-input {
   color: var(--text-muted);
 }
 
+.me-event-list-dismiss {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  color: rgba(248, 113, 113, 0.6);
+  transition: background 0.15s, color 0.15s;
+}
+.me-event-list-dismiss:hover {
+  background: rgba(248, 113, 113, 0.12);
+  color: #f87171;
+}
+.me-event-list-dismiss svg {
+  width: 13px;
+  height: 13px;
+}
+
 /* ── Detail panel ── */
 .me-detail-panel {
   flex: 1;
