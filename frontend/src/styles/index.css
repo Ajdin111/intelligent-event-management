@@ -8961,6 +8961,10 @@ select.form-input {
   pointer-events: none;
   user-select: none;
 }
+.ag-time-label--half {
+  font-size: 9px;
+  color: rgba(255,255,255,0.2);
+}
 
 /* ── Track column ──────────────────────────────────────────────────────────── */
 .ag-track-col {

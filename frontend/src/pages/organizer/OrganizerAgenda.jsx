@@ -346,6 +346,8 @@ function AgendaGrid({ tracks, sessions, eventDate, conflicts, onEditSession, onD
 
   const hours = []
   for (let m = GRID_START; m <= GRID_END; m += 60) hours.push(m)
+  const halfHours = []
+  for (let m = GRID_START + 30; m < GRID_END; m += 60) halfHours.push(m)
 
   const sessionsByTrack = useMemo(() => {
     const map = {}
@@ -458,6 +460,11 @@ function AgendaGrid({ tracks, sessions, eventDate, conflicts, onEditSession, onD
         <div className="ag-time-gutter ag-time-gutter--body">
           {hours.map(m => m === GRID_START ? null : (
             <div key={m} className="ag-time-label" style={{ top: (m - GRID_START) * PX_PER_MIN }}>
+              {minutesToHHMM(m)}
+            </div>
+          ))}
+          {halfHours.map(m => (
+            <div key={`h${m}`} className="ag-time-label ag-time-label--half" style={{ top: (m - GRID_START) * PX_PER_MIN }}>
               {minutesToHHMM(m)}
             </div>
           ))}
