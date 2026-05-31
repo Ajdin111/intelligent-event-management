@@ -8817,6 +8817,24 @@ select.form-input {
   line-height: 1.7;
 }
 
+/* ── Orphan (invalid-time) session banner ──────────────────────────────────── */
+.ag-orphan-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 32px 0;
+  padding: 12px 14px;
+  background: rgba(248,113,113,.08);
+  border: 1px solid rgba(248,113,113,.25);
+  border-radius: var(--radius-sm);
+  color: #f87171;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.ag-orphan-banner svg { flex-shrink: 0; margin-top: 1px; }
+.ag-orphan-banner .ag-conflict-list { list-style: none; padding-left: 0; }
+.ag-orphan-banner .ag-conflict-list li { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+
 /* ── Tracks strip ──────────────────────────────────────────────────────────── */
 .ag-tracks-strip {
   display: flex;

@@ -370,6 +370,20 @@ function AgendaGrid({ tracks, sessions, eventDate, conflicts, onEditSession, onD
     return map
   }, [tracks, sessions])
 
+  const orphanSessions = useMemo(() => {
+    const result = []
+    tracks.forEach(track => {
+      (sessionsByTrack[track.id] || []).forEach(s => {
+        const startMin = toMinutes(s.start_datetime)
+        const endMin   = toMinutes(s.end_datetime)
+        if (startMin >= GRID_END || endMin <= GRID_START || endMin <= startMin) {
+          result.push({ ...s, _trackName: track.name, _trackColor: track.color || '#5B8AF5' })
+        }
+      })
+    })
+    return result
+  }, [tracks, sessionsByTrack])
+
   const handleDragStart = useCallback((e, session) => {
     const rect = e.currentTarget.getBoundingClientRect()
     const grabOffsetY = e.clientY - rect.top
@@ -405,6 +419,7 @@ function AgendaGrid({ tracks, sessions, eventDate, conflicts, onEditSession, onD
     const { session } = dragRef.current
     if (session.track_id !== trackId) { setDragPreview(null); dragRef.current = null; return }
     const duration = toMinutes(session.end_datetime) - toMinutes(session.start_datetime)
+    if (duration <= 0) { setDragPreview(null); dragRef.current = null; return }
     const newStart = dragPreview.startMinutes
     const newEnd   = newStart + duration
     if (newEnd > GRID_END) { setDragPreview(null); dragRef.current = null; return }
@@ -449,6 +464,33 @@ function AgendaGrid({ tracks, sessions, eventDate, conflicts, onEditSession, onD
 
   return (
     <div className="ag-grid-wrap">
+      {/* Orphan sessions — invalid times, cannot be rendered in grid */}
+      {orphanSessions.length > 0 && (
+        <div className="ag-orphan-banner">
+          <IcoWarn />
+          <div style={{ flex: 1 }}>
+            <strong style={{ fontSize: 13 }}>
+              {orphanSessions.length} session{orphanSessions.length > 1 ? 's' : ''} with invalid times
+            </strong>
+            <ul className="ag-conflict-list">
+              {orphanSessions.map(s => (
+                <li key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ borderLeft: `3px solid ${s._trackColor}`, paddingLeft: 6 }}>
+                    &ldquo;{s.title}&rdquo; in {s._trackName} — {formatDisplayTime(s.start_datetime)}–{formatDisplayTime(s.end_datetime)}
+                  </span>
+                  <button
+                    className="ag-session-action-btn ag-session-action-btn--danger"
+                    onClick={() => onDeleteSession(s)}
+                    title="Delete session"
+                    style={{ flexShrink: 0 }}
+                  ><IcoTrash /></button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
       {/* Column headers */}
       <div className="ag-grid-header">
         <div className="ag-time-gutter" />
@@ -484,7 +526,11 @@ function AgendaGrid({ tracks, sessions, eventDate, conflicts, onEditSession, onD
 
         {/* Track columns */}
         {tracks.map(track => {
-          const trackSessions = sessionsByTrack[track.id] || []
+          const trackSessions = (sessionsByTrack[track.id] || []).filter(s => {
+            const startMin = toMinutes(s.start_datetime)
+            const endMin   = toMinutes(s.end_datetime)
+            return startMin < GRID_END && endMin > GRID_START && endMin > startMin
+          })
           const isPreview = dragPreview?.trackId === track.id
 
           return (
