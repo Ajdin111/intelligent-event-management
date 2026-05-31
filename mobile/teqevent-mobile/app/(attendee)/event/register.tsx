@@ -64,6 +64,15 @@ export default function RegisterEventScreen() {
   const [step, setStep] = useState(1);
   const [selectedTierId, setSelectedTierId] = useState<number | null>(null);
   const [promoCode, setPromoCode] = useState('');
+  const [promoValidation, setPromoValidation] = useState<{
+    is_valid: boolean;
+    discount_type?: string;
+    discount_value?: number;
+    final_price?: number;
+    message: string;
+  } | null>(null);
+  const [promoError, setPromoError] = useState('');
+  const [validatingPromo, setValidatingPromo] = useState(false);
   const [registering, setRegistering] = useState(false);
   const [done, setDone] = useState(false);
   const [registrationStatus, setRegistrationStatus] = useState<string>('confirmed');
@@ -73,6 +82,8 @@ export default function RegisterEventScreen() {
     setStep(1);
     setSelectedTierId(null);
     setPromoCode('');
+    setPromoValidation(null);
+    setPromoError('');
     setError('');
     setDone(false);
     setLoading(true);
@@ -112,10 +123,24 @@ export default function RegisterEventScreen() {
     return p === 0 ? 'Free' : `$${p.toFixed(2)}`;
   };
 
+  const getBasePrice = () => {
+    if (!selectedTier) return 0;
+    return parseFloat(selectedTier.price);
+  };
+
+  const getDiscountAmount = () => {
+    if (!promoValidation?.is_valid || promoValidation.final_price == null) return 0;
+    return getBasePrice() - parseFloat(String(promoValidation.final_price));
+  };
+
   const getTotalPrice = () => {
-    if (!selectedTier) return 'Free';
-    const p = parseFloat(selectedTier.price);
-    return p === 0 ? 'Free' : `$${p.toFixed(2)}`;
+    const base = getBasePrice();
+    if (base === 0) return 'Free';
+    if (promoValidation?.is_valid && promoValidation.final_price != null) {
+      const final = parseFloat(String(promoValidation.final_price));
+      return final === 0 ? 'Free' : `$${final.toFixed(2)}`;
+    }
+    return `$${base.toFixed(2)}`;
   };
 
   const handleConfirm = async () => {
@@ -291,12 +316,28 @@ export default function RegisterEventScreen() {
             <TextInput
               style={styles.input}
               value={promoCode}
-              onChangeText={setPromoCode}
+              onChangeText={v => {
+                setPromoCode(v);
+                setPromoValidation(null);
+                setPromoError('');
+              }}
               placeholder="Enter promo code"
               placeholderTextColor={Colors.textMuted}
               autoCapitalize="characters"
               autoCorrect={false}
             />
+            {promoError !== '' && (
+              <View style={styles.promoErrorBox}>
+                <Ionicons name="close-circle-outline" size={14} color={Colors.error} />
+                <Text style={styles.promoErrorText}>{promoError}</Text>
+              </View>
+            )}
+            {promoValidation?.is_valid && (
+              <View style={styles.promoSuccessBox}>
+                <Ionicons name="checkmark-circle-outline" size={14} color={Colors.success} />
+                <Text style={styles.promoSuccessText}>{promoValidation.message}</Text>
+              </View>
+            )}
             <View style={styles.promoHint}>
               <Ionicons name="information-circle-outline" size={14} color={Colors.textMuted} />
               <Text style={styles.promoHintText}>
@@ -313,9 +354,14 @@ export default function RegisterEventScreen() {
             {!isFree && selectedTier && (
               <SummaryRow label="Ticket" value={selectedTier.name} />
             )}
-            <SummaryRow label="Subtotal" value={getTotalPrice()} />
-            {!isFree && promoCode.trim() !== '' && (
-              <SummaryRow label={`Promo (${promoCode.trim()})`} value="Applied" />
+            {!isFree && selectedTier && (
+              <SummaryRow label="Subtotal" value={`$${getBasePrice().toFixed(2)}`} />
+            )}
+            {!isFree && promoValidation?.is_valid && getDiscountAmount() > 0 && (
+              <SummaryRow
+                label={`Discount (${promoCode.trim()})`}
+                value={`-$${getDiscountAmount().toFixed(2)}`}
+              />
             )}
             <View style={styles.summaryDivider} />
             <SummaryRow label="Total" value={getTotalPrice()} bold />
@@ -335,18 +381,44 @@ export default function RegisterEventScreen() {
           </TouchableOpacity>
         )}
         <TouchableOpacity
-          style={[styles.continueBtn, registering && styles.continueBtnDisabled]}
-          onPress={() => {
-            if (!isLastStep) {
-              setStep(s => s + 1);
-            } else {
+          style={[styles.continueBtn, (registering || validatingPromo) && styles.continueBtnDisabled]}
+          onPress={async () => {
+            if (isLastStep) {
               handleConfirm();
+              return;
             }
+            // Validate promo code before advancing from step 2
+            if (step === 2 && promoCode.trim() !== '' && selectedTierId != null) {
+              if (promoValidation?.is_valid) {
+                setStep(s => s + 1);
+                return;
+              }
+              setValidatingPromo(true);
+              setPromoError('');
+              try {
+                const res = await eventsApi.validatePromoCode(eventId, {
+                  code: promoCode.trim().toUpperCase(),
+                  ticket_tier_id: selectedTierId,
+                });
+                if (res.data.is_valid) {
+                  setPromoValidation(res.data);
+                  setStep(s => s + 1);
+                } else {
+                  setPromoError(res.data.message || 'Invalid promo code.');
+                }
+              } catch {
+                setPromoError('Could not validate promo code. Please try again.');
+              } finally {
+                setValidatingPromo(false);
+              }
+              return;
+            }
+            setStep(s => s + 1);
           }}
-          disabled={registering}
+          disabled={registering || validatingPromo}
           activeOpacity={0.85}
         >
-          {registering
+          {(registering || validatingPromo)
             ? <ActivityIndicator color={Colors.bg} size="small" />
             : <Text style={styles.continueBtnText}>
                 {isLastStep ? 'Confirm registration' : 'Continue'}
@@ -426,6 +498,18 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md,
   },
   promoHintText: { flex: 1, fontSize: 12.5, fontFamily: FontFamily.regular, color: Colors.textSub, lineHeight: 18 },
+  promoErrorBox: {
+    flexDirection: 'row', gap: 8, alignItems: 'center',
+    padding: 10, marginBottom: 10,
+    backgroundColor: Colors.errorBg, borderWidth: 1, borderColor: Colors.error, borderRadius: Radius.md,
+  },
+  promoErrorText: { flex: 1, fontSize: 12.5, fontFamily: FontFamily.medium, color: Colors.error },
+  promoSuccessBox: {
+    flexDirection: 'row', gap: 8, alignItems: 'center',
+    padding: 10, marginBottom: 10,
+    backgroundColor: Colors.successBg, borderWidth: 1, borderColor: Colors.success, borderRadius: Radius.md,
+  },
+  promoSuccessText: { flex: 1, fontSize: 12.5, fontFamily: FontFamily.medium, color: Colors.success },
 
   summary: { gap: 10 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
