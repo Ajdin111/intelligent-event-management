@@ -162,9 +162,15 @@ function TrackModal({ track, onSave, onClose }) {
     catch (e) { setErr(e.response?.data?.detail ?? 'Could not save track.'); setSaving(false) }
   }
 
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [onClose])
+
   return (
     <div className="ag-modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="ag-modal">
+      <div className="ag-modal" onKeyDown={e => { if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'BUTTON') { e.preventDefault(); handleSave() } }}>
         <div className="ag-modal-head">
           <h2 className="ag-modal-title">{track ? 'Edit track' : 'Add track'}</h2>
           <button className="ag-modal-close" onClick={onClose}><IcoX /></button>
@@ -255,9 +261,15 @@ function SessionModal({ session, tracks, eventDate, defaultTrackId, defaultTime,
     }
   }
 
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [onClose])
+
   return (
     <div className="ag-modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="ag-modal ag-modal--wide">
+      <div className="ag-modal ag-modal--wide" onKeyDown={e => { if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'BUTTON') { e.preventDefault(); handleSave() } }}>
         <div className="ag-modal-head">
           <h2 className="ag-modal-title">{session ? 'Edit session' : 'Add session'}</h2>
           <button className="ag-modal-close" onClick={onClose}><IcoX /></button>
@@ -526,7 +538,7 @@ function AgendaGrid({ tracks, sessions, eventDate, conflicts, onEditSession, onD
                     draggable
                     onDragStart={e => handleDragStart(e, session)}
                     onDragEnd={handleDragEnd}
-                    onClick={e => { e.stopPropagation(); }}
+                    onClick={e => { e.stopPropagation(); onEditSession(session) }}
                   >
                     <div className="ag-session-drag-handle"><IcoDrag /></div>
                     <div className="ag-session-body">
@@ -582,6 +594,8 @@ export default function OrganizerAgenda() {
     setFlash({ msg, type })
     flashTimer.current = setTimeout(() => setFlash(null), 4000)
   }, [])
+
+  useEffect(() => () => clearTimeout(flashTimer.current), [])
 
   // load organizer's events
   useEffect(() => {
@@ -802,7 +816,12 @@ export default function OrganizerAgenda() {
                 <button className="ag-btn ag-btn--ghost" onClick={() => setTrackModal({ track: null })}>
                   <IcoPlus /> Add track
                 </button>
-                <button className="ag-btn ag-btn--primary" onClick={() => setSessionModal({ session: null, trackId: tracks[0]?.id ?? null, time: null })}>
+                <button
+                  className="ag-btn ag-btn--primary"
+                  onClick={() => setSessionModal({ session: null, trackId: tracks[0]?.id ?? null, time: null })}
+                  disabled={tracks.length === 0}
+                  title={tracks.length === 0 ? 'Add a track first' : undefined}
+                >
                   <IcoPlus /> Add session
                 </button>
               </div>

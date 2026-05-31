@@ -9284,4 +9284,6 @@ option { background: rgb(30,36,40); }
   .ag-modal { max-width: 100%; }
   .ag-modal--wide { max-width: 100%; }
   .ag-form-row { grid-template-columns: 1fr; }
+  .ag-session-actions { opacity: 1; pointer-events: auto; }
+  .ag-page-sub { display: none; }
 }
