@@ -1052,6 +1052,13 @@ export default function ManageEvent() {
   })
   const [pendingDismissId, setPendingDismissId] = useState(null)
 
+  useEffect(() => {
+    if (!pendingDismissId) return
+    const handler = (e) => { if (e.key === 'Escape') setPendingDismissId(null) }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [pendingDismissId])
+
   const isOwner = selectedEvent && currentUserId && selectedEvent.owner_id === currentUserId
 
   const TABS = [
@@ -1146,13 +1153,21 @@ const handleActionDone = () => {
 
   const confirmDismiss = () => {
     if (!pendingDismissId) return
+    const id = pendingDismissId
     setDismissedIds(prev => {
       const next = new Set(prev)
-      next.add(pendingDismissId)
+      next.add(id)
       try { localStorage.setItem('manage-dismissed-events', JSON.stringify([...next])) } catch {}
       return next
     })
     setPendingDismissId(null)
+    if (selectedEvent?.id === id) {
+      const nextDismissed = new Set(dismissedIds)
+      nextDismissed.add(id)
+      const nextEv = myEvents.find(e => !nextDismissed.has(e.id))
+      if (nextEv) handleSelectEvent(nextEv)
+      else setSelectedEvent(null)
+    }
   }
 
   if (loadingList) return <div className="ed-state">Loading…</div>

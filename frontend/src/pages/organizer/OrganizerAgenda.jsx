@@ -615,13 +615,28 @@ export default function OrganizerAgenda() {
 
   const confirmDismiss = useCallback(() => {
     if (!pendingDismissId) return
+    const id = pendingDismissId
     setDismissedIds(prev => {
       const next = new Set(prev)
-      next.add(pendingDismissId)
+      next.add(id)
       try { localStorage.setItem('agenda-dismissed-events', JSON.stringify([...next])) } catch {}
       return next
     })
     setPendingDismissId(null)
+    if (selectedEvent?.id === id) {
+      const nextDismissed = new Set(dismissedIds)
+      nextDismissed.add(id)
+      const nextEv = myEvents.find(e => !nextDismissed.has(e.id))
+      if (nextEv) loadAgenda(nextEv)
+      else { setSelectedEvent(null); setTracks([]); setSessions([]) }
+    }
+  }, [pendingDismissId, selectedEvent, myEvents, dismissedIds, loadAgenda])
+
+  useEffect(() => {
+    if (!pendingDismissId) return
+    const handler = (e) => { if (e.key === 'Escape') setPendingDismissId(null) }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
   }, [pendingDismissId])
 
   // load organizer's events
