@@ -1063,12 +1063,11 @@ export default function ManageEvent() {
         setCategories(catsRes.data ?? [])
 
         return Promise.all([
-          eventsApi.list({ limit: 100 }),
+          eventsApi.myEvents(),
           collaboratorApi.getMyCollaboratingEvents(),
         ]).then(([evRes, collabRes]) => {
           if (cancelled) return
-          const items = evRes.data?.items ?? []
-          const owned = items.filter(e => e.owner_id === uid)
+          const owned = evRes.data ?? []
           const collaborating = collabRes.data ?? []
           const ownedIds = new Set(owned.map(e => e.id))
           const merged = [
@@ -1114,21 +1113,17 @@ export default function ManageEvent() {
 
 const handleActionDone = () => {
   if (selectedEvent) loadEvent(selectedEvent.id)
-  api.get('/api/auth/me').then(meRes => {
-    const uid = meRes.data.id
-    Promise.all([
-      eventsApi.list({ limit: 100 }),
-      collaboratorApi.getMyCollaboratingEvents(),
-    ]).then(([evRes, collabRes]) => {
-      const items = evRes.data?.items ?? []
-      const owned = items.filter(e => e.owner_id === uid)
-      const collaborating = collabRes.data ?? []
-      const collabIds = new Set(owned.map(e => e.id))
-      setMyEvents([
-        ...owned,
-        ...collaborating.filter(e => !collabIds.has(e.id)),
-      ])
-    })
+  Promise.all([
+    eventsApi.myEvents(),
+    collaboratorApi.getMyCollaboratingEvents(),
+  ]).then(([evRes, collabRes]) => {
+    const owned = evRes.data ?? []
+    const collaborating = collabRes.data ?? []
+    const ownedIds = new Set(owned.map(e => e.id))
+    setMyEvents([
+      ...owned,
+      ...collaborating.filter(e => !ownedIds.has(e.id)),
+    ])
   }).catch(() => {})
 }
 
