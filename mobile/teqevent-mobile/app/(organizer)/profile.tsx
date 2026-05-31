@@ -6,15 +6,19 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
+import { useState } from 'react';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
+import { RoleSwitcherSheet } from '@/components/RoleSwitcherSheet';
+import { UserRole } from '@/services/api';
 import { Colors, FontFamily, FontSize, Spacing, Radius } from '@/constants/theme';
 
 export default function ProfileScreen() {
-  const { user, role, logout, isLoading } = useAuth();
+  const { user, role, activeRole, switchRole, logout, isLoading } = useAuth();
+  const [showRoleSwitcher, setShowRoleSwitcher] = useState(false);
 
   if (isLoading || !user) {
     return (
@@ -49,11 +53,26 @@ export default function ProfileScreen() {
     );
   };
 
+  const availableRoles: UserRole[] = ['attendee'];
+  if (user?.is_organizer) availableRoles.push('organizer');
+  if (user?.is_admin) availableRoles.push('admin');
+  const hasMultipleRoles = availableRoles.length > 1;
+
+  const handleRoleSelect = async (newRole: UserRole) => {
+    setShowRoleSwitcher(false);
+    await switchRole(newRole);
+    if (newRole === 'admin') router.replace('/(admin)/overview' as any);
+    else if (newRole === 'organizer') router.replace('/(organizer)/home' as any);
+    else router.replace('/(attendee)/home' as any);
+  };
+
+  const comingSoon = () => Alert.alert('Coming soon', 'This feature will be available in a future update.');
+
   const settingsItems = [
-    { label: 'Edit profile', icon: 'person-outline', onPress: () => {} },
-    { label: 'Notifications', icon: 'notifications-outline', onPress: () => {} },
-    { label: 'Privacy & security', icon: 'shield-outline', onPress: () => {} },
-    { label: 'Help & support', icon: 'help-circle-outline', onPress: () => {} },
+    { label: 'Edit profile', icon: 'person-outline', onPress: () => router.push('/(organizer)/edit-profile' as any) },
+    { label: 'Notifications', icon: 'notifications-outline', onPress: comingSoon },
+    { label: 'Privacy & security', icon: 'shield-outline', onPress: comingSoon },
+    { label: 'Help & support', icon: 'help-circle-outline', onPress: comingSoon },
   ];
 
   return (
@@ -79,9 +98,16 @@ export default function ProfileScreen() {
             <Text style={styles.userName}>{fullName}</Text>
             <Text style={styles.userEmail} numberOfLines={1}>{user?.email}</Text>
           </View>
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleBadgeText}>{role}</Text>
-          </View>
+          <TouchableOpacity
+            style={[styles.roleBadge, hasMultipleRoles && styles.roleBadgeTappable]}
+            onPress={hasMultipleRoles ? () => setShowRoleSwitcher(true) : undefined}
+            activeOpacity={hasMultipleRoles ? 0.7 : 1}
+          >
+            <Text style={styles.roleBadgeText}>{activeRole ?? role}</Text>
+            {hasMultipleRoles && (
+              <Ionicons name="chevron-expand" size={11} color={Colors.textSub} style={{ marginLeft: 3 }} />
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Settings */}
@@ -114,6 +140,14 @@ export default function ProfileScreen() {
         {/* App version */}
         <Text style={styles.version}>TeqEvent v1.0.0</Text>
       </ScrollView>
+
+      <RoleSwitcherSheet
+        visible={showRoleSwitcher}
+        onClose={() => setShowRoleSwitcher(false)}
+        activeRole={activeRole ?? 'organizer'}
+        availableRoles={availableRoles}
+        onSelect={handleRoleSelect}
+      />
     </SafeAreaView>
   );
 }
@@ -158,6 +192,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.borderMed,
   },
+  roleBadgeTappable: { borderColor: Colors.borderMed, flexDirection: 'row', alignItems: 'center' },
   roleBadgeText: { fontSize: 11, fontFamily: FontFamily.medium, color: Colors.textSub, textTransform: 'capitalize' },
 
   // Section label

@@ -105,8 +105,12 @@ export default function OrganizerLayout() {
         }}
       />
       <Tabs.Screen
-      name="scan-stats"
-      options={{ href: null }}
+        name="scan-stats"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="edit-profile"
+        options={{ href: null }}
       />
       <Tabs.Screen
       name="create-event"
