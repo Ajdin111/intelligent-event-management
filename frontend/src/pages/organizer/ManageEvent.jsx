@@ -1047,7 +1047,7 @@ export default function ManageEvent() {
   const [loadingEvent, setLoadingEvent]     = useState(false)
   const [fetchError, setFetchError]         = useState('')
   const [dismissedIds, setDismissedIds]     = useState(() => {
-    try { return new Set(JSON.parse(localStorage.getItem('agenda-dismissed-events') ?? '[]')) }
+    try { return new Set(JSON.parse(localStorage.getItem('manage-dismissed-events') ?? '[]')) }
     catch { return new Set() }
   })
   const [pendingDismissId, setPendingDismissId] = useState(null)
@@ -1090,7 +1090,7 @@ export default function ManageEvent() {
           ]
           setMyEvents(merged)
           let dismissed
-          try { dismissed = new Set(JSON.parse(localStorage.getItem('agenda-dismissed-events') ?? '[]')) } catch { dismissed = new Set() }
+          try { dismissed = new Set(JSON.parse(localStorage.getItem('manage-dismissed-events') ?? '[]')) } catch { dismissed = new Set() }
           const first = merged.find(e => !dismissed.has(e.id))
           if (first) loadEvent(first.id)
         })
@@ -1149,7 +1149,7 @@ const handleActionDone = () => {
     setDismissedIds(prev => {
       const next = new Set(prev)
       next.add(pendingDismissId)
-      try { localStorage.setItem('agenda-dismissed-events', JSON.stringify([...next])) } catch {}
+      try { localStorage.setItem('manage-dismissed-events', JSON.stringify([...next])) } catch {}
       return next
     })
     setPendingDismissId(null)
