@@ -113,8 +113,16 @@ export default function OrganizerLayout() {
         options={{ href: null }}
       />
       <Tabs.Screen
-      name="create-event"
-      options={{ href: null }}
+        name="create-event"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="notification-settings"
+        options={{ href: null }}
       />
     </Tabs>
   );
