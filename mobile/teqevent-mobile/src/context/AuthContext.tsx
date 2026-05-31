@@ -12,6 +12,7 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
+  activeRole: UserRole | null;
   login: (email: string, password: string) => Promise<void>;
   register: (
     email: string,
@@ -21,16 +22,20 @@ interface AuthContextValue extends AuthState {
   ) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  switchRole: (role: UserRole) => Promise<void>;
 }
 
 // ─── Context ─────────────────────────────────────────────────────────────────
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 // ─── Provider ────────────────────────────────────────────────────────────────
+const ACTIVE_ROLE_KEY = 'teqevent_active_role';
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeRole, setActiveRole] = useState<UserRole | null>(null);
 
   // Hydrate token from SecureStore, then fetch fresh user data from /me.
   // We deliberately do NOT cache the user object — calling /me ensures
@@ -41,15 +46,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const storedToken = await SecureStore.getItemAsync(TOKEN_KEY);
         if (storedToken) {
           setToken(storedToken);
-          // Fetch fresh user — this validates the token too
           const { data } = await authApi.me();
           setUser(data);
+          // Restore saved active role, but validate it's still valid for this user
+          const storedRole = await SecureStore.getItemAsync(ACTIVE_ROLE_KEY) as UserRole | null;
+          const highestRole = getUserRole(data);
+          const validRoles: UserRole[] = ['attendee'];
+          if (data.is_organizer) validRoles.push('organizer');
+          if (data.is_admin) validRoles.push('admin');
+          const resolvedRole = storedRole && validRoles.includes(storedRole) ? storedRole : highestRole;
+          setActiveRole(resolvedRole);
         }
       } catch {
-        // Token expired or network error — clear and start fresh
         await SecureStore.deleteItemAsync(TOKEN_KEY);
+        await SecureStore.deleteItemAsync(ACTIVE_ROLE_KEY);
         setToken(null);
         setUser(null);
+        setActiveRole(null);
       } finally {
         setIsLoading(false);
       }
@@ -70,9 +83,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     const { data } = await authApi.login({ email, password });
     await persistToken(data.access_token);
-    // Fetch fresh user after login
     const { data: userData } = await authApi.me();
     setUser(userData);
+    // Default to highest role on fresh login, same as web
+    const highestRole = getUserRole(userData);
+    await SecureStore.setItemAsync(ACTIVE_ROLE_KEY, highestRole);
+    setActiveRole(highestRole);
   }, []);
 
 const register = useCallback(async (
@@ -91,9 +107,14 @@ const register = useCallback(async (
 }, [login]);
 
   const logout = useCallback(async () => {
-    // JWT is stateless — no server-side logout endpoint exists.
-    // Simply clear the local token.
+    await SecureStore.deleteItemAsync(ACTIVE_ROLE_KEY);
+    setActiveRole(null);
     await clearToken();
+  }, []);
+
+  const switchRole = useCallback(async (newRole: UserRole) => {
+    await SecureStore.setItemAsync(ACTIVE_ROLE_KEY, newRole);
+    setActiveRole(newRole);
   }, []);
 
   const refreshUser = useCallback(async () => {
@@ -109,12 +130,14 @@ const register = useCallback(async (
         user,
         token,
         role,
+        activeRole,
         isLoading,
         isAuthenticated: !!token && !!user,
         login,
         register,
         logout,
         refreshUser,
+        switchRole,
       }}
     >
       {children}

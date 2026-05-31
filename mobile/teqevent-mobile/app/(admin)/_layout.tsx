@@ -78,6 +78,10 @@ export default function AdminLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="edit-profile"
+        options={{ href: null }}
+      />
     </Tabs>
   );
 }
