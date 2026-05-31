@@ -271,10 +271,16 @@ function SessionModal({ session, tracks, eventDate, defaultTrackId, defaultTime,
 
           <div className="ag-form-group">
             <label className="ag-form-label">Track <span className="ag-required">*</span></label>
-            <select className="ag-form-input ag-form-select" value={form.track_id} onChange={e => set('track_id', e.target.value)}>
-              <option value="">Select track…</option>
-              {tracks.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
+            {session ? (
+              <div className="ag-form-input" style={{ color: 'var(--text-sub)', cursor: 'default' }}>
+                {tracks.find(t => t.id === form.track_id)?.name ?? '—'}
+              </div>
+            ) : (
+              <select className="ag-form-input ag-form-select" value={form.track_id} onChange={e => set('track_id', e.target.value)}>
+                <option value="">Select track…</option>
+                {tracks.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            )}
           </div>
 
           <div className="ag-form-row">
@@ -360,8 +366,12 @@ function AgendaGrid({ tracks, sessions, eventDate, conflicts, onEditSession, onD
 
   const handleDragOver = useCallback((e, trackId) => {
     e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
     if (!dragRef.current) return
+    if (dragRef.current.session.track_id !== trackId) {
+      e.dataTransfer.dropEffect = 'none'
+      return
+    }
+    e.dataTransfer.dropEffect = 'move'
     const rect = e.currentTarget.getBoundingClientRect()
     const rawY  = e.clientY - rect.top - dragRef.current.grabOffsetY
     const rawMin = GRID_START + rawY / PX_PER_MIN
@@ -379,6 +389,7 @@ function AgendaGrid({ tracks, sessions, eventDate, conflicts, onEditSession, onD
     e.preventDefault()
     if (!dragRef.current || !dragPreview) { setDragPreview(null); return }
     const { session } = dragRef.current
+    if (session.track_id !== trackId) { setDragPreview(null); dragRef.current = null; return }
     const duration = toMinutes(session.end_datetime) - toMinutes(session.start_datetime)
     const newStart = dragPreview.startMinutes
     const newEnd   = newStart + duration
@@ -770,9 +781,6 @@ export default function OrganizerAgenda() {
           <div className="ed-state" style={{ height: '60vh' }}>Loading agenda…</div>
         ) : (
           <>
-            {/* Flash */}
-            {flash && <div className={`ag-flash ag-flash--${flash.type}`}>{flash.msg}</div>}
-
             {/* Page header */}
             <div className="ag-page-header">
               <div className="ag-page-header-left">
@@ -793,6 +801,9 @@ export default function OrganizerAgenda() {
                 </button>
               </div>
             </div>
+
+            {/* Flash */}
+            {flash && <div className={`ag-flash ag-flash--${flash.type}`} style={{ marginTop: 16 }}>{flash.msg}</div>}
 
             {/* Conflict banner */}
             {conflictList.length > 0 && (
