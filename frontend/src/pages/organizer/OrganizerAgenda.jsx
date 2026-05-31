@@ -463,7 +463,7 @@ function AgendaGrid({ tracks, sessions, eventDate, conflicts, onEditSession, onD
   }
 
   return (
-    <div className="ag-grid-wrap">
+    <>
       {/* Orphan sessions — invalid times, cannot be rendered in grid */}
       {orphanSessions.length > 0 && (
         <div className="ag-orphan-banner">
@@ -491,6 +491,7 @@ function AgendaGrid({ tracks, sessions, eventDate, conflicts, onEditSession, onD
         </div>
       )}
 
+    <div className="ag-grid-wrap">
       {/* Column headers */}
       <div className="ag-grid-header">
         <div className="ag-time-gutter" />
@@ -609,6 +610,7 @@ function AgendaGrid({ tracks, sessions, eventDate, conflicts, onEditSession, onD
         })}
       </div>
     </div>
+    </>
   )
 }
 
