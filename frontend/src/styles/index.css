@@ -1434,6 +1434,11 @@ body {
     min-width: 110px;
   }
 
+  .filter-scroll-list {
+    max-height: none;
+    overflow-y: visible;
+  }
+
   .filter-section:last-child {
     border-right: none;
     margin-right: 0;
