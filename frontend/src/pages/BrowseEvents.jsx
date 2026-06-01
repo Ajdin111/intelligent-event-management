@@ -307,17 +307,19 @@ export default function BrowseEvents() {
 
         <div className="filter-section">
           <p className="filter-section-label">LOCATION</p>
-          {locations.map((loc) => (
-            <label key={loc} className="filter-radio">
-              <input
-                type="radio"
-                name="location"
-                checked={selectedLocation === loc}
-                onChange={() => setSelectedLocation(loc)}
-              />
-              <span className="filter-radio-label">{loc}</span>
-            </label>
-          ))}
+          <div className="filter-scroll-list">
+            {locations.map((loc) => (
+              <label key={loc} className="filter-radio">
+                <input
+                  type="radio"
+                  name="location"
+                  checked={selectedLocation === loc}
+                  onChange={() => setSelectedLocation(loc)}
+                />
+                <span className="filter-radio-label">{loc}</span>
+              </label>
+            ))}
+          </div>
         </div>
 
         <div className="filter-section">
