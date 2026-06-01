@@ -320,8 +320,23 @@ export default function EventDetail() {
     setSaved(ids.has(numId))
   }
 
-  const handleShare = () => {
+  const handleShare = async () => {
     const url = window.location.href
+    const title = event?.title ?? 'TeqEvent'
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text: `Check out ${title} on TeqEvent`, url })
+      } catch (err) {
+        if (err?.name !== 'AbortError') {
+          fallbackCopy(url)
+        }
+      }
+    } else {
+      fallbackCopy(url)
+    }
+  }
+
+  const fallbackCopy = (url) => {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url).then(() => {
         setCopyFeedback(true)
