@@ -2417,6 +2417,8 @@ body {
 .ed-tier:hover:not(:disabled) { border-color: var(--border-med); background: var(--bg-hover); }
 .ed-tier--active { border-color: #ffffff !important; background: rgba(255,255,255,0.04) !important; }
 .ed-tier--soldout { opacity: 0.45; cursor: default; }
+.ed-tier--soon { opacity: 0.6; cursor: default; border-color: rgba(251,191,36,0.3); }
+.ed-tier--soon .ed-tier-price { color: #fbbf24; }
 .ed-tier-row { display: flex; align-items: center; justify-content: space-between; }
 .ed-tier-name { font-size: 13.5px; font-weight: 500; color: var(--text); }
 .ed-tier-price { font-size: 13.5px; font-weight: 600; color: var(--text); }

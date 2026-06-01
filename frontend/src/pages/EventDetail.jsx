@@ -249,33 +249,45 @@ export default function EventDetail() {
 
   // Prefer real tiers from API; only fall back to FAKE tiers for paid events without real tiers
   const isFreeEvent = realEventData?.is_free ?? false
+  const now = new Date()
   const displayTiers = realTiers.length > 0
-    ? realTiers.map(t => ({
-        id:        t.id,
-        name:      t.name,
-        price:     parseFloat(t.price),
-        total:     t.quantity,
-        sold:      t.quantity_sold,
-        available: t.quantity_available,
-        soldOut:   t.is_sold_out || !t.is_active,
-      }))
+    ? realTiers.map(t => {
+        const saleStart = t.sale_start ? new Date(t.sale_start) : null
+        const notYetOnSale = saleStart && now < saleStart && !t.is_active
+        return {
+          id:           t.id,
+          name:         t.name,
+          price:        parseFloat(t.price),
+          total:        t.quantity,
+          sold:         t.quantity_sold,
+          available:    t.quantity_available,
+          soldOut:      !notYetOnSale && (t.is_sold_out || !t.is_active),
+          notYetOnSale,
+          saleStartStr: saleStart
+            ? saleStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            : null,
+        }
+      })
     : isFreeEvent
       ? []
       : (event.tiers || []).map(t => ({
-          id:        null,
-          name:      t.name,
-          price:     t.price,
-          total:     t.total,
-          sold:      t.sold,
-          available: t.total - t.sold,
-          soldOut:   t.sold >= t.total,
+          id:           null,
+          name:         t.name,
+          price:        t.price,
+          total:        t.total,
+          sold:         t.sold,
+          available:    t.total - t.sold,
+          soldOut:      t.sold >= t.total,
+          notYetOnSale: false,
+          saleStartStr: null,
         }))
 
   // Free events with no ticketing tiers register directly without a tier selection
   const isFreeNoTier = isFreeEvent && displayTiers.length === 0
-  const tier      = isFreeNoTier ? null : displayTiers[selectedTier]
-  const soldOut   = isFreeNoTier ? false : (tier?.soldOut ?? true)
-  const available = tier?.available ?? 0
+  const tier         = isFreeNoTier ? null : displayTiers[selectedTier]
+  const soldOut      = isFreeNoTier ? false : (tier?.soldOut ?? true)
+  const notYetOnSale = !isFreeNoTier && (tier?.notYetOnSale ?? false)
+  const available    = tier?.available ?? 0
   const subtotal  = isFreeNoTier
     ? 'Free'
     : tier
@@ -514,22 +526,27 @@ export default function EventDetail() {
                 return (
                   <button
                     key={t.name}
-                    disabled={t.soldOut}
-                    onClick={() => { if (!t.soldOut) { setSelectedTier(i); setQuantity(1) } }}
+                    disabled={t.soldOut || t.notYetOnSale}
+                    onClick={() => { if (!t.soldOut && !t.notYetOnSale) { setSelectedTier(i); setQuantity(1) } }}
                     className={[
                       'ed-tier',
-                      selectedTier === i && !t.soldOut ? 'ed-tier--active' : '',
+                      selectedTier === i && !t.soldOut && !t.notYetOnSale ? 'ed-tier--active' : '',
                       t.soldOut ? 'ed-tier--soldout' : '',
+                      t.notYetOnSale ? 'ed-tier--soon' : '',
                     ].join(' ')}
                   >
                     <div className="ed-tier-row">
                       <span className="ed-tier-name">{t.name}</span>
                       <span className="ed-tier-price">
-                        {t.soldOut ? 'Sold out' : t.price === 0 ? 'Free' : `$${t.price}`}
+                        {t.notYetOnSale
+                          ? `Opens ${t.saleStartStr}`
+                          : t.soldOut ? 'Sold out' : t.price === 0 ? 'Free' : `$${t.price}`}
                       </span>
                     </div>
                     <span className="ed-tier-avail">
-                      {t.soldOut ? 'No spots remaining' : `${t.available} of ${t.total} left`}
+                      {t.notYetOnSale
+                        ? `Sale starts ${t.saleStartStr}`
+                        : t.soldOut ? 'No spots remaining' : `${t.available} of ${t.total} left`}
                     </span>
                     <div className="ed-tier-track">
                       <div className="ed-tier-fill" style={{ width: `${fill}%` }} />
@@ -559,10 +576,14 @@ export default function EventDetail() {
 
             <button
               className="ed-register-btn"
-              disabled={!isFreeNoTier && (soldOut || displayTiers.length === 0)}
+              disabled={!isFreeNoTier && (soldOut || notYetOnSale || displayTiers.length === 0)}
               onClick={handleRegister}
             >
-              {!isFreeNoTier && soldOut ? 'Sold out' : 'Register now →'}
+              {!isFreeNoTier && notYetOnSale
+                ? `Sales open ${tier?.saleStartStr ?? 'soon'}`
+                : !isFreeNoTier && soldOut
+                ? 'Sold out'
+                : 'Register now →'}
             </button>
 
             {!isFreeNoTier && !soldOut && displayTiers.length > 0 && (
