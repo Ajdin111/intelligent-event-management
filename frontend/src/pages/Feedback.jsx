@@ -100,7 +100,7 @@ function ReviewCard({ review }) {
         <span className="fb-review-date">{date}</span>
       </div>
       {review.comment && <p className="fb-review-text">{review.comment}</p>}
-      <span className="fb-review-author">Anonymous attendee</span>
+      <span className="fb-review-author">{review.is_anonymous ? 'Anonymous attendee' : 'Verified attendee'}</span>
     </div>
   )
 }
@@ -172,7 +172,7 @@ function EventReviewItem({ event, initialHasReview = false, onReviewed }) {
 
       // Refresh all reviews
       const allRes = await api.get(`/api/events/${event.id}/reviews`)
-      setReviews(allRes.value?.data ?? allRes.data ?? [])
+      setReviews(allRes.data ?? [])
     } catch (err) {
       const msg = err.response?.data?.detail
       setSubmitError(typeof msg === 'string' ? msg : 'Failed to submit. Please try again.')
