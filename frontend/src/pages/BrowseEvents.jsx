@@ -86,7 +86,7 @@ const IconArrow = () => (
   </svg>
 )
 
-function DiscoverCard({ event, onNavigate }) {
+function DiscoverCard({ event, onNavigate, onRegister }) {
   const location = getLocation(event)
   const date = formatDate(event.start_datetime)
   const priceLabel = formatPriceLabel(event)
@@ -128,7 +128,7 @@ function DiscoverCard({ event, onNavigate }) {
             className="discover-register-btn"
             onClick={(e) => {
               e.stopPropagation()
-              onNavigate(event.id)
+              onRegister(event.id)
             }}
           >
             Register <IconArrow />
@@ -390,7 +390,12 @@ export default function BrowseEvents() {
           <>
             <div className="discover-grid">
               {visible.map((event) => (
-                <DiscoverCard key={event.id} event={event} onNavigate={(id) => navigate(`/events/${id}`, { state: { from: '/events' } })} />
+                <DiscoverCard
+                  key={event.id}
+                  event={event}
+                  onNavigate={(id) => navigate(`/events/${id}`, { state: { from: '/events' } })}
+                  onRegister={(id) => navigate(`/events/${id}/register`, { state: { from: '/events' } })}
+                />
               ))}
             </div>
             {hasMore && (
