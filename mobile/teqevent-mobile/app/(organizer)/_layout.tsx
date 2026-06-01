@@ -128,6 +128,10 @@ export default function OrganizerLayout() {
       name="edit-event"
       options={{ href: null }}
       />
+      <Tabs.Screen
+      name="event-registrations"
+      options={{ href: null }}
+      />
     </Tabs>
   );
 }
