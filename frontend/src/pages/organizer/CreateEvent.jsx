@@ -2,6 +2,98 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api, { eventsApi, categoriesApi, uploadsApi, setCriticalOp } from '../../services/api'
 
+// ── Location data ─────────────────────────────────────────────────────────────
+const COUNTRIES = [
+  'Afghanistan','Albania','Algeria','Argentina','Australia','Austria','Bangladesh',
+  'Belgium','Bolivia','Bosnia and Herzegovina','Brazil','Bulgaria','Cambodia','Canada',
+  'Chile','China','Colombia','Croatia','Czech Republic','Denmark','Ecuador','Egypt',
+  'Ethiopia','Finland','France','Germany','Ghana','Greece','Hungary','India','Indonesia',
+  'Iran','Iraq','Ireland','Israel','Italy','Japan','Jordan','Kazakhstan','Kenya',
+  'Malaysia','Mexico','Morocco','Netherlands','New Zealand','Nigeria','Norway','Pakistan',
+  'Peru','Philippines','Poland','Portugal','Romania','Russia','Saudi Arabia','Serbia',
+  'Singapore','Slovakia','Slovenia','South Africa','South Korea','Spain','Sweden',
+  'Switzerland','Thailand','Tunisia','Turkey','Ukraine','United Arab Emirates',
+  'United Kingdom','United States','Vietnam',
+]
+
+const CITIES_BY_COUNTRY = {
+  'United States': ['New York','Los Angeles','Chicago','Houston','Phoenix','Philadelphia','San Antonio','San Diego','Dallas','San Jose','Austin','Jacksonville','San Francisco','Columbus','Indianapolis','Seattle','Denver','Boston','Nashville','Las Vegas'],
+  'United Kingdom': ['London','Manchester','Birmingham','Glasgow','Leeds','Liverpool','Edinburgh','Bristol','Sheffield','Cardiff'],
+  'Germany': ['Berlin','Hamburg','Munich','Cologne','Frankfurt','Stuttgart','Düsseldorf','Dortmund','Essen','Leipzig'],
+  'France': ['Paris','Marseille','Lyon','Toulouse','Nice','Nantes','Strasbourg','Montpellier','Bordeaux','Lille'],
+  'Spain': ['Madrid','Barcelona','Valencia','Seville','Zaragoza','Málaga','Murcia','Palma','Las Palmas','Bilbao'],
+  'Italy': ['Rome','Milan','Naples','Turin','Palermo','Genoa','Bologna','Florence','Bari','Catania'],
+  'Netherlands': ['Amsterdam','Rotterdam','The Hague','Utrecht','Eindhoven','Groningen','Tilburg','Almere','Breda','Nijmegen'],
+  'Canada': ['Toronto','Montreal','Vancouver','Calgary','Edmonton','Ottawa','Winnipeg','Quebec City','Hamilton','Kitchener'],
+  'Australia': ['Sydney','Melbourne','Brisbane','Perth','Adelaide','Gold Coast','Canberra','Hobart','Darwin','Geelong'],
+  'India': ['Mumbai','Delhi','Bangalore','Hyderabad','Ahmedabad','Chennai','Kolkata','Surat','Pune','Jaipur'],
+  'China': ['Beijing','Shanghai','Guangzhou','Shenzhen','Chengdu','Tianjin','Wuhan','Xi\'an','Hangzhou','Nanjing'],
+  'Japan': ['Tokyo','Osaka','Nagoya','Sapporo','Fukuoka','Kobe','Kyoto','Kawasaki','Saitama','Hiroshima'],
+  'Brazil': ['São Paulo','Rio de Janeiro','Brasília','Salvador','Fortaleza','Belo Horizonte','Manaus','Curitiba','Recife','Porto Alegre'],
+  'Mexico': ['Mexico City','Guadalajara','Monterrey','Puebla','Toluca','Tijuana','León','Juárez','Torreón','Querétaro'],
+  'South Korea': ['Seoul','Busan','Incheon','Daegu','Daejeon','Gwangju','Suwon','Ulsan','Changwon','Seongnam'],
+  'Sweden': ['Stockholm','Gothenburg','Malmö','Uppsala','Västerås','Örebro','Linköping','Helsingborg','Jönköping','Norrköping'],
+  'Switzerland': ['Zurich','Geneva','Basel','Bern','Lausanne','Winterthur','St. Gallen','Lucerne','Biel','Thun'],
+  'Poland': ['Warsaw','Kraków','Łódź','Wrocław','Poznań','Gdańsk','Szczecin','Bydgoszcz','Lublin','Katowice'],
+  'Portugal': ['Lisbon','Porto','Amadora','Braga','Setúbal','Coimbra','Funchal','Almada','Famalicão','Agualva'],
+  'Norway': ['Oslo','Bergen','Trondheim','Stavanger','Drammen','Fredrikstad','Sandnes','Kristiansand','Tromsø','Sarpsborg'],
+  'Denmark': ['Copenhagen','Aarhus','Odense','Aalborg','Esbjerg','Randers','Kolding','Horsens','Vejle','Roskilde'],
+  'Austria': ['Vienna','Graz','Linz','Salzburg','Innsbruck','Klagenfurt','Villach','Wels','Steyr','Dornbirn'],
+  'Belgium': ['Brussels','Antwerp','Ghent','Charleroi','Liège','Bruges','Namur','Leuven','Mons','Aalst'],
+  'Singapore': ['Singapore'],
+  'United Arab Emirates': ['Dubai','Abu Dhabi','Sharjah','Al Ain','Ajman','Ras Al Khaimah','Fujairah','Umm Al Quwain'],
+  'Saudi Arabia': ['Riyadh','Jeddah','Mecca','Medina','Dammam','Taif','Tabuk','Buraydah','Khobar','Najran'],
+  'Turkey': ['Istanbul','Ankara','Izmir','Bursa','Adana','Gaziantep','Konya','Antalya','Kayseri','Mersin'],
+  'Malaysia': ['Kuala Lumpur','George Town','Ipoh','Shah Alam','Petaling Jaya','Johor Bahru','Kuching','Kota Kinabalu','Subang Jaya','Klang'],
+  'Thailand': ['Bangkok','Nonthaburi','Pak Kret','Hat Yai','Chiang Mai','Rayong','Chon Buri','Surat Thani','Udon Thani','Nakhon Ratchasima'],
+  'Indonesia': ['Jakarta','Surabaya','Bandung','Medan','Semarang','Makassar','Palembang','Tangerang','Bekasi','Depok'],
+  'Philippines': ['Manila','Quezon City','Caloocan','Davao','Cebu','Zamboanga','Antipolo','Pasig','Taguig','Cagayan de Oro'],
+  'Vietnam': ['Hanoi','Ho Chi Minh City','Haiphong','Da Nang','Biên Hòa','Nha Trang','Cần Thơ','Buôn Ma Thuột','Vung Tau','Quy Nhon'],
+  'South Africa': ['Johannesburg','Cape Town','Durban','Pretoria','Port Elizabeth','Bloemfontein','East London','Nelspruit','Polokwane','Kimberley'],
+  'Nigeria': ['Lagos','Abuja','Kano','Ibadan','Kaduna','Port Harcourt','Benin City','Maiduguri','Zaria','Aba'],
+  'Egypt': ['Cairo','Alexandria','Giza','Shubra El Kheima','Port Said','Suez','Luxor','Asyut','Ismailia','Fayyum'],
+  'Argentina': ['Buenos Aires','Córdoba','Rosario','Mendoza','La Plata','San Miguel de Tucumán','Mar del Plata','Salta','Santa Fe','San Juan'],
+  'Colombia': ['Bogotá','Medellín','Cali','Barranquilla','Cartagena','Cúcuta','Soledad','Ibagué','Bucaramanga','Soacha'],
+  'Russia': ['Moscow','Saint Petersburg','Novosibirsk','Yekaterinburg','Nizhny Novgorod','Kazan','Chelyabinsk','Omsk','Samara','Rostov-on-Don'],
+  'Ukraine': ['Kyiv','Kharkiv','Dnipro','Odesa','Donetsk','Zaporizhzhia','Lviv','Kryvyi Rih','Mykolaiv','Mariupol'],
+  'Israel': ['Jerusalem','Tel Aviv','Haifa','Rishon LeZion','Petah Tikva','Ashdod','Netanya','Be\'er Sheva','Bnei Brak','Holon'],
+  'Greece': ['Athens','Thessaloniki','Patras','Piraeus','Larissa','Heraklion','Volos','Rhodes','Ioannina','Agrinio'],
+  'Czech Republic': ['Prague','Brno','Ostrava','Plzeň','Liberec','Olomouc','Ústí nad Labem','České Budějovice','Hradec Králové','Pardubice'],
+  'Romania': ['Bucharest','Cluj-Napoca','Timișoara','Iași','Constanța','Craiova','Brașov','Galați','Ploiești','Oradea'],
+  'Hungary': ['Budapest','Debrecen','Miskolc','Szeged','Pécs','Győr','Nyíregyháza','Kecskemét','Székesfehérvár','Szombathely'],
+  'Croatia': ['Zagreb','Split','Rijeka','Osijek','Zadar','Slavonski Brod','Pula','Sesvete','Karlovac','Varaždin'],
+  'Serbia': ['Belgrade','Novi Sad','Niš','Kragujevac','Subotica','Zrenjanin','Pančevo','Čačak','Novi Pazar','Kruševac'],
+  'Morocco': ['Casablanca','Rabat','Marrakesh','Fez','Tangier','Agadir','Meknes','Oujda','Kenitra','Tetouan'],
+  'Kenya': ['Nairobi','Mombasa','Nakuru','Eldoret','Kisumu','Thika','Malindi','Kitale','Garissa','Machakos'],
+  'Ghana': ['Accra','Kumasi','Tamale','Sekondi-Takoradi','Ashaiman','Sunyani','Cape Coast','Obuasi','Tema','Teshie'],
+  'Ethiopia': ['Addis Ababa','Dire Dawa','Mek\'ele','Gondar','Hawassa','Bahir Dar','Dessie','Jimma','Jijiga','Shashemene'],
+  'Pakistan': ['Karachi','Lahore','Faisalabad','Rawalpindi','Gujranwala','Peshawar','Multan','Hyderabad','Islamabad','Quetta'],
+  'Bangladesh': ['Dhaka','Chittagong','Sylhet','Rajshahi','Khulna','Comilla','Rangpur','Mymensingh','Barisal','Narayanganj'],
+  'Iran': ['Tehran','Mashhad','Isfahan','Karaj','Tabriz','Shiraz','Ahvaz','Qom','Kermanshah','Urmia'],
+  'Iraq': ['Baghdad','Basra','Mosul','Erbil','Najaf','Karbala','Kirkuk','Sulaymaniyah','Ramadi','Fallujah'],
+  'Jordan': ['Amman','Zarqa','Irbid','Russeifa','Aqaba','Madaba','Al-Karak','Jerash','Mafraq','Maadaba'],
+  'Kazakhstan': ['Almaty','Nur-Sultan','Shymkent','Karaganda','Aktobe','Taraz','Oskemen','Semey','Atyrau','Kostanay'],
+  'Chile': ['Santiago','Valparaíso','Antofagasta','Temuco','Rancagua','Talca','Arica','Chillán','Iquique','Los Ángeles'],
+  'Peru': ['Lima','Arequipa','Trujillo','Chiclayo','Piura','Iquitos','Cusco','Chimbote','Tacna','Huancayo'],
+  'Bolivia': ['Santa Cruz','La Paz','Cochabamba','Sucre','Oruro','Potosí','Tarija','Sacaba','Montero','Quillacollo'],
+  'Ecuador': ['Guayaquil','Quito','Cuenca','Santo Domingo','Machala','Durán','Manta','Portoviejo','Loja','Ambato'],
+  'Algeria': ['Algiers','Oran','Constantine','Annaba','Blida','Batna','Djelfa','Sétif','Sidi Bel Abbès','Biskra'],
+  'Tunisia': ['Tunis','Sfax','Sousse','Ettadhamen','Kairouan','Bizerte','Gabes','Ariana','Gafsa','El Mourouj'],
+  'Cambodia': ['Phnom Penh','Siem Reap','Sihanoukville','Battambang','Kampong Cham','Kratié','Poipet','Ta Khmau','Kampot','Kep'],
+  'New Zealand': ['Auckland','Christchurch','Wellington','Hamilton','Tauranga','Napier-Hastings','Dunedin','Palmerston North','Nelson','Rotorua'],
+  'Bosnia and Herzegovina': ['Sarajevo','Banja Luka','Tuzla','Zenica','Bijeljina','Brčko','Mostar','Prijedor','Doboj','Cazin'],
+  'Slovakia': ['Bratislava','Košice','Prešov','Žilina','Nitra','Banská Bystrica','Trnava','Martin','Trenčín','Poprad'],
+  'Slovenia': ['Ljubljana','Maribor','Celje','Kranj','Velenje','Koper','Novo Mesto','Ptuj','Trbovlje','Kamnik'],
+  'Bulgaria': ['Sofia','Plovdiv','Varna','Burgas','Ruse','Stara Zagora','Pleven','Sliven','Dobrich','Shumen'],
+  'Albania': ['Tirana','Durrës','Vlorë','Elbasan','Shkodër','Fier','Korçë','Berat','Lushnjë','Pogradec'],
+  'Ireland': ['Dublin','Cork','Limerick','Galway','Waterford','Drogheda','Dundalk','Swords','Bray','Navan'],
+  'Finland': ['Helsinki','Espoo','Tampere','Vantaa','Oulu','Turku','Jyväskylä','Lahti','Kuopio','Kouvola'],
+}
+
+function getCitiesForCountry(country) {
+  return CITIES_BY_COUNTRY[country] ?? []
+}
+
 const STEPS = [
   { n: 1, label: 'Basic info' },
   { n: 2, label: 'Registration' },
@@ -79,7 +171,9 @@ export default function CreateEvent() {
     cover_image: '',
     category_id: '',
     location_type: 'physical',
-    physical_address: '',
+    country: '',
+    city: '',
+    street_address: '',
     online_link: '',
     date: '',
     start_time: '',
@@ -109,12 +203,13 @@ export default function CreateEvent() {
 
 
   function buildPayload() {
+    const parts = [form.street_address.trim(), form.city.trim(), form.country.trim()].filter(Boolean)
     return {
       title: form.title.trim(),
       description: form.description.trim(),
       cover_image: form.cover_image || null,
       location_type: form.location_type,
-      physical_address: form.physical_address.trim() || null,
+      physical_address: parts.length > 0 ? parts.join(', ') : null,
       online_link: form.online_link.trim() || null,
       start_datetime: toNaiveDatetime(form.date, form.start_time),
       end_datetime: toNaiveDatetime(form.end_date, form.end_time),
@@ -161,8 +256,8 @@ export default function CreateEvent() {
         setFlash({ type: 'error', message: 'Capacity cannot exceed 2,147,483,647.' }); return false
       }
     }
-    if ((form.location_type === 'physical' || form.location_type === 'hybrid') && !form.physical_address.trim()) {
-      setFlash({ type: 'error', message: 'Physical address is required for this location type.' }); return false
+    if ((form.location_type === 'physical' || form.location_type === 'hybrid') && !form.country.trim()) {
+      setFlash({ type: 'error', message: 'Country is required for physical events.' }); return false
     }
     if ((form.location_type === 'online' || form.location_type === 'hybrid') && !form.online_link.trim()) {
       setFlash({ type: 'error', message: 'Online link is required for this location type.' }); return false
@@ -587,15 +682,54 @@ function Step1({ form, set, categories }) {
       </div>
 
       {(form.location_type === 'physical' || form.location_type === 'hybrid') && (
-        <div className="form-group">
-          <label className="field-label">Physical address</label>
-          <input
-            className="form-input"
-            placeholder="e.g. 123 Market St, San Francisco, CA"
-            value={form.physical_address}
-            onChange={e => set('physical_address', e.target.value)}
-          />
-        </div>
+        <>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="field-label">Country</label>
+              <select
+                className="form-input"
+                value={form.country}
+                onChange={e => { set('country', e.target.value); set('city', '') }}
+              >
+                <option value="">Select country…</option>
+                {COUNTRIES.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="field-label">City</label>
+              {getCitiesForCountry(form.country).length > 0 ? (
+                <select
+                  className="form-input"
+                  value={form.city}
+                  onChange={e => set('city', e.target.value)}
+                >
+                  <option value="">Select city…</option>
+                  {getCitiesForCountry(form.country).map(city => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  className="form-input"
+                  placeholder="Enter city name"
+                  value={form.city}
+                  onChange={e => set('city', e.target.value)}
+                />
+              )}
+            </div>
+          </div>
+          <div className="form-group">
+            <label className="field-label">Street address <span className="field-optional">(optional)</span></label>
+            <input
+              className="form-input"
+              placeholder="e.g. 123 Market St"
+              value={form.street_address}
+              onChange={e => set('street_address', e.target.value)}
+            />
+          </div>
+        </>
       )}
 
       {(form.location_type === 'online' || form.location_type === 'hybrid') && (
