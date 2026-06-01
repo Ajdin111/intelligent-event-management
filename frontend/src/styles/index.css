@@ -4340,6 +4340,32 @@ select.form-input option {
   pointer-events: none;
 }
 
+.myreg-action-btn--dismiss:hover {
+  border-color: rgba(251,191,36,0.4);
+  color: #fbbf24;
+  background: rgba(251,191,36,0.06);
+}
+
+/* ── dismiss dialog ── */
+.myreg-dismiss-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+}
+.myreg-dismiss-dialog {
+  background: rgb(32,38,42); border: 1px solid var(--border-med);
+  border-radius: var(--radius); padding: 24px 28px; max-width: 360px; width: 90%;
+}
+.myreg-dismiss-title {
+  font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 8px;
+}
+.myreg-dismiss-sub {
+  font-size: 13px; color: var(--text-sub); margin-bottom: 20px; line-height: 1.5;
+}
+.myreg-dismiss-btns {
+  display: flex; gap: 10px;
+}
+
 /* ── confirmation row ── */
 .myreg-confirm-tr td {
   padding: 0;
