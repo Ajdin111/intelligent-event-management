@@ -106,8 +106,8 @@ const IcoGroup = () => (
     <path d="M11 7.5c1.2.6 2 1.9 2 3.5" strokeLinecap="round" />
   </svg>
 )
-const IcoSave = () => (
-  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+const IcoSave = ({ filled }) => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5">
     <path d="M7 1l1.8 3.5 3.7.5-2.7 2.7.6 3.8L7 9.5l-3.4 2 .6-3.8L1.5 5l3.7-.5z" strokeLinejoin="round" />
   </svg>
 )
@@ -389,7 +389,7 @@ export default function EventDetail() {
             onClick={handleSave}
             title={saved ? 'Remove from saved' : 'Save event'}
           >
-            <IcoSave /> {saved ? 'Saved' : 'Save'}
+            <IcoSave filled={saved} /> {saved ? 'Saved' : 'Save'}
           </button>
           <button
             className="ed-action-btn"
