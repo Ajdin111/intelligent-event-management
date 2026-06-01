@@ -91,7 +91,7 @@ function EventCard({ event }: { event: Event }) {
             <Ionicons name="people-outline" size={14} color={Colors.textSub} />
             <Text style={styles.actionBtnText}>Registrations</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7} onPress={() => {}}>
+          <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7} onPress={() => router.push(`/(organizer)/event-analytics?id=${event.id}` as any)}>
             <Ionicons name="bar-chart-outline" size={14} color={Colors.textSub} />
             <Text style={styles.actionBtnText}>Analytics</Text>
           </TouchableOpacity>
