@@ -1,6 +1,14 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, Fragment } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { registrationsApi, eventsApi, ticketTiersApi, categoriesApi, API_BASE_URL } from '../services/api'
+
+const DISMISSED_KEY = 'mr-dismissed-registrations'
+function getDismissedIds() {
+  try { return new Set(JSON.parse(localStorage.getItem(DISMISSED_KEY)) ?? []) } catch { return new Set() }
+}
+function persistDismissed(set) {
+  localStorage.setItem(DISMISSED_KEY, JSON.stringify([...set]))
+}
 
 // ── icons ──────────────────────────────────────────────────────────────────
 
@@ -29,6 +37,16 @@ const IcoArrow = () => (
     <path d="M7 3l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 )
+const IcoTrash = () => (
+  <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <polyline points="2,3 11,3" strokeLinecap="round" />
+    <path d="M4 3V2h5v1" strokeLinecap="round" strokeLinejoin="round" />
+    <rect x="2.5" y="4" width="8" height="8" rx="1" />
+    <line x1="5" y1="6.5" x2="5" y2="9.5" strokeLinecap="round" />
+    <line x1="8" y1="6.5" x2="8" y2="9.5" strokeLinecap="round" />
+  </svg>
+)
+
 const IcoEmpty = () => (
   <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.2">
     <rect x="4" y="8" width="32" height="26" rx="3" />
@@ -115,6 +133,8 @@ export default function MyRegistrations() {
   const [confirmId, setConfirmId]         = useState(null)
   const [cancelling, setCancelling]       = useState(false)
   const [cancelError, setCancelError]     = useState('')
+  const [dismissedIds, setDismissedIds]   = useState(() => getDismissedIds())
+  const [pendingDismissId, setPendingDismissId] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -197,19 +217,37 @@ export default function MyRegistrations() {
     }
   }
 
+  useEffect(() => {
+    if (pendingDismissId === null) return
+    const handler = (e) => { if (e.key === 'Escape') setPendingDismissId(null) }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [pendingDismissId])
+
+  const confirmDismiss = () => {
+    if (pendingDismissId === null) return
+    const next = new Set(dismissedIds)
+    next.add(pendingDismissId)
+    persistDismissed(next)
+    setDismissedIds(next)
+    setPendingDismissId(null)
+  }
+
   const filtered = useMemo(() => {
-    if (activeTab === 'All') return registrations
-    if (activeTab === 'Cancelled')
-      return registrations.filter(r => r.status === 'cancelled' || r.status === 'rejected')
-    return registrations.filter(r => r.status === activeTab.toLowerCase())
-  }, [registrations, activeTab])
+    const base = activeTab === 'All'
+      ? registrations
+      : activeTab === 'Cancelled'
+        ? registrations.filter(r => r.status === 'cancelled' || r.status === 'rejected')
+        : registrations.filter(r => r.status === activeTab.toLowerCase())
+    return base.filter(r => !dismissedIds.has(r.id))
+  }, [registrations, activeTab, dismissedIds])
 
   const counts = useMemo(() => ({
-    All:       registrations.length,
-    Confirmed: registrations.filter(r => r.status === 'confirmed').length,
-    Pending:   registrations.filter(r => r.status === 'pending').length,
-    Cancelled: registrations.filter(r => r.status === 'cancelled' || r.status === 'rejected').length,
-  }), [registrations])
+    All:       registrations.filter(r => !dismissedIds.has(r.id)).length,
+    Confirmed: registrations.filter(r => r.status === 'confirmed' && !dismissedIds.has(r.id)).length,
+    Pending:   registrations.filter(r => r.status === 'pending' && !dismissedIds.has(r.id)).length,
+    Cancelled: registrations.filter(r => (r.status === 'cancelled' || r.status === 'rejected') && !dismissedIds.has(r.id)).length,
+  }), [registrations, dismissedIds])
 
   // ── loading ──
   if (loading) return <div className="ed-state">Loading…</div>
@@ -313,9 +351,8 @@ export default function MyRegistrations() {
                 const isConfirming = confirmId === reg.id
 
                 return (
-                  <>
+                  <Fragment key={reg.id}>
                     <tr
-                      key={reg.id}
                       className={`myreg-row${reg.status === 'cancelled' || reg.status === 'rejected' ? ' myreg-row--dim' : ''}${isConfirming ? ' myreg-row--confirming' : ''}`}
                     >
                       {/* event cell */}
@@ -374,18 +411,28 @@ export default function MyRegistrations() {
                           >
                             <IcoEye />
                           </button>
-                          <button
-                            className={`myreg-action-btn myreg-action-btn--cancel${!canCancel ? ' myreg-action-btn--disabled' : ''}`}
-                            title={canCancel ? 'Cancel registration' : 'Cannot cancel'}
-                            disabled={!canCancel}
-                            onClick={() => {
-                              if (!canCancel) return
-                              if (isConfirming) { setConfirmId(null); setCancelError('') }
-                              else { setConfirmId(reg.id); setCancelError('') }
-                            }}
-                          >
-                            <IcoX />
-                          </button>
+                          {(reg.status === 'cancelled' || reg.status === 'rejected') ? (
+                            <button
+                              className="myreg-action-btn myreg-action-btn--dismiss"
+                              title="Remove from list"
+                              onClick={() => setPendingDismissId(reg.id)}
+                            >
+                              <IcoTrash />
+                            </button>
+                          ) : (
+                            <button
+                              className={`myreg-action-btn myreg-action-btn--cancel${!canCancel ? ' myreg-action-btn--disabled' : ''}`}
+                              title={canCancel ? 'Cancel registration' : 'Cannot cancel'}
+                              disabled={!canCancel}
+                              onClick={() => {
+                                if (!canCancel) return
+                                if (isConfirming) { setConfirmId(null); setCancelError('') }
+                                else { setConfirmId(reg.id); setCancelError('') }
+                              }}
+                            >
+                              <IcoX />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -402,11 +449,27 @@ export default function MyRegistrations() {
                         onCancel={() => { setConfirmId(null); setCancelError('') }}
                       />
                     )}
-                  </>
+                  </Fragment>
                 )
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* dismiss confirmation dialog */}
+      {pendingDismissId !== null && (
+        <div className="myreg-dismiss-overlay">
+          <div className="myreg-dismiss-dialog">
+            <p className="myreg-dismiss-title">Remove registration?</p>
+            <p className="myreg-dismiss-sub">
+              This will hide the entry from your list. The registration record is not deleted.
+            </p>
+            <div className="myreg-dismiss-btns">
+              <button className="myreg-confirm-yes" onClick={confirmDismiss}>Remove</button>
+              <button className="myreg-confirm-no" onClick={() => setPendingDismissId(null)}>Keep it</button>
+            </div>
+          </div>
         </div>
       )}
 

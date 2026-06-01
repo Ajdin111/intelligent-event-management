@@ -88,7 +88,8 @@ body {
   gap: 8px;
   white-space: nowrap;
   border-bottom: 1px solid var(--border);
-  min-height: 57px;
+  height: var(--topbar-h);
+  flex-shrink: 0;
 }
 
 .sidebar-logo-mark {
@@ -110,7 +111,7 @@ body {
 .sidebar-collapse-btn {
   margin-left: auto;
   flex-shrink: 0;
-  height: 57px;
+  height: var(--topbar-h);
   color: var(--text-muted);
   display: flex;
   align-items: center;
@@ -1239,6 +1240,15 @@ body {
   margin-bottom: 10px;
 }
 
+.filter-scroll-list {
+  max-height: 168px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.15) transparent;
+}
+.filter-scroll-list::-webkit-scrollbar { width: 4px; }
+.filter-scroll-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
 .filter-radio {
   display: flex;
   align-items: center;
@@ -1422,6 +1432,11 @@ body {
     padding: 0 20px 0 0;
     margin-right: 20px;
     min-width: 110px;
+  }
+
+  .filter-scroll-list {
+    max-height: none;
+    overflow-y: visible;
   }
 
   .filter-section:last-child {
@@ -2321,6 +2336,7 @@ body {
   transition: border-color 0.12s, background 0.12s;
 }
 .ed-action-btn:hover { border-color: var(--border-med); background: var(--bg-hover); }
+.ed-action-btn--active { border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.06); }
 
 /* title + info */
 .ed-title {
@@ -2416,6 +2432,8 @@ body {
 .ed-tier:hover:not(:disabled) { border-color: var(--border-med); background: var(--bg-hover); }
 .ed-tier--active { border-color: #ffffff !important; background: rgba(255,255,255,0.04) !important; }
 .ed-tier--soldout { opacity: 0.45; cursor: default; }
+.ed-tier--soon { opacity: 0.6; cursor: default; border-color: rgba(251,191,36,0.3); }
+.ed-tier--soon .ed-tier-price { color: #fbbf24; }
 .ed-tier-row { display: flex; align-items: center; justify-content: space-between; }
 .ed-tier-name { font-size: 13.5px; font-weight: 500; color: var(--text); }
 .ed-tier-price { font-size: 13.5px; font-weight: 600; color: var(--text); }
@@ -3594,7 +3612,7 @@ select.form-input option {
 .sidebar--collapsed .sidebar-logo {
   justify-content: center;
   padding: 0;
-  min-height: 57px;
+  min-height: var(--topbar-h);
 }
 
 .sidebar--collapsed .sidebar-role-label,
@@ -3606,7 +3624,7 @@ select.form-input option {
 .sidebar--collapsed .sidebar-logo {
   justify-content: center;
   padding: 0;
-  min-height: 57px;
+  min-height: var(--topbar-h);
   display: flex;
   align-items: center;
   width: 100%;
@@ -4335,6 +4353,32 @@ select.form-input option {
   opacity: 0.3;
   cursor: not-allowed;
   pointer-events: none;
+}
+
+.myreg-action-btn--dismiss:hover {
+  border-color: rgba(251,191,36,0.4);
+  color: #fbbf24;
+  background: rgba(251,191,36,0.06);
+}
+
+/* ── dismiss dialog ── */
+.myreg-dismiss-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+}
+.myreg-dismiss-dialog {
+  background: rgb(32,38,42); border: 1px solid var(--border-med);
+  border-radius: var(--radius); padding: 24px 28px; max-width: 360px; width: 90%;
+}
+.myreg-dismiss-title {
+  font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 8px;
+}
+.myreg-dismiss-sub {
+  font-size: 13px; color: var(--text-sub); margin-bottom: 20px; line-height: 1.5;
+}
+.myreg-dismiss-btns {
+  display: flex; gap: 10px;
 }
 
 /* ── confirmation row ── */

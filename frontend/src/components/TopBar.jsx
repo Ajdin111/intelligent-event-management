@@ -176,7 +176,11 @@ export default function TopBar({ onHamburger }) {
   useEffect(() => {
     fetchUnreadCount()
     const interval = setInterval(fetchUnreadCount, 60000)
-    return () => clearInterval(interval)
+    window.addEventListener('notif:refresh', fetchUnreadCount)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('notif:refresh', fetchUnreadCount)
+    }
   }, [fetchUnreadCount])
 
   // reset events cache when leaving admin panel

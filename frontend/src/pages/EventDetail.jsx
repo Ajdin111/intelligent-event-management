@@ -106,8 +106,8 @@ const IcoGroup = () => (
     <path d="M11 7.5c1.2.6 2 1.9 2 3.5" strokeLinecap="round" />
   </svg>
 )
-const IcoSave = () => (
-  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+const IcoSave = ({ filled }) => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5">
     <path d="M7 1l1.8 3.5 3.7.5-2.7 2.7.6 3.8L7 9.5l-3.4 2 .6-3.8L1.5 5l3.7-.5z" strokeLinejoin="round" />
   </svg>
 )
@@ -135,6 +135,15 @@ function StarRow({ rating, size = 13 }) {
 
 // ── component ─────────────────────────────────────────────────────────────────
 
+const SAVED_KEY = 'teqevent-saved-events'
+
+function getSavedIds() {
+  try { return new Set(JSON.parse(localStorage.getItem(SAVED_KEY)) ?? []) } catch { return new Set() }
+}
+function persistSaved(set) {
+  localStorage.setItem(SAVED_KEY, JSON.stringify([...set]))
+}
+
 export default function EventDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -148,6 +157,8 @@ export default function EventDetail() {
   const [realEventData, setRealEventData] = useState(null)
   const [selectedTier, setSelectedTier] = useState(0)
   const [quantity, setQuantity] = useState(1)
+  const [saved, setSaved] = useState(() => getSavedIds().has(Number(id)))
+  const [copyFeedback, setCopyFeedback] = useState(false)
 
   useEffect(() => {
     const numId = Number(id)
@@ -238,33 +249,45 @@ export default function EventDetail() {
 
   // Prefer real tiers from API; only fall back to FAKE tiers for paid events without real tiers
   const isFreeEvent = realEventData?.is_free ?? false
+  const now = new Date()
   const displayTiers = realTiers.length > 0
-    ? realTiers.map(t => ({
-        id:        t.id,
-        name:      t.name,
-        price:     parseFloat(t.price),
-        total:     t.quantity,
-        sold:      t.quantity_sold,
-        available: t.quantity_available,
-        soldOut:   t.is_sold_out || !t.is_active,
-      }))
+    ? realTiers.map(t => {
+        const saleStart = t.sale_start ? new Date(t.sale_start) : null
+        const notYetOnSale = saleStart && now < saleStart && !t.is_active
+        return {
+          id:           t.id,
+          name:         t.name,
+          price:        parseFloat(t.price),
+          total:        t.quantity,
+          sold:         t.quantity_sold,
+          available:    t.quantity_available,
+          soldOut:      !notYetOnSale && (t.is_sold_out || !t.is_active),
+          notYetOnSale,
+          saleStartStr: saleStart
+            ? saleStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            : null,
+        }
+      })
     : isFreeEvent
       ? []
       : (event.tiers || []).map(t => ({
-          id:        null,
-          name:      t.name,
-          price:     t.price,
-          total:     t.total,
-          sold:      t.sold,
-          available: t.total - t.sold,
-          soldOut:   t.sold >= t.total,
+          id:           null,
+          name:         t.name,
+          price:        t.price,
+          total:        t.total,
+          sold:         t.sold,
+          available:    t.total - t.sold,
+          soldOut:      t.sold >= t.total,
+          notYetOnSale: false,
+          saleStartStr: null,
         }))
 
   // Free events with no ticketing tiers register directly without a tier selection
   const isFreeNoTier = isFreeEvent && displayTiers.length === 0
-  const tier      = isFreeNoTier ? null : displayTiers[selectedTier]
-  const soldOut   = isFreeNoTier ? false : (tier?.soldOut ?? true)
-  const available = tier?.available ?? 0
+  const tier         = isFreeNoTier ? null : displayTiers[selectedTier]
+  const soldOut      = isFreeNoTier ? false : (tier?.soldOut ?? true)
+  const notYetOnSale = !isFreeNoTier && (tier?.notYetOnSale ?? false)
+  const available    = tier?.available ?? 0
   const subtotal  = isFreeNoTier
     ? 'Free'
     : tier
@@ -289,8 +312,50 @@ export default function EventDetail() {
   const neuPct = sentimentTotal > 0 ? Math.round(sentimentReviews.filter(r => r.sentiment === 'neutral').length  / sentimentTotal * 100) : 0
   const negPct = sentimentTotal > 0 ? Math.round(sentimentReviews.filter(r => r.sentiment === 'negative').length / sentimentTotal * 100) : 0
 
+  const handleSave = () => {
+    const ids = getSavedIds()
+    const numId = Number(id)
+    if (ids.has(numId)) ids.delete(numId); else ids.add(numId)
+    persistSaved(ids)
+    setSaved(ids.has(numId))
+  }
+
+  const handleShare = async () => {
+    const url = window.location.href
+    const title = event?.title ?? 'TeqEvent'
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text: `Check out ${title} on TeqEvent`, url })
+      } catch (err) {
+        if (err?.name !== 'AbortError') {
+          fallbackCopy(url)
+        }
+      }
+    } else {
+      fallbackCopy(url)
+    }
+  }
+
+  const fallbackCopy = (url) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => {
+        setCopyFeedback(true)
+        setTimeout(() => setCopyFeedback(false), 2000)
+      }).catch(() => {})
+    } else {
+      const el = document.createElement('textarea')
+      el.value = url
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+      setCopyFeedback(true)
+      setTimeout(() => setCopyFeedback(false), 2000)
+    }
+  }
+
   const handleRegister = () => {
-    if (!isFreeNoTier && (!tier || soldOut)) return
+    if (!isFreeNoTier && (!tier || soldOut || notYetOnSale)) return
     navigate(`/events/${id}/register`, {
       state: {
         eventId:       Number(id),
@@ -334,8 +399,20 @@ export default function EventDetail() {
           )}
         </div>
         <div className="ed-actions">
-          <button className="ed-action-btn"><IcoSave /> Save</button>
-          <button className="ed-action-btn"><IcoShare /> Share</button>
+          <button
+            className={`ed-action-btn${saved ? ' ed-action-btn--active' : ''}`}
+            onClick={handleSave}
+            title={saved ? 'Remove from saved' : 'Save event'}
+          >
+            <IcoSave filled={saved} /> {saved ? 'Saved' : 'Save'}
+          </button>
+          <button
+            className="ed-action-btn"
+            onClick={handleShare}
+            title="Copy event link"
+          >
+            <IcoShare /> {copyFeedback ? 'Copied!' : 'Share'}
+          </button>
         </div>
       </div>
 
@@ -464,22 +541,27 @@ export default function EventDetail() {
                 return (
                   <button
                     key={t.name}
-                    disabled={t.soldOut}
-                    onClick={() => { if (!t.soldOut) { setSelectedTier(i); setQuantity(1) } }}
+                    disabled={t.soldOut || t.notYetOnSale}
+                    onClick={() => { if (!t.soldOut && !t.notYetOnSale) { setSelectedTier(i); setQuantity(1) } }}
                     className={[
                       'ed-tier',
-                      selectedTier === i && !t.soldOut ? 'ed-tier--active' : '',
+                      selectedTier === i && !t.soldOut && !t.notYetOnSale ? 'ed-tier--active' : '',
                       t.soldOut ? 'ed-tier--soldout' : '',
+                      t.notYetOnSale ? 'ed-tier--soon' : '',
                     ].join(' ')}
                   >
                     <div className="ed-tier-row">
                       <span className="ed-tier-name">{t.name}</span>
                       <span className="ed-tier-price">
-                        {t.soldOut ? 'Sold out' : t.price === 0 ? 'Free' : `$${t.price}`}
+                        {t.notYetOnSale
+                          ? `Opens ${t.saleStartStr}`
+                          : t.soldOut ? 'Sold out' : t.price === 0 ? 'Free' : `$${t.price}`}
                       </span>
                     </div>
                     <span className="ed-tier-avail">
-                      {t.soldOut ? 'No spots remaining' : `${t.available} of ${t.total} left`}
+                      {t.notYetOnSale
+                        ? `Sale starts ${t.saleStartStr}`
+                        : t.soldOut ? 'No spots remaining' : `${t.available} of ${t.total} left`}
                     </span>
                     <div className="ed-tier-track">
                       <div className="ed-tier-fill" style={{ width: `${fill}%` }} />
@@ -490,7 +572,7 @@ export default function EventDetail() {
             </div>
             )}
 
-            {!isFreeNoTier && !soldOut && displayTiers.length > 0 && (
+            {!isFreeNoTier && !soldOut && !notYetOnSale && displayTiers.length > 0 && (
               <>
                 <div className="ed-qty-row">
                   <span className="ed-qty-label">Quantity</span>
@@ -509,13 +591,17 @@ export default function EventDetail() {
 
             <button
               className="ed-register-btn"
-              disabled={!isFreeNoTier && (soldOut || displayTiers.length === 0)}
+              disabled={!isFreeNoTier && (soldOut || notYetOnSale || displayTiers.length === 0)}
               onClick={handleRegister}
             >
-              {!isFreeNoTier && soldOut ? 'Sold out' : 'Register now →'}
+              {!isFreeNoTier && notYetOnSale
+                ? `Sales open ${tier?.saleStartStr ?? 'soon'}`
+                : !isFreeNoTier && soldOut
+                ? 'Sold out'
+                : 'Register now →'}
             </button>
 
-            {!isFreeNoTier && !soldOut && displayTiers.length > 0 && (
+            {!isFreeNoTier && !soldOut && !notYetOnSale && displayTiers.length > 0 && (
               <p className="ed-register-note">
                 Secure checkout · Refundable up to 7 days before event
               </p>

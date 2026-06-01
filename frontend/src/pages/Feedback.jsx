@@ -100,19 +100,20 @@ function ReviewCard({ review }) {
         <span className="fb-review-date">{date}</span>
       </div>
       {review.comment && <p className="fb-review-text">{review.comment}</p>}
-      <span className="fb-review-author">Anonymous attendee</span>
+      <span className="fb-review-author">{review.is_anonymous ? 'Anonymous attendee' : 'Verified attendee'}</span>
     </div>
   )
 }
 
 // ── Event Review Item ─────────────────────────────────────────────────────────
 
-function EventReviewItem({ event }) {
+function EventReviewItem({ event, initialHasReview = false, onReviewed }) {
   const [open, setOpen]               = useState(false)
   const [loaded, setLoaded]           = useState(false)
   const [existingReview, setExistingReview] = useState(null)
   const [reviews, setReviews]         = useState([])
   const [loadingInner, setLoadingInner] = useState(false)
+  const [hasReviewBadge, setHasReviewBadge] = useState(initialHasReview)
 
   // Form state
   const [rating, setRating]           = useState(0)
@@ -141,6 +142,7 @@ function EventReviewItem({ event }) {
         setRating(r.rating)
         setComment(r.comment ?? '')
         setIsAnonymous(r.is_anonymous)
+        setHasReviewBadge(true)
       }
 
       if (allRes.status === 'fulfilled') {
@@ -165,10 +167,12 @@ function EventReviewItem({ event }) {
         is_anonymous: isAnonymous,
       })
       setSubmitted(true)
+      setHasReviewBadge(true)
+      onReviewed?.()
 
       // Refresh all reviews
       const allRes = await api.get(`/api/events/${event.id}/reviews`)
-      setReviews(allRes.value?.data ?? allRes.data ?? [])
+      setReviews(allRes.data ?? [])
     } catch (err) {
       const msg = err.response?.data?.detail
       setSubmitError(typeof msg === 'string' ? msg : 'Failed to submit. Please try again.')
@@ -183,7 +187,6 @@ function EventReviewItem({ event }) {
 
   const location = getLocation(event)
   const date     = formatDate(event.start_datetime)
-  const hasReview = !!existingReview
 
   return (
     <div className={`fb-event-item${open ? ' fb-event-item--open' : ''}`}>
@@ -203,7 +206,7 @@ function EventReviewItem({ event }) {
           </div>
         </div>
         <div className="fb-event-header-right">
-          {hasReview && (
+          {hasReviewBadge && (
             <span className="fb-reviewed-badge">
               <IcoCheck /> Reviewed
             </span>
@@ -299,8 +302,9 @@ function EventReviewItem({ event }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function Feedback() {
-  const [pastEvents, setPastEvents]   = useState([])
-  const [loading, setLoading]         = useState(true)
+  const [pastEvents, setPastEvents]     = useState([])
+  const [reviewedMap, setReviewedMap]   = useState({})   // eventId → boolean
+  const [loading, setLoading]           = useState(true)
 
   useEffect(() => {
     let cancelled = false
@@ -330,6 +334,16 @@ export default function Feedback() {
           .sort((a, b) => new Date(b.end_datetime) - new Date(a.end_datetime))
 
         setPastEvents(past)
+
+        // preload review status for each past event
+        const reviewChecks = await Promise.allSettled(
+          past.map(e => api.get(`/api/events/${e.id}/reviews/me`).then(() => [e.id, true]).catch(() => [e.id, false]))
+        )
+        if (!cancelled) {
+          const map = {}
+          reviewChecks.forEach(r => { if (r.status === 'fulfilled') map[r.value[0]] = r.value[1] })
+          setReviewedMap(map)
+        }
       } catch {
         // empty state handles it
       } finally {
@@ -348,7 +362,7 @@ export default function Feedback() {
       <div className="fb-header">
         <div>
           <h1 className="fb-heading">Feedback</h1>
-          <p className="fb-sub">Tell us how your events went. Reviews are anonymized.</p>
+          <p className="fb-sub">Tell us how your events went.</p>
         </div>
       </div>
 
@@ -363,7 +377,12 @@ export default function Feedback() {
       ) : (
         <div className="fb-events-list">
           {pastEvents.map(event => (
-            <EventReviewItem key={event.id} event={event} />
+            <EventReviewItem
+              key={event.id}
+              event={event}
+              initialHasReview={reviewedMap[event.id] ?? false}
+              onReviewed={() => setReviewedMap(m => ({ ...m, [event.id]: true }))}
+            />
           ))}
         </div>
       )}
