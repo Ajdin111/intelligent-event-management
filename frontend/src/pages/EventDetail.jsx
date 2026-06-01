@@ -355,7 +355,7 @@ export default function EventDetail() {
   }
 
   const handleRegister = () => {
-    if (!isFreeNoTier && (!tier || soldOut)) return
+    if (!isFreeNoTier && (!tier || soldOut || notYetOnSale)) return
     navigate(`/events/${id}/register`, {
       state: {
         eventId:       Number(id),
@@ -572,7 +572,7 @@ export default function EventDetail() {
             </div>
             )}
 
-            {!isFreeNoTier && !soldOut && displayTiers.length > 0 && (
+            {!isFreeNoTier && !soldOut && !notYetOnSale && displayTiers.length > 0 && (
               <>
                 <div className="ed-qty-row">
                   <span className="ed-qty-label">Quantity</span>
@@ -601,7 +601,7 @@ export default function EventDetail() {
                 : 'Register now →'}
             </button>
 
-            {!isFreeNoTier && !soldOut && displayTiers.length > 0 && (
+            {!isFreeNoTier && !soldOut && !notYetOnSale && displayTiers.length > 0 && (
               <p className="ed-register-note">
                 Secure checkout · Refundable up to 7 days before event
               </p>
