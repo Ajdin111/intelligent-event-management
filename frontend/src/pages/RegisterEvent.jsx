@@ -175,6 +175,7 @@ export default function RegisterEvent() {
       } else {
         setResult({ type: 'confirmed', data })
       }
+      window.dispatchEvent(new CustomEvent('notif:refresh'))
     } catch (err) {
       const msg = err.response?.data?.detail
       setError(typeof msg === 'string' ? msg : 'Something went wrong. Please try again.')

@@ -16,7 +16,7 @@ SplashScreen.preventAutoHideAsync();
 
 // Redirect logic — runs after auth hydration
 function RootNavigator() {
-  const { isAuthenticated, isLoading, role } = useAuth();
+  const { isAuthenticated, isLoading, activeRole } = useAuth();
   const segments = useSegments();
 
   useEffect(() => {
@@ -27,16 +27,15 @@ function RootNavigator() {
     if (!isAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/login');
     } else if (isAuthenticated && inAuthGroup) {
-      // Route to correct home based on role derived from backend flags
-      if (role === 'admin') {
+      if (activeRole === 'admin') {
         router.replace('/(admin)/overview');
-      } else if (role === 'organizer') {
+      } else if (activeRole === 'organizer') {
         router.replace('/(organizer)/home');
       } else {
         router.replace('/(attendee)/home');
       }
     }
-  }, [isAuthenticated, isLoading, role]);
+  }, [isAuthenticated, isLoading, activeRole]);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

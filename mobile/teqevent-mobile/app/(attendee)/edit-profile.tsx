@@ -7,8 +7,10 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
   Alert,
-  Modal, 
+  Modal,
 } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -146,6 +148,11 @@ export default function EditProfileScreen() {
         <View style={{ width: 36 }} />
       </View>
 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+      >
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
@@ -205,8 +212,8 @@ export default function EditProfileScreen() {
         <Text style={styles.fieldLabel}>EMAIL</Text>
         <View style={styles.emailField}>
           <Text style={styles.emailText}>{user?.email}</Text>
-          <Text style={styles.emailHint}>Email cannot be changed</Text>
         </View>
+        <Text style={styles.emailHint}>Email address cannot be changed after registration.</Text>
 
         <Text style={styles.fieldLabel}>BIO <Text style={styles.optional}>(optional)</Text></Text>
         <TextInput
@@ -296,6 +303,7 @@ export default function EditProfileScreen() {
           <Text style={styles.deleteBtnText}>Delete account</Text>
         </TouchableOpacity>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <Modal
         visible={deleteModalVisible}
@@ -422,11 +430,14 @@ const styles = StyleSheet.create({
     height: 44, paddingHorizontal: 14,
     backgroundColor: 'rgba(255,255,255,0.02)',
     borderWidth: 1, borderColor: Colors.border,
-    borderRadius: Radius.md, marginBottom: 14,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderRadius: Radius.md, marginBottom: 6,
+    justifyContent: 'center',
   },
   emailText: { fontSize: 14, fontFamily: FontFamily.regular, color: Colors.textMuted },
-  emailHint: { fontSize: 11, fontFamily: FontFamily.regular, color: Colors.textMuted },
+  emailHint: {
+    fontSize: 11.5, fontFamily: FontFamily.regular,
+    color: Colors.textMuted, marginBottom: 14, paddingLeft: 2,
+  },
 
   // Password
   passwordWrap: { position: 'relative', marginBottom: 14 },

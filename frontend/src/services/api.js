@@ -50,11 +50,12 @@ export const authApi = {
 }
 
 export const eventsApi = {
-  list:    (params = {}) => api.get('/api/events', { params }),
-  getById: (id)          => api.get(`/api/events/${id}`),
-  create:  (data)        => api.post('/api/events', data),
-  update:  (id, data)    => api.patch(`/api/events/${id}`, data),
-  publish: (id)          => api.patch(`/api/events/${id}/publish`),
+  list:     (params = {}) => api.get('/api/events', { params }),
+  myEvents: ()            => api.get('/api/events/my-events'),
+  getById:  (id)          => api.get(`/api/events/${id}`),
+  create:   (data)        => api.post('/api/events', data),
+  update:   (id, data)    => api.patch(`/api/events/${id}`, data),
+  publish:  (id)          => api.patch(`/api/events/${id}/publish`),
 }
 
 export const ticketTiersApi = {
@@ -86,8 +87,14 @@ export const registrationsApi = {
 }
 
 export const agendaApi = {
-  listTracks:   (eventId) => api.get(`/api/events/${eventId}/tracks`),
-  listSessions: (eventId) => api.get(`/api/events/${eventId}/sessions`),
+  listTracks:      (eventId)            => api.get(`/api/events/${eventId}/tracks`),
+  createTrack:     (eventId, data)      => api.post(`/api/events/${eventId}/tracks`, data),
+  updateTrack:     (trackId, data)      => api.patch(`/api/tracks/${trackId}`, data),
+  deleteTrack:     (trackId)            => api.delete(`/api/tracks/${trackId}`),
+  listSessions:    (eventId)            => api.get(`/api/events/${eventId}/sessions`),
+  createSession:   (trackId, data)      => api.post(`/api/tracks/${trackId}/sessions`, data),
+  updateSession:   (sessionId, data)    => api.patch(`/api/sessions/${sessionId}`, data),
+  deleteSession:   (sessionId)          => api.delete(`/api/sessions/${sessionId}`),
 }
 
 export const organizerApi = {

@@ -148,6 +148,36 @@ export const eventsApi = {
 
   ticketTiers: (eventId: number) =>
     api.get(`/api/events/${eventId}/ticket-tiers`),
+
+  createTier: (eventId: number, data: {
+    name: string;
+    price: number;
+    quantity: number;
+    description?: string;
+    sale_start: string;
+    sale_end: string;
+    is_active: boolean;
+  }) =>
+    api.post(`/api/events/${eventId}/ticket-tiers`, data),
+
+  createPromoCode: (eventId: number, data: {
+    code: string;
+    discount_type: 'percentage' | 'fixed';
+    discount_value: number;
+    max_uses: number;
+    valid_from: string;
+    valid_until: string;
+  }) =>
+    api.post(`/api/events/${eventId}/promo-codes`, data),
+
+  validatePromoCode: (eventId: number, data: { code: string; ticket_tier_id: number }) =>
+    api.post<{
+      is_valid: boolean;
+      discount_type?: string;
+      discount_value?: number;
+      final_price?: number;
+      message: string;
+    }>(`/api/events/${eventId}/promo-codes/validate`, data),
 };
 
 // ─── Registrations ───────────────────────────────────────────────────────────

@@ -50,6 +50,10 @@ npm-debug.*
 *.orig.*
 .claude
 uploads/
+.env.docker
 
 
 
+
+# Local design files
+mobile-design/

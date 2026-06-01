@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -105,18 +105,21 @@ function EventCard({ event }: { event: Event }) {
 export default function OrganizerEventsScreen() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'published' | 'draft' | 'cancelled'>('draft');
+  const [tab, setTab] = useState<'published' | 'draft' | 'cancelled'>('published');
 
-  useEffect(() => {
-    eventsApi.myEvents()
-      .then(res => {
-        const raw = res.data as any;
-        const all: Event[] = Array.isArray(raw) ? raw : (raw?.items ?? []);
-        setEvents(all);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      eventsApi.myEvents()
+        .then(res => {
+          const raw = res.data as any;
+          const all: Event[] = Array.isArray(raw) ? raw : (raw?.items ?? []);
+          setEvents(all);
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }, [])
+  );
 
   const filtered = events.filter(e => e.status === tab);
 
@@ -138,7 +141,7 @@ export default function OrganizerEventsScreen() {
             {loading ? 'Loading…' : `${events.length} total`}
           </Text>
         </View>
-        <TouchableOpacity style={styles.createBtn} onPress={() => {}} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/(organizer)/create-event' as any)} activeOpacity={0.85}>
           <Ionicons name="add" size={18} color={Colors.bg} />
         </TouchableOpacity>
       </View>
@@ -179,7 +182,7 @@ export default function OrganizerEventsScreen() {
               : 'No cancelled events.'}
           </Text>
           {tab !== 'cancelled' && (
-            <TouchableOpacity style={styles.createEventBtn} onPress={() => {}} activeOpacity={0.85}>
+            <TouchableOpacity style={styles.createEventBtn} onPress={() => router.push('/(organizer)/create-event' as any)} activeOpacity={0.85}>
               <Text style={styles.createEventBtnText}>Create event</Text>
             </TouchableOpacity>
           )}
