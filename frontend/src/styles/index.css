@@ -88,7 +88,8 @@ body {
   gap: 8px;
   white-space: nowrap;
   border-bottom: 1px solid var(--border);
-  min-height: 57px;
+  height: var(--topbar-h);
+  flex-shrink: 0;
 }
 
 .sidebar-logo-mark {
@@ -110,7 +111,7 @@ body {
 .sidebar-collapse-btn {
   margin-left: auto;
   flex-shrink: 0;
-  height: 57px;
+  height: var(--topbar-h);
   color: var(--text-muted);
   display: flex;
   align-items: center;
@@ -3606,7 +3607,7 @@ select.form-input option {
 .sidebar--collapsed .sidebar-logo {
   justify-content: center;
   padding: 0;
-  min-height: 57px;
+  min-height: var(--topbar-h);
 }
 
 .sidebar--collapsed .sidebar-role-label,
@@ -3618,7 +3619,7 @@ select.form-input option {
 .sidebar--collapsed .sidebar-logo {
   justify-content: center;
   padding: 0;
-  min-height: 57px;
+  min-height: var(--topbar-h);
   display: flex;
   align-items: center;
   width: 100%;
