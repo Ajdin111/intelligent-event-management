@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, Fragment } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { registrationsApi, eventsApi, ticketTiersApi, categoriesApi, API_BASE_URL } from '../services/api'
 
@@ -243,11 +243,11 @@ export default function MyRegistrations() {
   }, [registrations, activeTab, dismissedIds])
 
   const counts = useMemo(() => ({
-    All:       registrations.length,
-    Confirmed: registrations.filter(r => r.status === 'confirmed').length,
-    Pending:   registrations.filter(r => r.status === 'pending').length,
-    Cancelled: registrations.filter(r => r.status === 'cancelled' || r.status === 'rejected').length,
-  }), [registrations])
+    All:       registrations.filter(r => !dismissedIds.has(r.id)).length,
+    Confirmed: registrations.filter(r => r.status === 'confirmed' && !dismissedIds.has(r.id)).length,
+    Pending:   registrations.filter(r => r.status === 'pending' && !dismissedIds.has(r.id)).length,
+    Cancelled: registrations.filter(r => (r.status === 'cancelled' || r.status === 'rejected') && !dismissedIds.has(r.id)).length,
+  }), [registrations, dismissedIds])
 
   // ── loading ──
   if (loading) return <div className="ed-state">Loading…</div>
@@ -351,9 +351,8 @@ export default function MyRegistrations() {
                 const isConfirming = confirmId === reg.id
 
                 return (
-                  <>
+                  <Fragment key={reg.id}>
                     <tr
-                      key={reg.id}
                       className={`myreg-row${reg.status === 'cancelled' || reg.status === 'rejected' ? ' myreg-row--dim' : ''}${isConfirming ? ' myreg-row--confirming' : ''}`}
                     >
                       {/* event cell */}
@@ -450,7 +449,7 @@ export default function MyRegistrations() {
                         onCancel={() => { setConfirmId(null); setCancelError('') }}
                       />
                     )}
-                  </>
+                  </Fragment>
                 )
               })}
             </tbody>
