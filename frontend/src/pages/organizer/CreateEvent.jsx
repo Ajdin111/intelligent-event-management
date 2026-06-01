@@ -969,13 +969,38 @@ function Step5({ tracks, setTracks, form }) {
   const eventStart = form.date && form.start_time ? `${form.date}T${form.start_time}` : null
   const eventEnd   = form.end_date && form.end_time ? `${form.end_date}T${form.end_time}` : null
 
+  function defaultSessionTimes() {
+    if (!eventStart) return { start_datetime: '', end_datetime: '' }
+    const start = eventStart
+    const d = new Date(eventStart)
+    d.setHours(d.getHours() + 1)
+    const pad = n => String(n).padStart(2, '0')
+    const end = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+    return { start_datetime: start, end_datetime: eventEnd && end > eventEnd ? eventEnd : end }
+  }
+
+  // Seed any sessions that still have empty times when this step is reached
+  useEffect(() => {
+    if (!eventStart) return
+    const { start_datetime, end_datetime } = defaultSessionTimes()
+    setTracks(ts => ts.map(t => ({
+      ...t,
+      sessions: t.sessions.map(s => ({
+        ...s,
+        start_datetime: s.start_datetime || start_datetime,
+        end_datetime:   s.end_datetime   || end_datetime,
+      })),
+    })))
+  }, [eventStart])
+
   function updateTrack(trid, field, value) {
     setTracks(ts => ts.map(t => t._id === trid ? { ...t, [field]: value } : t))
   }
 
   function addSession(trid) {
+    const times = defaultSessionTimes()
     setTracks(ts => ts.map(t => t._id === trid
-      ? { ...t, sessions: [...t.sessions, newSession()] }
+      ? { ...t, sessions: [...t.sessions, { ...newSession(), ...times }] }
       : t
     ))
   }
