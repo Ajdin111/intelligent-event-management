@@ -699,25 +699,24 @@ function Step1({ form, set, categories }) {
             </div>
             <div className="form-group">
               <label className="field-label">City</label>
-              {getCitiesForCountry(form.country).length > 0 ? (
-                <select
-                  className="form-input"
-                  value={form.city}
-                  onChange={e => set('city', e.target.value)}
-                >
-                  <option value="">Select city…</option>
-                  {getCitiesForCountry(form.country).map(city => (
-                    <option key={city} value={city}>{city}</option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  className="form-input"
-                  placeholder="Enter city name"
-                  value={form.city}
-                  onChange={e => set('city', e.target.value)}
-                />
-              )}
+              {(() => {
+                const availableCities = CITIES_BY_COUNTRY[form.country] ?? []
+                return (
+                  <select
+                    className="form-input"
+                    value={form.city}
+                    onChange={e => set('city', e.target.value)}
+                    disabled={!form.country || availableCities.length === 0}
+                  >
+                    <option value="">
+                      {!form.country ? 'Select country first…' : availableCities.length === 0 ? 'No cities listed' : 'Select city…'}
+                    </option>
+                    {availableCities.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                )
+              })()}
             </div>
           </div>
           <div className="form-group">
