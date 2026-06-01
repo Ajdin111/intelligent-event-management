@@ -1,324 +1,442 @@
-# Intelligent Event Management System
+# TeqEvent
 
-A full-stack web application for managing corporate events and tech conferences, built with FastAPI, React, and PostgreSQL. The system includes AI/ML features such as ticket demand forecasting, event recommendations, and sentiment analysis.
+An event management platform for corporate events and tech conferences. Organizers create and run events end to end; attendees discover them, register, get a QR ticket, check in at the door, and leave feedback afterward. On top of the usual CRUD, it does demand forecasting, event recommendations, and review sentiment analysis with a real scikit-learn pipeline that retrains on a schedule.
 
----
+It's a full-stack project: a FastAPI backend, a React web app, and a React Native (Expo) mobile app that does the QR scanning. Postgres for data, Redis + Celery for background work and scheduled jobs.
 
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Backend | Python 3.11, FastAPI |
-| Frontend | React + Vite |
-| Mobile | React Native |
-| Database | PostgreSQL 15 |
-| Background Jobs | Celery + Redis |
-| Containerization | Docker |
-| Auth | JWT (JSON Web Tokens) |
+This started as a university project, but the architecture and tooling are meant to hold up like a real product would.
 
 ---
 
-## Project Structure
+## Table of contents
+
+- [What's inside](#whats-inside)
+- [Tech stack](#tech-stack)
+- [Architecture](#architecture)
+- [Quick start (Docker)](#quick-start-docker)
+- [Manual setup](#manual-setup-without-docker)
+- [Running the web app](#running-the-web-app)
+- [Running the mobile app](#running-the-mobile-app)
+- [Environment variables](#environment-variables)
+- [The API](#the-api)
+- [Background jobs](#background-jobs-celery)
+- [The ML side](#the-ml-side)
+- [Database & migrations](#database--migrations)
+- [Tests](#tests)
+- [Project layout](#project-layout)
+- [Git workflow](#git-workflow)
+- [Team](#team)
+
+---
+
+## What's inside
+
+| Module | What it does |
+| --- | --- |
+| Auth & users | Email/password signup, JWT login, profile editing, password change, account soft-delete, self-upgrade to organizer |
+| Events | Full lifecycle — draft → published → closed/cancelled, physical/online/hybrid, capacity, soft delete, collaborators |
+| Agenda | Tracks, sessions, speakers, per-session registration |
+| Ticketing | Tiers with pricing and quantity, promo codes (percentage/fixed), QR-coded tickets, guest tickets |
+| Registration | Automatic, manual-approval, and invite-only flows, plus a waitlist with confirmation deadlines |
+| Check-in | QR scanning from the mobile app, manual check-in fallback, offline scan queue |
+| Notifications | In-app + email, per-user preferences, scheduled event reminders |
+| Reviews | One post-event review per user, editable, with automatic sentiment tagging |
+| Admin | User management, platform-wide analytics, event oversight |
+| ML | Demand forecasting, recommendations, sentiment analysis — trained, cached, and served behind the API |
+
+The backend exposes **95 endpoints across 14 modules**. Full interactive docs at `/docs` when the app runs in debug.
+
+---
+
+## Tech stack
+
+**Backend** — FastAPI · SQLAlchemy 2.0 · Alembic · Pydantic v2 · PostgreSQL 15 · Redis · Celery · python-jose (JWT) · passlib/bcrypt · slowapi (rate limiting) · scikit-learn / pandas / numpy
+
+**Web** — React 18 · Vite · React Router · Axios
+
+**Mobile** — React Native · Expo (SDK 54) · expo-router · expo-camera (QR) · expo-secure-store
+
+**Infra** — Docker Compose · Flower (Celery monitoring)
+
+---
+
+## Architecture
+
+It's a modular monolith. One FastAPI app, but split into clear layers so the modules don't bleed into each other:
 
 ```
-intelligent-event-management/
-├── backend/                  # FastAPI backend
-│   ├── app/
-│   │   ├── core/
-│   │   │   ├── config.py         # Reads .env variables
-│   │   │   ├── security.py       # JWT and password hashing
-│   │   │   ├── exceptions.py     # Custom error handlers
-│   │   │   └── dependencies.py   # get_db, get_current_user
-│   │   ├── db/
-│   │   │   ├── base.py           # SQLAlchemy Base class
-│   │   │   └── session.py        # Database connection
-│   │   └── main.py               # FastAPI app entry point
-│   ├── venv/                     # Python virtual environment (not pushed to GitHub)
-│   ├── requirements.txt          # Python dependencies
-│   └── .env                      # Your local environment variables (not pushed to GitHub)
-├── frontend/                 # React + Vite frontend (coming soon)
-├── mobile/                   # React Native app (coming soon)
-├── .env.example              # Template for environment variables
-├── .env                      # Your local environment variables (not pushed to GitHub)
-└── README.md
+request → api/ (routers, thin)
+            → services/ (business logic, the rules live here)
+              → models/ (SQLAlchemy ORM)
+              → schemas/ (Pydantic in/out)
 ```
 
----
+Route handlers stay thin — they validate input, call a service, return a schema. Anything that takes real work (registering for an event, cancelling and rolling the waitlist forward, issuing a ticket) lives in `services/`. Slow or scheduled work (emails, analytics rollups, ML retraining) gets handed to Celery so the request can return immediately.
 
-## Prerequisites
-
-Before you start, make sure you have the following installed on your machine:
-
-| Tool | Version | How to check |
-|---|---|---|
-| Python | 3.11+ | `python3 --version` |
-| Node.js | 22+ | `node --version` |
-| Git | Any | `git --version` |
-| PostgreSQL | 15 | `psql --version` |
+The whole thing runs as six containers in development: Postgres, Redis, the API, a Celery worker, a Celery beat scheduler, and the Vite dev server for the web app.
 
 ---
 
-## Setup Guide
+## Quick start (Docker)
 
-Follow these steps **in order**. Do not skip any step.
+This is the easiest path. You get the database, Redis, the API, both Celery processes, and the web app with one command. You only need Docker installed.
 
----
-
-### Step 1 — Clone the Repository
-
-Open your terminal (Mac) or Command Prompt / Git Bash (Windows) and run:
+**1. Clone and enter the repo**
 
 ```bash
 git clone https://github.com/Ajdin111/intelligent-event-management.git
 cd intelligent-event-management
 ```
 
-Then switch to the `dev` branch (this is where all active development happens):
+**2. Create the Docker env file**
 
 ```bash
-git checkout dev
+cp .env.docker.example .env.docker
 ```
+
+Open `.env.docker` and set `SECRET_KEY` to any long random string. The database and Redis URLs already point at the Docker containers — leave those alone. Email is optional; fill in `SMTP_USER` / `SMTP_PASSWORD` later if you want real emails to send (use a Gmail App Password, not your account password).
+
+**3. Bring it up**
+
+```bash
+docker compose up --build
+```
+
+First run takes a few minutes to build images. The backend container runs `alembic upgrade head` automatically before starting, so the database schema is created for you.
+
+**4. You're up**
+
+| Service | URL |
+| --- | --- |
+| API | http://localhost:8000 |
+| API docs (Swagger) | http://localhost:8000/docs |
+| Web app | http://localhost:5173 |
+
+Postgres is exposed on host port **5433** and Redis on **6380** (shifted off the defaults so they don't clash with anything you already run locally).
+
+To stop: `Ctrl+C`, then `docker compose down`. Add `-v` if you want to wipe the database volume and start clean.
 
 ---
 
-### Step 2 — Install Python 3.11
+## Manual setup (without Docker)
 
-**macOS:**
-```bash
-brew install python@3.11
-```
+If you'd rather run things directly on your machine — useful when you're iterating fast on the backend.
 
-> If you don't have Homebrew, install it first from https://brew.sh
+**Prerequisites:** Python 3.12+, PostgreSQL 15, Redis, Node 20+.
 
-**Windows:**
-
-1. Go to https://www.python.org/downloads/
-2. Download Python 3.11.x
-3. During installation, **check the box that says "Add Python to PATH"** — this is important!
-4. Click Install
-
-Verify it works:
-```bash
-python3 --version   # Mac
-python --version    # Windows
-```
-
----
-
-### Step 3 — Set Up Python Virtual Environment
-
-A virtual environment is an isolated space for your project's Python packages. This prevents conflicts with other Python projects on your machine.
-
-**macOS:**
-```bash
-cd backend
-python3.11 -m venv venv
-source venv/bin/activate
-```
-
-**Windows:**
-```bash
-cd backend
-python -m venv venv
-venv\Scripts\activate
-```
-
-You will know it's activated when you see `(venv)` at the start of your terminal line.
-
----
-
-### Step 4 — Install Python Dependencies
-
-With your virtual environment active, install all required packages:
+**1. Start Postgres and Redis**
 
 ```bash
-pip install -r requirements.txt
-```
-
-This installs everything listed in `requirements.txt` — FastAPI, SQLAlchemy, Alembic, Celery, and more.
-
----
-
-### Step 5 — Install and Start PostgreSQL
-
-PostgreSQL is the database your app will use to store all data.
-
-**macOS:**
-```bash
-brew install postgresql@15
 brew services start postgresql@15
+brew services start redis
+redis-cli ping   # should print PONG
 ```
 
-**Windows:**
+**2. Create the database**
 
-1. Go to https://www.postgresql.org/download/windows/
-2. Download the installer for PostgreSQL 15
-3. Run the installer — remember the password you set for the `postgres` user
-4. After installation, PostgreSQL starts automatically as a service
-
----
-
-### Step 6 — Create the Database
-
-**macOS:**
 ```bash
-psql postgres -c "CREATE DATABASE iem_db;"
-psql postgres -c "CREATE USER iem_user WITH PASSWORD 'iem_password';"
-psql postgres -c "GRANT ALL PRIVILEGES ON DATABASE iem_db TO iem_user;"
+psql postgres
 ```
 
-**Windows (run in Command Prompt as Administrator):**
-```bash
-psql -U postgres -c "CREATE DATABASE iem_db;"
-psql -U postgres -c "CREATE USER iem_user WITH PASSWORD 'iem_password';"
-psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE iem_db TO iem_user;"
+```sql
+CREATE DATABASE event_management;
+\q
 ```
 
-> Windows users: if `psql` is not recognized, find it in `C:\Program Files\PostgreSQL\15\bin\psql.exe` and add it to your PATH, or just run the commands from that folder.
+**3. Create the root `.env`**
 
----
-
-### Step 7 — Set Up Environment Variables
-
-The `.env` file contains sensitive configuration like database credentials and secret keys. It is **never pushed to GitHub** for security reasons — you need to create it yourself.
-
-First, generate a secret key for JWT tokens:
-
-**macOS:**
-```bash
-python3 -c "import secrets; print(secrets.token_hex(32))"
-```
-
-**Windows:**
-```bash
-python -c "import secrets; print(secrets.token_hex(32))"
-```
-
-Copy the output — you will need it in the next step.
-
-Now create the `.env` file in the **root** of the project AND inside the **backend/** folder (you need both):
+The backend reads `../.env` relative to itself, so this file goes in the **project root**, not inside `backend/`.
 
 ```bash
-# From the root of the project
 cp .env.example .env
-cp .env.example backend/.env
 ```
 
-Open both `.env` files and fill them in like this:
+Fill it in (replace `YOUR_USERNAME` with your machine's Postgres user — on a default Homebrew install that's your Mac username):
 
 ```
-# Database
-DATABASE_URL=postgresql://iem_user:iem_password@localhost:5432/iem_db
-
-# JWT
-SECRET_KEY=paste_your_generated_key_here
+DATABASE_URL=postgresql://YOUR_USERNAME@localhost:5432/event_management
+SECRET_KEY=some-long-random-string
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
-
-# Redis
-REDIS_URL=
-
-# Email
-SMTP_HOST=
+REDIS_URL=redis://localhost:6379
+SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=
 SMTP_PASSWORD=
-
-# App
 APP_ENV=development
 DEBUG=True
 ```
 
-> Replace `paste_your_generated_key_here` with the key you generated above.
+**4. Install backend dependencies**
+
+```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+**5. Run migrations**
+
+```bash
+alembic upgrade head
+```
+
+You should see it apply through to the latest revision. Confirm the tables exist:
+
+```bash
+psql YOUR_USERNAME -d event_management -c "\dt"
+```
+
+**6. Start the API**
+
+```bash
+uvicorn app.main:app --reload
+```
+
+API at http://localhost:8000, docs at http://localhost:8000/docs.
+
+**7. Start Celery (separate terminals, venv active)**
+
+```bash
+celery -A app.core.celery_app.celery_app worker --loglevel=info
+celery -A app.core.celery_app.celery_app beat --loglevel=info
+```
+
+The worker handles jobs; beat fires the scheduled ones. You can skip both if you only need the API and don't care about emails or analytics rollups while developing.
 
 ---
 
-### Step 8 — Run the Backend
+## Running the web app
 
-Make sure you are in the `backend/` folder and your virtual environment is active:
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-**macOS:**
+Runs on http://localhost:5173. It talks to the backend at `http://localhost:8000` (Vite also proxies `/api`), so have the API running first.
+
+Heads up: the web app currently ships with placeholder data in `src/data/` for screens that aren't wired to the API yet. That's intentional for now — the UI was built from the Figma design ahead of full integration.
+
+---
+
+## Running the mobile app
+
+The mobile app is what scans QR tickets at check-in. It needs the backend reachable over your network.
+
+```bash
+cd mobile/teqevent-mobile
+npm install
+cp .env.example .env
+```
+
+Edit `.env` and point `EXPO_PUBLIC_API_URL` at your machine's backend. Which address depends on where you're running it:
+
+- **iOS simulator** → `http://localhost:8000`
+- **Android emulator** → `http://10.0.2.2:8000`
+- **Physical phone** → `http://YOUR_LAN_IP:8000` (find it with `ipconfig getifaddr en0` on macOS)
+
+Then:
+
+```bash
+npm start
+```
+
+Scan the QR code Expo prints with the Expo Go app on your phone, or press `i` / `a` for a simulator. The camera-based ticket scanner only works on a real device or a simulator with a camera.
+
+---
+
+## Environment variables
+
+| Variable | Used by | Notes |
+| --- | --- | --- |
+| `DATABASE_URL` | backend | Postgres connection string |
+| `SECRET_KEY` | backend | Signs JWTs — make it long and random |
+| `ALGORITHM` | backend | JWT algorithm, default `HS256` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | backend | Token lifetime, default 30 |
+| `REDIS_URL` | backend / celery | Broker + result backend |
+| `SMTP_HOST` / `SMTP_PORT` | celery | Email server (Gmail works) |
+| `SMTP_USER` / `SMTP_PASSWORD` | celery | Use a Gmail App Password, leave blank to disable email |
+| `APP_ENV` | backend | `development` / `production` |
+| `DEBUG` | backend | When true, exposes `/docs` and `/redoc` |
+| `UPLOAD_DIR` | backend | Where uploaded images land, default `uploads` |
+| `MAX_IMAGE_SIZE_MB` | backend | Upload size cap, default 5 |
+| `CORS_ORIGINS` | backend | JSON list of allowed origins |
+| `EXPO_PUBLIC_API_URL` | mobile | Backend URL the phone app calls |
+
+Never commit `.env`, `.env.docker`, or the mobile `.env` — they're all gitignored.
+
+---
+
+## The API
+
+Every route lives under `/api/...`. A taste of the auth module:
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| POST | `/api/auth/register` | Create an account (starts as an attendee) |
+| POST | `/api/auth/login` | Exchange credentials for a JWT |
+| GET | `/api/auth/me` | Current user from the token |
+| PATCH | `/api/auth/me` | Update your profile |
+| POST | `/api/auth/change-password` | Change password |
+| POST | `/api/auth/upgrade-to-organizer` | Add the organizer role to yourself |
+| DELETE | `/api/auth/me` | Soft-delete your account |
+
+The other 13 modules (`events`, `agenda`, `tickets`, `registrations`, `checkin`, `reviews`, `notifications`, `collaborators`, `invites`, `categories`, `admin`, `ml`, `uploads`) follow the same shape. Rather than list all 95 here, just run the app and open **http://localhost:8000/docs** — it's the live, always-correct reference, and you can authorize with a token and call endpoints right from the page.
+
+Auth is a bearer JWT: log in, take the `access_token`, send it as `Authorization: Bearer <token>`. Rate limiting is on (via slowapi), and there's request-timing logging on every call.
+
+---
+
+## Background jobs (Celery)
+
+Anything that shouldn't block a request runs on a Celery worker. A beat scheduler also fires recurring jobs:
+
+| Job | Runs |
+| --- | --- |
+| Clean up expired notifications | daily |
+| Send upcoming event reminders | hourly |
+| Compute platform analytics | daily |
+| Regenerate recommendations | every 6 hours |
+| Recompute demand forecasts | daily |
+| Check whether models need retraining | daily |
+| Full model retrain | weekly |
+
+Email sending and review sentiment tagging also run as tasks, triggered by user actions rather than the clock.
+
+Want to watch the queue? Flower is included:
+
+```bash
+celery -A app.core.celery_app.celery_app flower
+```
+
+---
+
+## The ML side
+
+The ML isn't a stub — there's a full pipeline under `backend/ml/`:
+
+```
+ml/
+├── seed/          # generate synthetic training data
+├── training/      # train demand, recommender, sentiment models
+├── inference/     # load cached models, expose predict()
+├── pipeline/      # evaluate + retrain orchestration
+└── models/        # trained .pkl files land here
+```
+
+Three models:
+
+- **Demand forecasting** — predicts ticket demand and a likely sell-out date per tier, even suggests pricing.
+- **Recommendations** — scores events per user (based on their history, category popularity, similar events).
+- **Sentiment** — tags each review positive/neutral/negative; runs automatically when a review is submitted.
+
+Models are trained offline and saved as `.pkl` files, then loaded once per worker process and cached in memory — so inference during a request is cheap. Beat keeps them fresh on the retrain schedule above.
+
+To train them yourself (from `backend/`, venv active):
+
+```bash
+python -m ml.seed.seed_data            # generate training data first
+python -m ml.training.train_sentiment
+python -m ml.training.train_demand
+python -m ml.training.train_recommender
+```
+
+---
+
+## Database & migrations
+
+28 tables across the 11 modules, third-normal-form, foreign keys enforcing every relationship. A few decisions worth knowing:
+
+- **Soft deletes** on users and events (`deleted_at`) — history matters, especially after an event has happened.
+- **Pre-computed analytics** — dashboards read from stored rollup tables instead of aggregating on every page load.
+- **Guest tickets** — a buyer can hand a ticket to someone who isn't a registered user, with just a name and email.
+- **Offline check-in queue** — scans made while a device is offline get queued and reconciled later.
+
+Schema changes go through Alembic. When you change a model:
+
+```bash
+alembic revision --autogenerate -m "what changed"
+alembic upgrade head
+```
+
+Commit the generated migration file alongside the model change. After pulling someone else's migrations, run `alembic upgrade head` to catch up. Don't edit a migration once it's been pushed — write a new one.
+
+---
+
+## Tests
+
+The backend has a real test suite (19 files, one per module) running against an in-memory SQLite database, so tests are fast and don't touch your real Postgres.
+
 ```bash
 cd backend
 source venv/bin/activate
-uvicorn app.main:app --reload
+pytest
 ```
 
-**Windows:**
+Run one module:
+
 ```bash
-cd backend
-venv\Scripts\activate
-uvicorn app.main:app --reload
+pytest tests/test_registration.py
 ```
-
-You should see:
-```
-INFO: Uvicorn running on http://127.0.0.1:8000
-INFO: Application startup complete.
-```
-
-Open your browser and go to:
-- http://127.0.0.1:8000 — API root
-- http://127.0.0.1:8000/docs — Interactive API documentation
 
 ---
 
-## Branch Strategy
-
-We follow a strict branching workflow:
+## Project layout
 
 ```
-main          ← production-ready code only
-dev           ← active development, all PRs merge here
-feature/xxx   ← your working branch for each feature
+intelligent-event-management/
+├── backend/
+│   ├── app/
+│   │   ├── api/          # routers (one per module)
+│   │   ├── services/     # business logic
+│   │   ├── models/       # SQLAlchemy models
+│   │   ├── schemas/      # Pydantic schemas
+│   │   ├── tasks/        # Celery tasks
+│   │   ├── core/         # config, security, deps, celery, limiter
+│   │   ├── db/           # engine + session + base
+│   │   └── main.py       # app entry, router registration
+│   ├── alembic/          # migrations
+│   ├── ml/               # ML pipeline (seed/train/inference)
+│   ├── tests/            # pytest suite
+│   ├── uploads/          # uploaded images (gitignored)
+│   ├── requirements.txt
+│   └── Dockerfile
+├── frontend/             # React + Vite web app
+│   └── Dockerfile
+├── mobile/teqevent-mobile/   # Expo / React Native app
+├── docker-compose.yml
+├── .env.example
+└── .env.docker.example
 ```
 
-**Never push directly to `main` or `dev`.** Always create a feature branch:
+---
+
+## Git workflow
+
+`main` is stable and demo-ready. `dev` is the integration branch — everything lands there first. Real work happens on feature branches off `dev`.
 
 ```bash
 git checkout dev
 git pull origin dev
-git checkout -b feature/your-feature-name
+git checkout -b feature/your-task
+
+# ... work ...
+
+git add .
+git commit -m "Short description of the change"
+git push origin feature/your-task
 ```
 
-When done, push and open a Pull Request into `dev`. At least 1 team member must approve before merging.
+Then open a PR with the base set to **`dev`** (never `main`), and get one teammate to review before merging. Both branches are protected, so a PR with an approval is the only way in.
 
 ---
 
-## Commit Message Format
+## Team
 
-We link commits to Jira tickets automatically. Always include the ticket ID:
-
-```bash
-git commit -m "SCRUM-5: Add user registration endpoint"
-```
-
----
-
-## Project Management
-
-We use Jira for sprint planning and task tracking:
-- Workspace: https://tarikskaljic01.atlassian.net
-- All tasks are assigned to team members
-- Move your ticket to **In Progress** when you start working on it
-- Move it to **Done** when your PR is merged
-
----
-
-
-
-
-
-## Common Issues
-
-**`uvicorn: command not found`**
-Your virtual environment is not activated. Run `source venv/bin/activate` (Mac) or `venv\Scripts\activate` (Windows) first.
-
-**`ValidationError: DATABASE_URL field required`**
-Your `.env` file is missing or in the wrong location. Make sure you have `.env` inside the `backend/` folder.
-
-**`psql: command not found` (Windows)**
-Add PostgreSQL's bin folder to your PATH or navigate to `C:\Program Files\PostgreSQL\15\bin\` and run commands from there.
-
-**`could not connect to server` (PostgreSQL)**
-PostgreSQL is not running. Start it with `brew services start postgresql@15` (Mac) or start the PostgreSQL service from Windows Services.
+- Ajdin Mujkanovic
+- Mehmedalija Bikic
+- Tarik Skaljic
+- Ahmed Okic
+- Hamza Jasarevic
