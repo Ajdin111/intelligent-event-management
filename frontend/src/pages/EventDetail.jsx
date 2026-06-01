@@ -135,6 +135,15 @@ function StarRow({ rating, size = 13 }) {
 
 // ── component ─────────────────────────────────────────────────────────────────
 
+const SAVED_KEY = 'teqevent-saved-events'
+
+function getSavedIds() {
+  try { return new Set(JSON.parse(localStorage.getItem(SAVED_KEY)) ?? []) } catch { return new Set() }
+}
+function persistSaved(set) {
+  localStorage.setItem(SAVED_KEY, JSON.stringify([...set]))
+}
+
 export default function EventDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -148,6 +157,8 @@ export default function EventDetail() {
   const [realEventData, setRealEventData] = useState(null)
   const [selectedTier, setSelectedTier] = useState(0)
   const [quantity, setQuantity] = useState(1)
+  const [saved, setSaved] = useState(() => getSavedIds().has(Number(id)))
+  const [copyFeedback, setCopyFeedback] = useState(false)
 
   useEffect(() => {
     const numId = Number(id)
@@ -289,6 +300,33 @@ export default function EventDetail() {
   const neuPct = sentimentTotal > 0 ? Math.round(sentimentReviews.filter(r => r.sentiment === 'neutral').length  / sentimentTotal * 100) : 0
   const negPct = sentimentTotal > 0 ? Math.round(sentimentReviews.filter(r => r.sentiment === 'negative').length / sentimentTotal * 100) : 0
 
+  const handleSave = () => {
+    const ids = getSavedIds()
+    const numId = Number(id)
+    if (ids.has(numId)) ids.delete(numId); else ids.add(numId)
+    persistSaved(ids)
+    setSaved(ids.has(numId))
+  }
+
+  const handleShare = () => {
+    const url = window.location.href
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => {
+        setCopyFeedback(true)
+        setTimeout(() => setCopyFeedback(false), 2000)
+      }).catch(() => {})
+    } else {
+      const el = document.createElement('textarea')
+      el.value = url
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+      setCopyFeedback(true)
+      setTimeout(() => setCopyFeedback(false), 2000)
+    }
+  }
+
   const handleRegister = () => {
     if (!isFreeNoTier && (!tier || soldOut)) return
     navigate(`/events/${id}/register`, {
@@ -334,8 +372,20 @@ export default function EventDetail() {
           )}
         </div>
         <div className="ed-actions">
-          <button className="ed-action-btn"><IcoSave /> Save</button>
-          <button className="ed-action-btn"><IcoShare /> Share</button>
+          <button
+            className={`ed-action-btn${saved ? ' ed-action-btn--active' : ''}`}
+            onClick={handleSave}
+            title={saved ? 'Remove from saved' : 'Save event'}
+          >
+            <IcoSave /> {saved ? 'Saved' : 'Save'}
+          </button>
+          <button
+            className="ed-action-btn"
+            onClick={handleShare}
+            title="Copy event link"
+          >
+            <IcoShare /> {copyFeedback ? 'Copied!' : 'Share'}
+          </button>
         </div>
       </div>
 

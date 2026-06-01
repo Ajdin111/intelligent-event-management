@@ -2321,6 +2321,7 @@ body {
   transition: border-color 0.12s, background 0.12s;
 }
 .ed-action-btn:hover { border-color: var(--border-med); background: var(--bg-hover); }
+.ed-action-btn--active { border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.06); }
 
 /* title + info */
 .ed-title {
