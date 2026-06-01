@@ -82,6 +82,14 @@ export default function AdminLayout() {
         name="edit-profile"
         options={{ href: null }}
       />
+      <Tabs.Screen
+        name="notifications"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="notification-settings"
+        options={{ href: null }}
+      />
     </Tabs>
   );
 }

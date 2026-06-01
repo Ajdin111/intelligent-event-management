@@ -70,7 +70,7 @@ export default function ProfileScreen() {
 
   const settingsItems = [
     { label: 'Edit profile', icon: 'person-outline', onPress: () => router.push('/(admin)/edit-profile' as any) },
-    { label: 'Notifications', icon: 'notifications-outline', onPress: comingSoon },
+    { label: 'Notifications', icon: 'notifications-outline', onPress: () => router.push('/(admin)/notification-settings' as any) },
     { label: 'Privacy & security', icon: 'shield-outline', onPress: comingSoon },
     { label: 'Help & support', icon: 'help-circle-outline', onPress: comingSoon },
   ];

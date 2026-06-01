@@ -289,7 +289,7 @@ export interface Notification {
   id: number;
   title: string;
   message: string;
-  notification_type: string;
+  type: string;
   is_read: boolean;
   created_at: string;
   event_id?: number;

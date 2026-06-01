@@ -95,8 +95,16 @@ export default function AttendeeLayout() {
       options={{ href: null }}
       />
       <Tabs.Screen
-      name="edit-profile"
-      options={{ href: null }}
+        name="edit-profile"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="notification-settings"
+        options={{ href: null }}
       />
     </Tabs>
   );

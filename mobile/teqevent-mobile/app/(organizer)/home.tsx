@@ -159,14 +159,23 @@ export default function OrganizerHomeScreen() {
             <Text style={styles.headerTitle}>Organizer</Text>
             <Text style={styles.headerSub}>Welcome back, {firstName}</Text>
           </View>
-          <TouchableOpacity
-            style={styles.createBtn}
-            onPress={() => router.push('/(organizer)/create-event' as any)}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="add" size={16} color={Colors.bg} />
-            <Text style={styles.createBtnText}>Create</Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.bellBtn}
+              onPress={() => router.push('/(organizer)/notifications' as any)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="notifications-outline" size={20} color={Colors.textSub} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.createBtn}
+              onPress={() => router.push('/(organizer)/create-event' as any)}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="add" size={16} color={Colors.bg} />
+              <Text style={styles.createBtnText}>Create</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* KPI tiles */}
@@ -273,6 +282,12 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 26, fontFamily: FontFamily.bold, color: Colors.text, letterSpacing: -0.5 },
   headerSub: { fontSize: FontSize.sm, fontFamily: FontFamily.regular, color: Colors.textSub, marginTop: 3 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  bellBtn: {
+    width: 38, height: 38, borderRadius: Radius.md,
+    borderWidth: 1, borderColor: Colors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
   createBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     height: 38, paddingHorizontal: 14,

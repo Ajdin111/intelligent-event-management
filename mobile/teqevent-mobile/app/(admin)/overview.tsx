@@ -9,6 +9,7 @@ import {
   RefreshControl,
   Dimensions,
 } from 'react-native';
+import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -216,9 +217,18 @@ export default function AdminOverviewScreen() {
             <Text style={styles.headerTitle}>Platform overview</Text>
             <Text style={styles.headerSub}>All-time metrics</Text>
           </View>
-          <View style={styles.adminBadge}>
-            <Ionicons name="shield-checkmark" size={13} color={Colors.text} />
-            <Text style={styles.adminBadgeText}>Admin</Text>
+          <View style={styles.headerRight}>
+            <TouchableOpacity
+              style={styles.bellBtn}
+              onPress={() => router.push('/(admin)/notifications' as any)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="notifications-outline" size={20} color={Colors.textSub} />
+            </TouchableOpacity>
+            <View style={styles.adminBadge}>
+              <Ionicons name="shield-checkmark" size={13} color={Colors.text} />
+              <Text style={styles.adminBadgeText}>Admin</Text>
+            </View>
           </View>
         </View>
 
@@ -290,6 +300,12 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 24, fontFamily: FontFamily.bold, color: Colors.text, letterSpacing: -0.5 },
   headerSub:   { fontSize: FontSize.sm, fontFamily: FontFamily.regular, color: Colors.textSub, marginTop: 3 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  bellBtn: {
+    width: 36, height: 36, borderRadius: Radius.md,
+    borderWidth: 1, borderColor: Colors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
   adminBadge:  {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 10, paddingVertical: 5,
