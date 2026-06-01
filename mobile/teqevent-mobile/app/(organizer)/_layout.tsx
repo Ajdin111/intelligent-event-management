@@ -124,6 +124,10 @@ export default function OrganizerLayout() {
         name="notification-settings"
         options={{ href: null }}
       />
+      <Tabs.Screen
+      name="edit-event"
+      options={{ href: null }}
+      />
     </Tabs>
   );
 }
