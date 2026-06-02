@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { registrationsApi, eventsApi } from '../services/api'
+import { registrationsApi, eventsApi, API_BASE_URL } from '../services/api'
 
 // ── QR Code ──────────────────────────────────────────────────────────────────
 // Uses a free QR API to render the ticket's qr_code string as an image.
@@ -8,7 +8,7 @@ import { registrationsApi, eventsApi } from '../services/api'
 // after running: npm install qrcode.react
 
 function QRCode({ value }) {
-  const src = `http://localhost:8000/api/tickets/qr/${encodeURIComponent(value)}?size=140`
+  const src = `${API_BASE_URL}/api/tickets/qr/${encodeURIComponent(value)}?size=140`
   return (
     <div className="ticket-qr-inner">
       <img
@@ -100,7 +100,7 @@ function TicketCard({ ticket, registration, event, index }) {
   const title    = event?.title ?? `Event #${ticket.event_id}`
 
   const handleDownload = async () => {
-    const url = `http://localhost:8000/api/tickets/qr/${encodeURIComponent(ticket.qr_code)}?size=400`
+    const url = `${API_BASE_URL}/api/tickets/qr/${encodeURIComponent(ticket.qr_code)}?size=400`
     try {
       const response = await fetch(url)
       const blob = await response.blob()
