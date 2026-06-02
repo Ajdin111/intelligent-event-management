@@ -168,6 +168,7 @@ export default function BrowseEvents() {
   const [events, setEvents] = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [searchInput, setSearchInput] = useState('')
   const [query, setQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
@@ -213,6 +214,7 @@ export default function BrowseEvents() {
         if (!isActive) return
         setEvents([])
         setCategories([])
+        setLoadError(true)
       } finally {
         if (isActive) {
           setLoading(false)
@@ -363,6 +365,8 @@ export default function BrowseEvents() {
             <p className="discover-sub">
               {loading
                 ? 'Loading…'
+                : loadError
+                ? 'Could not load events.'
                 : `Showing ${visible.length} of ${filtered.length} event${filtered.length !== 1 ? 's' : ''}${query ? ` for "${query}"` : ''}.`}
             </p>
           </div>
@@ -384,6 +388,8 @@ export default function BrowseEvents() {
 
         {loading ? (
           <div className="discover-empty">Loading events…</div>
+        ) : loadError ? (
+          <div className="discover-empty">Failed to load events. Please refresh and try again.</div>
         ) : filtered.length === 0 ? (
           <div className="discover-empty">No events match your filters.</div>
         ) : (
