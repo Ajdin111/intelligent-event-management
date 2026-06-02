@@ -59,6 +59,7 @@ export default function Preferences() {
   const [history, setHistory] = useState([])
   const [loadingPrefs, setLoadingPrefs] = useState(true)
   const [loadingHistory, setLoadingHistory] = useState(true)
+  const [historyError, setHistoryError] = useState(false)
   const [savingPrefs, setSavingPrefs] = useState(false)
   const [prefsMessage, setPrefsMessage] = useState('')
 
@@ -79,7 +80,7 @@ export default function Preferences() {
 
     notificationsApi.list()
       .then((res) => setHistory(res.data ?? []))
-      .catch(() => setHistory([]))
+      .catch(() => { setHistory([]); setHistoryError(true) })
       .finally(() => setLoadingHistory(false))
   }, [])
 
@@ -346,6 +347,8 @@ export default function Preferences() {
 
                     {loadingHistory ? (
                       <div className="page-placeholder settings-placeholder settings-placeholder--compact">Loading notification history…</div>
+                    ) : historyError ? (
+                      <div className="page-placeholder settings-placeholder settings-placeholder--compact">Could not load notification history.</div>
                     ) : history.length === 0 ? (
                       <div className="page-placeholder settings-placeholder settings-placeholder--compact">No notification history available yet.</div>
                     ) : (
