@@ -132,6 +132,10 @@ export default function OrganizerLayout() {
       name="event-registrations"
       options={{ href: null }}
       />
+      <Tabs.Screen
+      name="event-analytics"
+      options={{ href: null }}
+      />
     </Tabs>
   );
 }
