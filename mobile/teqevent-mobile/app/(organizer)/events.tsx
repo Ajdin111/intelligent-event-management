@@ -83,7 +83,7 @@ function EventCard({ event }: { event: Event }) {
 
         {/* Footer actions */}
         <View style={styles.cardFooter}>
-          <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7} onPress={() => {}}>
+          <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7} onPress={() => router.push(`/(organizer)/edit-event?id=${event.id}` as any)}>
             <Ionicons name="create-outline" size={14} color={Colors.textSub} />
             <Text style={styles.actionBtnText}>Edit</Text>
           </TouchableOpacity>
