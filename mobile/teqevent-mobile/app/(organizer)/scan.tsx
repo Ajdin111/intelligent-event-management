@@ -16,7 +16,7 @@ import { checkinApi, eventsApi, Event } from '@/services/api';
 import { Colors, FontFamily, FontSize, Radius, Spacing } from '@/constants/theme';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-type ScanState = 'scanning' | 'loading' | 'success' | 'denied' | 'error';
+type ScanState = 'idle' | 'scanning' | 'loading' | 'success' | 'denied' | 'error';
 
 interface ScanResult {
   attendeeName?: string;
@@ -136,7 +136,7 @@ function ResultOverlay({
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function ScanScreen() {
   const [permission, requestPermission] = useCameraPermissions();
-  const [scanState, setScanState] = useState<ScanState>('scanning');
+  const [scanState, setScanState] = useState<ScanState>('idle');
   const [result, setResult] = useState<ScanResult>({});
   const [torch, setTorch] = useState(false);
   const [checkinCount, setCheckinCount] = useState(0);
@@ -164,7 +164,6 @@ export default function ScanScreen() {
   }, []);
 
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
-    // Prevent duplicate scans
     if (scanCooldown.current || scanState !== 'scanning') return;
     if (data === lastScanned.current) return;
 
@@ -208,7 +207,7 @@ export default function ScanScreen() {
   const handleDismiss = () => {
     lastScanned.current = null;
     setResult({});
-    setScanState('scanning');
+    setScanState('idle');
     setTimeout(() => { scanCooldown.current = false; }, 300);
   };
 
@@ -268,7 +267,7 @@ export default function ScanScreen() {
       </View>
 
       {/* Center — reticle */}
-      <View style={styles.center} pointerEvents="none">
+      <View style={styles.center} pointerEvents="box-none">
         <View style={styles.reticleContainer}>
           <Reticle state={scanState} />
           {scanState === 'scanning' && <ScanLine />}
@@ -279,8 +278,20 @@ export default function ScanScreen() {
         <Text style={styles.hint}>
           {scanState === 'scanning'
             ? "Align the attendee's QR code within the frame"
+            : scanState === 'idle'
+            ? 'Press the button below to start scanning'
             : ''}
         </Text>
+        {scanState === 'idle' && (
+          <TouchableOpacity
+            style={styles.scanBtn}
+            onPress={() => setScanState('scanning')}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="qr-code-outline" size={20} color="#000000" />
+            <Text style={styles.scanBtnText}>Scan ticket</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Bottom bar */}
@@ -433,6 +444,21 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.55)',
     textAlign: 'center', maxWidth: 280,
     fontFamily: FontFamily.regular,
+  },
+  scanBtn: {
+    marginTop: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    height: 50,
+    paddingHorizontal: 32,
+    borderRadius: Radius.md,
+    backgroundColor: '#ffffff',
+  },
+  scanBtnText: {
+    fontSize: 15,
+    fontFamily: FontFamily.semiBold,
+    color: '#000000',
   },
 
   // Bottom bar
