@@ -107,13 +107,16 @@ def create_registration(
             TicketTier.id == data.ticket_tier_id,
             TicketTier.event_id == data.event_id,
             TicketTier.is_active == True,  # noqa: E712
-        ).first()
+        ).with_for_update().first()
         if not ticket_tier:
             raise BadRequestError("Ticket tier not found or not active")
 
         now = datetime.utcnow()
         if not (ticket_tier.sale_start <= now <= ticket_tier.sale_end):
             raise BadRequestError("Ticket tier is not currently on sale")
+    else:
+        # Lock event row to serialize concurrent registrations against event-level capacity
+        db.query(Event).filter(Event.id == event.id).with_for_update().one()
 
     if not _check_capacity(db, event, ticket_tier, data.quantity):
         return _add_to_waitlist(db, event, data, current_user, ticket_tier)
@@ -328,7 +331,7 @@ def approve_registration(db: Session, registration_id: int, current_user: User) 
 
     ticket_tier = None
     if registration.ticket_tier_id:
-        ticket_tier = db.query(TicketTier).filter(TicketTier.id == registration.ticket_tier_id).first()
+        ticket_tier = db.query(TicketTier).filter(TicketTier.id == registration.ticket_tier_id).with_for_update().first()
         ticket_tier.quantity_sold += registration.quantity
 
     user = db.query(User).filter(User.id == registration.user_id).first()
