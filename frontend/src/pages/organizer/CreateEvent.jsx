@@ -407,47 +407,73 @@ export default function CreateEvent() {
       const eventId = event.id
 
       const toUtcIso = (localDt) => new Date(`${localDt}:00`).toISOString().slice(0, 19)
+      const partialErrors = []
 
       for (const tier of tiers) {
-        await api.post(`/api/events/${eventId}/ticket-tiers`, {
-          name: tier.name.trim(),
-          description: tier.description.trim() || null,
-          price: parseFloat(tier.price) || 0,
-          quantity: parseInt(tier.quantity, 10),
-          sale_start: toUtcIso(tier.sale_start),
-          sale_end: toUtcIso(tier.sale_end),
-        })
+        try {
+          await api.post(`/api/events/${eventId}/ticket-tiers`, {
+            name: tier.name.trim(),
+            description: tier.description.trim() || null,
+            price: parseFloat(tier.price) || 0,
+            quantity: parseInt(tier.quantity, 10),
+            sale_start: toUtcIso(tier.sale_start),
+            sale_end: toUtcIso(tier.sale_end),
+          })
+        } catch {
+          partialErrors.push(`Ticket tier "${tier.name}" failed to save`)
+        }
       }
 
       for (const code of codes) {
-        await api.post(`/api/events/${eventId}/promo-codes`, {
-          code: code.code.trim(),
-          discount_type: code.discount_type,
-          discount_value: parseFloat(code.discount_value),
-          max_uses: parseInt(code.max_uses, 10),
-          valid_from: toUtcIso(code.valid_from),
-          valid_until: toUtcIso(code.valid_until),
-        })
+        try {
+          await api.post(`/api/events/${eventId}/promo-codes`, {
+            code: code.code.trim(),
+            discount_type: code.discount_type,
+            discount_value: parseFloat(code.discount_value),
+            max_uses: parseInt(code.max_uses, 10),
+            valid_from: toUtcIso(code.valid_from),
+            valid_until: toUtcIso(code.valid_until),
+          })
+        } catch {
+          partialErrors.push(`Promo code "${code.code}" failed to save`)
+        }
       }
 
       for (let i = 0; i < tracks.length; i++) {
         const track = tracks[i]
-        const { data: createdTrack } = await api.post(`/api/events/${eventId}/tracks`, {
-          name: track.name.trim(),
-          color: track.color || null,
-          order_index: i,
-        })
-        for (let j = 0; j < track.sessions.length; j++) {
-          const sess = track.sessions[j]
-          await api.post(`/api/tracks/${createdTrack.id}/sessions`, {
-            title: sess.title.trim(),
-            speaker_name: sess.speaker_name.trim() || null,
-            location: sess.location.trim() || null,
-            start_datetime: `${sess.start_datetime}:00`,
-            end_datetime: `${sess.end_datetime}:00`,
-            order_index: j,
+        try {
+          const { data: createdTrack } = await api.post(`/api/events/${eventId}/tracks`, {
+            name: track.name.trim(),
+            color: track.color || null,
+            order_index: i,
           })
+          for (let j = 0; j < track.sessions.length; j++) {
+            const sess = track.sessions[j]
+            try {
+              await api.post(`/api/tracks/${createdTrack.id}/sessions`, {
+                title: sess.title.trim(),
+                speaker_name: sess.speaker_name.trim() || null,
+                location: sess.location.trim() || null,
+                start_datetime: `${sess.start_datetime}:00`,
+                end_datetime: `${sess.end_datetime}:00`,
+                order_index: j,
+              })
+            } catch {
+              partialErrors.push(`Session "${sess.title}" in track "${track.name}" failed to save`)
+            }
+          }
+        } catch {
+          partialErrors.push(`Track "${track.name}" failed to save`)
         }
+      }
+
+      if (partialErrors.length > 0) {
+        setFlash({
+          type: 'error',
+          message: `Event created but some items failed to save: ${partialErrors.join('; ')}. Please edit the event to complete setup.`,
+        })
+        navigate('/organizer/manage-event')
+        return
       }
 
       if (publish) {
