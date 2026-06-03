@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Radius, Layout, FontFamily } from '@/constants/theme';
+import { Platform } from 'react-native';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -45,8 +46,8 @@ export default function OrganizerLayout() {
           backgroundColor: Colors.card,
           borderTopColor: Colors.border,
           borderTopWidth: 1,
-          height: Layout.bottomTabHeight,
-          paddingBottom: 8,
+          height: Platform.OS === 'android' ? Layout.bottomTabHeight + 24 : Layout.bottomTabHeight,
+          paddingBottom: Platform.OS === 'android' ? 32 : 8,
           paddingTop: 8,
         },
         tabBarActiveTintColor: Colors.text,
@@ -113,7 +114,27 @@ export default function OrganizerLayout() {
         options={{ href: null }}
       />
       <Tabs.Screen
-      name="create-event"
+        name="create-event"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="notification-settings"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+      name="edit-event"
+      options={{ href: null }}
+      />
+      <Tabs.Screen
+      name="event-registrations"
+      options={{ href: null }}
+      />
+      <Tabs.Screen
+      name="event-analytics"
       options={{ href: null }}
       />
     </Tabs>

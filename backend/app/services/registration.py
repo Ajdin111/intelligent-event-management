@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.user import User
 from app.models.event import Event
@@ -307,7 +307,7 @@ def get_event_registrations(
 
     base = db.query(Registration).filter(Registration.event_id == event_id)
     total = base.count()
-    items = base.offset(skip).limit(limit).all()
+    items = base.options(joinedload(Registration.user)).offset(skip).limit(limit).all()
     return PaginatedResponse(total=total, skip=skip, limit=limit, items=items)
 
 

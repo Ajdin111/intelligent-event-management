@@ -215,7 +215,13 @@ def test_sentiment_task_silent_on_missing_model(db):
     db.commit()
     db.refresh(review)
 
-    with patch("ml.inference.sentiment.predict", side_effect=FileNotFoundError("model missing")):
+    # ml.inference.sentiment requires joblib which isn't installed in test env.
+    # Stub the whole module in sys.modules so the task's local import finds it,
+    # then make predict raise FileNotFoundError to simulate a missing model file.
+    import sys, types
+    fake_sentiment = types.ModuleType("ml.inference.sentiment")
+    fake_sentiment.predict = lambda _: (_ for _ in ()).throw(FileNotFoundError("model missing"))
+    with patch.dict(sys.modules, {"ml.inference.sentiment": fake_sentiment}):
         # Must complete without raising
         run_sentiment_analysis(review.id)
 

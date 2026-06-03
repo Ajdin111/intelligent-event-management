@@ -185,6 +185,7 @@ export interface Registration {
   id: number;
   event_id: number;
   user_id: number;
+  user?: { id: number; first_name: string; last_name: string; email: string };
   status: 'pending' | 'confirmed' | 'cancelled' | 'rejected';
   quantity: number;
   total_amount: string;
@@ -289,7 +290,7 @@ export interface Notification {
   id: number;
   title: string;
   message: string;
-  notification_type: string;
+  type: string;
   is_read: boolean;
   created_at: string;
   event_id?: number;

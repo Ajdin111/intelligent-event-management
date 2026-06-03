@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Layout, FontFamily } from '@/constants/theme';
+import { Platform } from 'react-native';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -29,8 +30,8 @@ export default function AdminLayout() {
           backgroundColor: Colors.card,
           borderTopColor: Colors.border,
           borderTopWidth: 1,
-          height: Layout.bottomTabHeight,
-          paddingBottom: 8,
+          height: Platform.OS === 'android' ? Layout.bottomTabHeight + 24 : Layout.bottomTabHeight,
+          paddingBottom: Platform.OS === 'android' ? 32 : 8,
           paddingTop: 8,
         },
         tabBarActiveTintColor: Colors.text,
@@ -80,6 +81,14 @@ export default function AdminLayout() {
       />
       <Tabs.Screen
         name="edit-profile"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="notification-settings"
         options={{ href: null }}
       />
     </Tabs>

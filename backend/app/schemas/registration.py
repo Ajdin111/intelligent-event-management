@@ -13,10 +13,21 @@ class RegistrationCreateRequest(BaseModel):
     quantity: int = 1
 
 
+class UserBasicInfo(BaseModel):
+    id: int
+    first_name: str
+    last_name: str
+    email: str
+
+    class Config:
+        from_attributes = True
+
+
 class RegistrationResponse(BaseModel):
     id: int
     event_id: int
     user_id: int
+    user: Optional[UserBasicInfo] = None
     ticket_tier_id: Optional[int] = None
     promo_code_id: Optional[int] = None
     quantity: int
